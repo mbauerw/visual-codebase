@@ -7,11 +7,11 @@ python-multipart==0.0.9
 pydantic==2.9.2
 pydantic-settings==2.5.2
 
-# Tree-sitter for AST parsing
-tree-sitter==0.21.3
-tree-sitter-javascript==0.21.2
-tree-sitter-typescript==0.21.0
-tree-sitter-python==0.23.6
+# Tree-sitter for AST parsing (latest versions)
+tree-sitter>=0.23.0
+tree-sitter-javascript>=0.23.0
+tree-sitter-typescript>=0.23.0
+tree-sitter-python>=0.23.0
 
 # Anthropic API for LLM
 anthropic==0.18.1

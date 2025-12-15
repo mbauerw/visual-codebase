@@ -20,30 +20,18 @@ class FileParser:
         """Initialize parsers for supported languages."""
         self.settings = get_settings()
 
-        # Initialize Tree-sitter languages (tree-sitter 0.21.x requires name param)
-        self.js_language = Language(tsjs.language(), "javascript")
-        self.ts_language = Language(tsts.language_typescript(), "typescript")
-        self.tsx_language = Language(tsts.language_tsx(), "tsx")
+        # Initialize Tree-sitter languages (modern API for tree-sitter >= 0.23)
+        # Language() wraps the language pointer returned by the binding
+        self.js_language = Language(tsjs.language())
+        self.ts_language = Language(tsts.language_typescript())
+        self.tsx_language = Language(tsts.language_tsx())
+        self.py_language = Language(tspy.language())
 
-        # Handle tree-sitter-python 0.23.x API
-        try:
-            self.py_language = Language(tspy.language(), "python")
-        except AttributeError:
-            # Fallback for newer versions that might expose it differently
-            self.py_language = Language(tspy.LANGUAGE, "python")
-
-        # Create parsers - use set_language for compatibility
-        self.js_parser = Parser()
-        self.js_parser.language = self.js_language
-
-        self.ts_parser = Parser()
-        self.ts_parser.language = self.ts_language
-
-        self.tsx_parser = Parser()
-        self.tsx_parser.language = self.tsx_language
-
-        self.py_parser = Parser()
-        self.py_parser.language = self.py_language
+        # Create parsers with the language
+        self.js_parser = Parser(self.js_language)
+        self.ts_parser = Parser(self.ts_language)
+        self.tsx_parser = Parser(self.tsx_language)
+        self.py_parser = Parser(self.py_language)
 
         # Extension to language/parser mapping
         self.extension_map = {
