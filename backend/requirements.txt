@@ -1,23 +1,23 @@
 # FastAPI and server
-fastapi==0.109.2
+fastapi==0.115.0
 uvicorn[standard]==0.27.1
 python-multipart==0.0.9
 
 # Pydantic for data validation
-pydantic==2.6.1
-pydantic-settings==2.1.0
+pydantic==2.9.2
+pydantic-settings==2.5.2
 
 # Tree-sitter for AST parsing
 tree-sitter==0.21.3
 tree-sitter-javascript==0.21.2
 tree-sitter-typescript==0.21.0
-tree-sitter-python==0.21.0
+tree-sitter-python==0.23.6
 
 # Anthropic API for LLM
 anthropic==0.18.1
 
 # CORS middleware
-starlette==0.36.3
+starlette==0.38.6
 
 # Environment variables
 python-dotenv==1.0.1
@@ -27,5 +27,5 @@ aiofiles==23.2.1
 
 # Testing
 pytest==8.0.0
-pytest-asyncio==0.23.4
+pytest-asyncio==0.23.5
 httpx==0.26.0

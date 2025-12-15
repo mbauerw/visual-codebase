@@ -24,13 +24,26 @@ class FileParser:
         self.js_language = Language(tsjs.language())
         self.ts_language = Language(tsts.language_typescript())
         self.tsx_language = Language(tsts.language_tsx())
-        self.py_language = Language(tspy.language())
 
-        # Create parsers
-        self.js_parser = Parser(self.js_language)
-        self.ts_parser = Parser(self.ts_language)
-        self.tsx_parser = Parser(self.tsx_language)
-        self.py_parser = Parser(self.py_language)
+        # Handle tree-sitter-python 0.23.x API (uses LANGUAGE instead of language())
+        try:
+            self.py_language = Language(tspy.language())
+        except AttributeError:
+            # Fallback for newer versions that might expose it differently
+            self.py_language = Language(tspy.LANGUAGE)
+
+        # Create parsers - use set_language for compatibility
+        self.js_parser = Parser()
+        self.js_parser.language = self.js_language
+
+        self.ts_parser = Parser()
+        self.ts_parser.language = self.ts_language
+
+        self.tsx_parser = Parser()
+        self.tsx_parser.language = self.tsx_language
+
+        self.py_parser = Parser()
+        self.py_parser.language = self.py_language
 
         # Extension to language/parser mapping
         self.extension_map = {
