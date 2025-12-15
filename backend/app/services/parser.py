@@ -20,17 +20,17 @@ class FileParser:
         """Initialize parsers for supported languages."""
         self.settings = get_settings()
 
-        # Initialize Tree-sitter languages
-        self.js_language = Language(tsjs.language())
-        self.ts_language = Language(tsts.language_typescript())
-        self.tsx_language = Language(tsts.language_tsx())
+        # Initialize Tree-sitter languages (tree-sitter 0.21.x requires name param)
+        self.js_language = Language(tsjs.language(), "javascript")
+        self.ts_language = Language(tsts.language_typescript(), "typescript")
+        self.tsx_language = Language(tsts.language_tsx(), "tsx")
 
-        # Handle tree-sitter-python 0.23.x API (uses LANGUAGE instead of language())
+        # Handle tree-sitter-python 0.23.x API
         try:
-            self.py_language = Language(tspy.language())
+            self.py_language = Language(tspy.language(), "python")
         except AttributeError:
             # Fallback for newer versions that might expose it differently
-            self.py_language = Language(tspy.LANGUAGE)
+            self.py_language = Language(tspy.LANGUAGE, "python")
 
         # Create parsers - use set_language for compatibility
         self.js_parser = Parser()
