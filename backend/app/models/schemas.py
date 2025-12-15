@@ -108,6 +108,12 @@ class ParsedFile(BaseModel):
     exports: list[str] = Field(
         default_factory=list, description="Exported names/modules"
     )
+    functions: list[str] = Field(
+        default_factory=list, description="Function/method names defined in file"
+    )
+    classes: list[str] = Field(
+        default_factory=list, description="Class names defined in file"
+    )
     size_bytes: int = Field(..., description="File size in bytes")
     line_count: int = Field(..., description="Number of lines in file")
 

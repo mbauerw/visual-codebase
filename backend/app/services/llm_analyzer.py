@@ -26,14 +26,27 @@ class LLMAnalyzer:
         """Build a summary of files for the LLM prompt."""
         summaries = []
         for f in files:
+            # Format imports (limit to 10)
             imports_str = ", ".join([imp.module for imp in f.imports[:10]])
             if len(f.imports) > 10:
                 imports_str += f"... (+{len(f.imports) - 10} more)"
 
-            summaries.append(
-                f"- {f.relative_path} ({f.language.value}, {f.line_count} lines)\n"
-                f"  Imports: {imports_str or 'none'}"
-            )
+            # Format functions (limit to 15)
+            functions_str = ", ".join(f.functions[:15])
+            if len(f.functions) > 15:
+                functions_str += f"... (+{len(f.functions) - 15} more)"
+
+            # Format classes (limit to 10)
+            classes_str = ", ".join(f.classes[:10])
+            if len(f.classes) > 10:
+                classes_str += f"... (+{len(f.classes) - 10} more)"
+
+            summary = f"- {f.relative_path} ({f.language.value}, {f.line_count} lines)\n"
+            summary += f"  Imports: {imports_str or 'none'}\n"
+            summary += f"  Functions: {functions_str or 'none'}\n"
+            summary += f"  Classes: {classes_str or 'none'}"
+
+            summaries.append(summary)
         return "\n".join(summaries)
 
     def _get_analysis_prompt(
@@ -48,7 +61,7 @@ class LLMAnalyzer:
 
         For each file, provide:
         1. architectural_role: The role this file plays. Use one of these values: react_component, utility, api_service, model, config, test, hook, context, store, middleware, controller, router, schema, unknown
-        2. description: 1-3 sentence description of what this file likely does based on its name and imports. The file path does not count as relevant a relevant description.
+        2. description: 1-3 sentence description of what this file does. Base this on the function names, class names, and imports. Be specific - mention key functions/classes by name when relevant. Do not just describe the file path.
         3. category: High-level category. Use one of: frontend, backend, shared, infrastructure, test, config, unknown
 
         Return ONLY a valid JSON array with no additional text. Format:
@@ -58,6 +71,7 @@ class LLMAnalyzer:
         - Return ONLY the JSON array, no markdown code blocks or explanations
         - Use the exact enum values provided
         - Include an entry for EVERY file listed above
+        - Write descriptions that reference the actual function/class names found in the file
         - If uncertain, use "unknown" for role/category"""
 
     def _parse_role(self, role_str: str) -> ArchitecturalRole:

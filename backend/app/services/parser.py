@@ -78,13 +78,17 @@ class FileParser:
             # Parse the file
             tree = parser.parse(bytes(content, "utf-8"))
 
-            # Extract imports based on language
+            # Extract imports, functions, and classes based on language
             if language in (LangEnum.JAVASCRIPT, LangEnum.TYPESCRIPT):
                 imports = self._extract_js_ts_imports(tree, content)
                 exports = self._extract_js_ts_exports(tree, content)
+                functions = self._extract_js_ts_functions(tree, content)
+                classes = self._extract_js_ts_classes(tree, content)
             else:  # Python
                 imports = self._extract_python_imports(tree, content)
                 exports = []  # Python exports are implicit
+                functions = self._extract_python_functions(tree, content)
+                classes = self._extract_python_classes(tree, content)
 
             # Calculate relative path
             relative_path = os.path.relpath(file_path, base_path)
@@ -96,6 +100,8 @@ class FileParser:
                 language=language,
                 imports=imports,
                 exports=exports,
+                functions=functions,
+                classes=classes,
                 size_bytes=size_bytes,
                 line_count=content.count("\n") + 1,
             )
@@ -317,6 +323,107 @@ class FileParser:
 
         traverse(root)
         return imports
+
+    def _extract_js_ts_functions(self, tree, content: str) -> list[str]:
+        """Extract function and method names from JavaScript/TypeScript files."""
+        functions = []
+        root = tree.root_node
+
+        def traverse(node):
+            # Regular function declarations: function foo() {}
+            if node.type == "function_declaration":
+                name = node.child_by_field_name("name")
+                if name:
+                    functions.append(self._get_node_text(name, content))
+
+            # Arrow functions assigned to variables: const foo = () => {}
+            elif node.type == "variable_declarator":
+                name = node.child_by_field_name("name")
+                value = node.child_by_field_name("value")
+                if name and value and value.type in ("arrow_function", "function_expression"):
+                    functions.append(self._get_node_text(name, content))
+
+            # Method definitions in classes/objects: foo() {} or foo: function() {}
+            elif node.type == "method_definition":
+                name = node.child_by_field_name("name")
+                if name:
+                    func_name = self._get_node_text(name, content)
+                    # Skip constructor
+                    if func_name != "constructor":
+                        functions.append(func_name)
+
+            # Property with function value in objects: { foo: () => {} }
+            elif node.type == "pair":
+                key = node.child_by_field_name("key")
+                value = node.child_by_field_name("value")
+                if key and value and value.type in ("arrow_function", "function_expression"):
+                    functions.append(self._get_node_text(key, content))
+
+            for child in node.children:
+                traverse(child)
+
+        traverse(root)
+        return functions
+
+    def _extract_js_ts_classes(self, tree, content: str) -> list[str]:
+        """Extract class names from JavaScript/TypeScript files."""
+        classes = []
+        root = tree.root_node
+
+        def traverse(node):
+            if node.type == "class_declaration":
+                name = node.child_by_field_name("name")
+                if name:
+                    classes.append(self._get_node_text(name, content))
+
+            for child in node.children:
+                traverse(child)
+
+        traverse(root)
+        return classes
+
+    def _extract_python_functions(self, tree, content: str) -> list[str]:
+        """Extract function and method names from Python files."""
+        functions = []
+        root = tree.root_node
+
+        def traverse(node, in_class=False):
+            if node.type == "function_definition":
+                name = node.child_by_field_name("name")
+                if name:
+                    func_name = self._get_node_text(name, content)
+                    # Skip dunder methods except __init__
+                    if not (func_name.startswith("__") and func_name.endswith("__") and func_name != "__init__"):
+                        functions.append(func_name)
+
+            elif node.type == "class_definition":
+                # Traverse class body to find methods
+                for child in node.children:
+                    traverse(child, in_class=True)
+                return  # Don't double-traverse
+
+            for child in node.children:
+                traverse(child, in_class)
+
+        traverse(root)
+        return functions
+
+    def _extract_python_classes(self, tree, content: str) -> list[str]:
+        """Extract class names from Python files."""
+        classes = []
+        root = tree.root_node
+
+        def traverse(node):
+            if node.type == "class_definition":
+                name = node.child_by_field_name("name")
+                if name:
+                    classes.append(self._get_node_text(name, content))
+
+            for child in node.children:
+                traverse(child)
+
+        traverse(root)
+        return classes
 
     def _get_node_text(self, node, content: str) -> str:
         """Get the text content of a node."""
