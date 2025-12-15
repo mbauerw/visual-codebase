@@ -7,8 +7,8 @@ import {
   Background,
   useNodesState,
   useEdgesState,
-  type Node,
   type Edge,
+  type NodeTypes,
   BackgroundVariant,
   Panel,
 } from '@xyflow/react';
@@ -22,7 +22,7 @@ import {
   Clock,
 } from 'lucide-react';
 
-import CustomNode from '../components/CustomNode';
+import CustomNode, { type CustomNodeType } from '../components/CustomNode';
 import NodeDetailPanel from '../components/NodeDetailPanel';
 import type {
   ReactFlowGraph,
@@ -32,11 +32,8 @@ import type {
 } from '../types';
 import { roleColors, languageColors } from '../types';
 
-// Define custom node type with our data shape
-type CustomNodeType = Node<ReactFlowNodeData, 'custom'>;
-type CustomEdgeType = Edge;
-
-const nodeTypes = {
+// Define node types with proper typing for React Flow v12
+const nodeTypes: NodeTypes = {
   custom: CustomNode,
 };
 
@@ -48,9 +45,9 @@ const nodeHeight = 80;
 
 function getLayoutedElements(
   nodes: CustomNodeType[],
-  edges: CustomEdgeType[],
+  edges: Edge[],
   direction: 'TB' | 'LR' = 'TB'
-): { nodes: CustomNodeType[]; edges: CustomEdgeType[] } {
+): { nodes: CustomNodeType[]; edges: Edge[] } {
   const isHorizontal = direction === 'LR';
   dagreGraph.setGraph({ rankdir: direction, nodesep: 50, ranksep: 80 });
 
@@ -82,7 +79,7 @@ export default function VisualizationPage() {
   const navigate = useNavigate();
   const [graphData, setGraphData] = useState<ReactFlowGraph | null>(null);
   const [nodes, setNodes, onNodesChange] = useNodesState<CustomNodeType>([]);
-  const [edges, setEdges, onEdgesChange] = useEdgesState<CustomEdgeType>([]);
+  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const [selectedNode, setSelectedNode] = useState<ReactFlowNodeData | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [languageFilter, setLanguageFilter] = useState<Language | 'all'>('all');
@@ -128,7 +125,7 @@ export default function VisualizationPage() {
     const visibleNodeIds = new Set(filteredNodes.map((n) => n.id));
 
     // Filter edges to only show those between visible nodes
-    const filteredEdges: CustomEdgeType[] = graphData.edges.filter(
+    const filteredEdges: Edge[] = graphData.edges.filter(
       (edge) => visibleNodeIds.has(edge.source) && visibleNodeIds.has(edge.target)
     );
 
@@ -241,7 +238,7 @@ export default function VisualizationPage() {
           <MiniMap
             nodeColor={(node) => {
               const data = node.data as ReactFlowNodeData | undefined;
-              return data ? roleColors[data.role] || '#6b7280' : '#6b7280';
+              return data?.role ? roleColors[data.role] : '#6b7280';
             }}
             maskColor="rgba(15, 23, 42, 0.8)"
             className="!bg-slate-800 !border-slate-700"

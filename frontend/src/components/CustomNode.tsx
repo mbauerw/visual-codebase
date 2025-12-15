@@ -1,10 +1,11 @@
 import { memo } from 'react';
-import { Handle, Position, type NodeProps } from '@xyflow/react';
+import { Handle, Position, type NodeProps, type Node } from '@xyflow/react';
 import { FileCode, Settings, TestTube, Layers, Box, Cog } from 'lucide-react';
 import type { ReactFlowNodeData, ArchitecturalRole } from '../types';
 import { roleColors, languageColors, roleLabels } from '../types';
 
-type CustomNodeProps = NodeProps<ReactFlowNodeData>;
+// Define the custom node type for React Flow v12
+export type CustomNodeType = Node<ReactFlowNodeData, 'custom'>;
 
 const roleIcons: Record<ArchitecturalRole, React.ReactNode> = {
   react_component: <Layers size={14} />,
@@ -23,7 +24,7 @@ const roleIcons: Record<ArchitecturalRole, React.ReactNode> = {
   unknown: <FileCode size={14} />,
 };
 
-function CustomNode({ data, selected }: CustomNodeProps) {
+function CustomNode({ data, selected }: NodeProps<CustomNodeType>) {
   const roleColor = roleColors[data.role] || roleColors.unknown;
   const langColor = languageColors[data.language] || languageColors.unknown;
 

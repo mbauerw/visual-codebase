@@ -62,7 +62,8 @@ export interface AnalysisStatusResponse {
 }
 
 // Graph data types
-export interface ReactFlowNodeData {
+// Adding index signature for React Flow v12 compatibility
+export interface ReactFlowNodeData extends Record<string, unknown> {
   label: string;
   path: string;
   language: Language;
