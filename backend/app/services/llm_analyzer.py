@@ -44,21 +44,21 @@ class LLMAnalyzer:
 
         return f"""You are analyzing a codebase. Here is information about files in the "{directory_name}" directory:
 
-{file_summary}
+        {file_summary}
 
-For each file, provide:
-1. architectural_role: The role this file plays. Use one of these values: react_component, utility, api_service, model, config, test, hook, context, store, middleware, controller, router, schema, unknown
-2. description: A brief 1-sentence description of what this file likely does based on its name and imports
-3. category: High-level category. Use one of: frontend, backend, shared, infrastructure, test, config, unknown
+        For each file, provide:
+        1. architectural_role: The role this file plays. Use one of these values: react_component, utility, api_service, model, config, test, hook, context, store, middleware, controller, router, schema, unknown
+        2. description: 1-3 sentence description of what this file likely does based on its name and imports. The file path does not count as relevant a relevant description.
+        3. category: High-level category. Use one of: frontend, backend, shared, infrastructure, test, config, unknown
 
-Return ONLY a valid JSON array with no additional text. Format:
-[{{"filename": "example.ts", "architectural_role": "utility", "description": "Provides helper functions for...", "category": "shared"}}]
+        Return ONLY a valid JSON array with no additional text. Format:
+        [{{"filename": "example.ts", "architectural_role": "utility", "description": "Provides helper functions for...", "category": "shared"}}]
 
-Important:
-- Return ONLY the JSON array, no markdown code blocks or explanations
-- Use the exact enum values provided
-- Include an entry for EVERY file listed above
-- If uncertain, use "unknown" for role/category"""
+        Important:
+        - Return ONLY the JSON array, no markdown code blocks or explanations
+        - Use the exact enum values provided
+        - Include an entry for EVERY file listed above
+        - If uncertain, use "unknown" for role/category"""
 
     def _parse_role(self, role_str: str) -> ArchitecturalRole:
         """Parse a role string to enum, with fallback."""
