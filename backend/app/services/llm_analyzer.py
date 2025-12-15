@@ -298,11 +298,17 @@ class LLMAnalyzer:
             batch_results = await self.analyze_batch(batch, directory_name)
 
             for analysis in batch_results:
+                # Store by both full path and basename for flexible lookup
+                # LLM may return either "App.tsx" or "src/App.tsx"
                 results[analysis.filename] = analysis
+                basename = os.path.basename(analysis.filename)
+                if basename != analysis.filename:
+                    results[basename] = analysis
 
         # Add fallback analysis for any files not in results
         for f in files:
-            if f.name not in results:
+            # Check both relative path and basename
+            if f.relative_path not in results and f.name not in results:
                 results[f.name] = LLMFileAnalysis(
                     filename=f.name,
                     architectural_role=self._infer_role_from_path(f.relative_path),

@@ -115,8 +115,8 @@ class GraphBuilder:
         nodes = []
 
         for pf in parsed_files:
-            # Get LLM analysis if available
-            analysis = llm_analysis.get(pf.name)
+            # Get LLM analysis if available - try relative path first, then basename
+            analysis = llm_analysis.get(pf.relative_path) or llm_analysis.get(pf.name)
 
             node = FileNode(
                 id=self._generate_node_id(pf.relative_path),
