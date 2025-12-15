@@ -20,7 +20,7 @@ class Settings(BaseSettings):
     supported_extensions: list[str] = [".js", ".jsx", ".ts", ".tsx", ".py"]
 
     # LLM settings
-    llm_model: str = "claude-sonnet-4-5-20241022"
+    llm_model: str = "claude-sonnet-4-20250514"
     llm_max_tokens: int = 4096
 
     class Config:
