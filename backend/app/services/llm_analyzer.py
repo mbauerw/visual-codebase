@@ -46,6 +46,8 @@ class LLMAnalyzer:
             summary += f"  Functions: {functions_str or 'none'}\n"
             summary += f"  Classes: {classes_str or 'none'}"
 
+            print(summary)
+
             summaries.append(summary)
         return "\n".join(summaries)
 
