@@ -1,12 +1,10 @@
 import { memo } from 'react';
 import { Handle, Position, type NodeProps } from '@xyflow/react';
 import { FileCode, Settings, TestTube, Layers, Box, Cog } from 'lucide-react';
-import type { ReactFlowNodeData, ArchitecturalRole, Language } from '../types';
+import type { ReactFlowNodeData, ArchitecturalRole } from '../types';
 import { roleColors, languageColors, roleLabels } from '../types';
 
-interface CustomNodeProps extends NodeProps {
-  data: ReactFlowNodeData;
-}
+type CustomNodeProps = NodeProps<ReactFlowNodeData>;
 
 const roleIcons: Record<ArchitecturalRole, React.ReactNode> = {
   react_component: <Layers size={14} />,

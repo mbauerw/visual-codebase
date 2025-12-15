@@ -9,8 +9,6 @@ import {
   useEdgesState,
   type Node,
   type Edge,
-  type OnNodesChange,
-  type OnEdgesChange,
   BackgroundVariant,
   Panel,
 } from '@xyflow/react';
@@ -19,8 +17,6 @@ import dagre from '@dagrejs/dagre';
 import {
   ArrowLeft,
   Search,
-  Filter,
-  LayoutGrid,
   FileCode,
   GitBranch,
   Clock,
@@ -36,6 +32,10 @@ import type {
 } from '../types';
 import { roleColors, languageColors } from '../types';
 
+// Define custom node type with our data shape
+type CustomNodeType = Node<ReactFlowNodeData, 'custom'>;
+type CustomEdgeType = Edge;
+
 const nodeTypes = {
   custom: CustomNode,
 };
@@ -47,10 +47,10 @@ const nodeWidth = 220;
 const nodeHeight = 80;
 
 function getLayoutedElements(
-  nodes: Node[],
-  edges: Edge[],
+  nodes: CustomNodeType[],
+  edges: CustomEdgeType[],
   direction: 'TB' | 'LR' = 'TB'
-) {
+): { nodes: CustomNodeType[]; edges: CustomEdgeType[] } {
   const isHorizontal = direction === 'LR';
   dagreGraph.setGraph({ rankdir: direction, nodesep: 50, ranksep: 80 });
 
@@ -64,7 +64,7 @@ function getLayoutedElements(
 
   dagre.layout(dagreGraph);
 
-  const layoutedNodes = nodes.map((node) => {
+  const layoutedNodes = nodes.map((node): CustomNodeType => {
     const nodeWithPosition = dagreGraph.node(node.id);
     return {
       ...node,
@@ -72,19 +72,17 @@ function getLayoutedElements(
         x: nodeWithPosition.x - nodeWidth / 2,
         y: nodeWithPosition.y - nodeHeight / 2,
       },
-      targetPosition: isHorizontal ? 'left' : 'top',
-      sourcePosition: isHorizontal ? 'right' : 'bottom',
     };
   });
 
-  return { nodes: layoutedNodes as Node[], edges };
+  return { nodes: layoutedNodes, edges };
 }
 
 export default function VisualizationPage() {
   const navigate = useNavigate();
   const [graphData, setGraphData] = useState<ReactFlowGraph | null>(null);
-  const [nodes, setNodes, onNodesChange] = useNodesState([]);
-  const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+  const [nodes, setNodes, onNodesChange] = useNodesState<CustomNodeType>([]);
+  const [edges, setEdges, onEdgesChange] = useEdgesState<CustomEdgeType>([]);
   const [selectedNode, setSelectedNode] = useState<ReactFlowNodeData | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [languageFilter, setLanguageFilter] = useState<Language | 'all'>('all');
@@ -111,7 +109,7 @@ export default function VisualizationPage() {
     if (!graphData) return;
 
     // Filter nodes
-    let filteredNodes = graphData.nodes.filter((node) => {
+    const filteredNodes = graphData.nodes.filter((node) => {
       const matchesSearch =
         searchQuery === '' ||
         node.data.label.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -130,16 +128,21 @@ export default function VisualizationPage() {
     const visibleNodeIds = new Set(filteredNodes.map((n) => n.id));
 
     // Filter edges to only show those between visible nodes
-    const filteredEdges = graphData.edges.filter(
+    const filteredEdges: CustomEdgeType[] = graphData.edges.filter(
       (edge) => visibleNodeIds.has(edge.source) && visibleNodeIds.has(edge.target)
     );
 
+    // Convert to CustomNodeType format
+    const nodesForLayout: CustomNodeType[] = filteredNodes.map((n) => ({
+      id: n.id,
+      type: 'custom' as const,
+      position: n.position,
+      data: n.data,
+    }));
+
     // Apply dagre layout
     const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(
-      filteredNodes.map((n) => ({
-        ...n,
-        type: 'custom',
-      })),
+      nodesForLayout,
       filteredEdges
     );
 
@@ -149,8 +152,8 @@ export default function VisualizationPage() {
 
   // Handle node selection
   const onNodeClick = useCallback(
-    (_: React.MouseEvent, node: Node) => {
-      setSelectedNode(node.data as ReactFlowNodeData);
+    (_: React.MouseEvent, node: CustomNodeType) => {
+      setSelectedNode(node.data);
     },
     []
   );
@@ -219,8 +222,8 @@ export default function VisualizationPage() {
         <ReactFlow
           nodes={nodes}
           edges={edges}
-          onNodesChange={onNodesChange as OnNodesChange<Node>}
-          onEdgesChange={onEdgesChange as OnEdgesChange<Edge>}
+          onNodesChange={onNodesChange}
+          onEdgesChange={onEdgesChange}
           onNodeClick={onNodeClick}
           onPaneClick={onPaneClick}
           nodeTypes={nodeTypes}
@@ -237,8 +240,8 @@ export default function VisualizationPage() {
           <Controls className="!bg-slate-800 !border-slate-700" />
           <MiniMap
             nodeColor={(node) => {
-              const data = node.data as ReactFlowNodeData;
-              return roleColors[data.role] || '#6b7280';
+              const data = node.data as ReactFlowNodeData | undefined;
+              return data ? roleColors[data.role] || '#6b7280' : '#6b7280';
             }}
             maskColor="rgba(15, 23, 42, 0.8)"
             className="!bg-slate-800 !border-slate-700"
