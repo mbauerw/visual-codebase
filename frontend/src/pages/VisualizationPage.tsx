@@ -47,14 +47,14 @@ type AllNodeTypes = CustomNodeType | CategoryNodeType;
 
 const nodeWidth = 200;
 const nodeHeight = 90;
-const nodeGapX = 20;
-const nodeGapY = 15;
-const rolePadding = 25;
-const roleHeaderHeight = 45;
-const topCategoryPadding = 50;
-const topCategoryHeaderHeight = 60;
-const roleGapX = 30;
-const roleGapY = 30;
+const nodeGapX = 40;  // Increased: horizontal space between file nodes
+const nodeGapY = 35;  // Increased: vertical space between file nodes
+const rolePadding = 45;  // Increased: padding inside role containers
+const roleHeaderHeight = 55;  // Increased: space for role header
+const topCategoryPadding = 80;  // Increased: padding inside top-level categories
+const topCategoryHeaderHeight = 70;  // Increased: space for top-level header
+const roleGapX = 50;  // Increased: horizontal gap between role containers
+const roleGapY = 50;  // Increased: vertical gap between role containers
 
 // Categorize nodes into Frontend vs Backend groups
 function categorizeNode(category: Category): 'frontend' | 'backend' {
@@ -162,7 +162,7 @@ function getNestedCategoryLayout(
     let rowHeight = 0;
     let maxWidth = 0;
     let totalHeight = topCategoryHeaderHeight;
-    const maxRowWidth = 900; // Max width before wrapping to next row
+    const maxRowWidth = 1200; // Max width before wrapping to next row
 
     roleGroups.forEach((roleGroup) => {
       const dims = calculateRoleDimensions(roleGroup.nodes.length);
