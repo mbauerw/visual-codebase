@@ -59,25 +59,6 @@ function CategoryNode({ data, selected }: NodeProps<CategoryNodeType>) {
 
   return (
     <>
-      {/* Resizer handles */}
-      <NodeResizer
-        color={baseColor}
-        isVisible={selected}
-        minWidth={isTopLevel ? 300 : 250}
-        minHeight={isTopLevel ? 300 : 150}
-        handleStyle={{
-          width: 10,
-          height: 10,
-          borderRadius: '50%',
-          backgroundColor: baseColor,
-          border: '2px solid #0f172a',
-        }}
-        lineStyle={{
-          borderColor: baseColor,
-          borderWidth: 2,
-        }}
-      />
-
       <div
         className={`
           relative transition-all duration-200

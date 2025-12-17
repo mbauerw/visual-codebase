@@ -21,7 +21,7 @@ export default function NodeDetailPanel({ data, onClose }: NodeDetailPanelProps)
   };
 
   return (
-    <div className="absolute right-0 top-0 h-full w-96 bg-slate-800 border-l border-slate-700 shadow-xl overflow-hidden flex flex-col z-50">
+    <div className="absolute relative right-0 top-0 h-full w-full bg-slate-800 border-l border-slate-700 shadow-xl overflow-hidden flex flex-col z-50">
       {/* Header */}
       <div className="p-4 border-b border-slate-700 flex items-center justify-between">
         <div className="flex items-center gap-2">
