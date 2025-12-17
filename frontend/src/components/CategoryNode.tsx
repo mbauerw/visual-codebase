@@ -64,11 +64,11 @@ function CategoryNode({ data, selected }: NodeProps<CategoryNodeType>) {
         ${selected ? 'ring-2 ring-blue-500 ring-offset-2 ring-offset-slate-900' : ''}
       `}
       style={{
-        width: data.width,
-        height: data.height,
+        width: isTopLevel ? data.width + 400 : data.width,
+        height: isTopLevel ? data.height + 400 : data.height,
         backgroundColor: isTopLevel ? `${baseColor}05` : `${baseColor}08`,
         border: `2px ${isTopLevel ? 'dashed' : 'solid'} ${baseColor}`,
-        borderRadius: isTopLevel ? '50px' : '20px',
+        borderRadius: isTopLevel ? '50%' : '20px',
         boxShadow: isTopLevel
           ? `0 0 40px ${baseColor}10`
           : `0 0 20px ${baseColor}15`,
@@ -78,7 +78,7 @@ function CategoryNode({ data, selected }: NodeProps<CategoryNodeType>) {
       <div
         className={`
           absolute flex items-center gap-2 rounded-full
-          ${isTopLevel ? '-top-4 left-8 px-5 py-2' : '-top-3 left-4 px-3 py-1.5'}
+          ${isTopLevel ? '-top-4 left-1/2 -translate-x-1/2 px-5 py-2' : '-top-3 left-4 px-3 py-1.5'}
         `}
         style={{
           backgroundColor: '#0f172a',
@@ -91,7 +91,7 @@ function CategoryNode({ data, selected }: NodeProps<CategoryNodeType>) {
           <span style={{ color: baseColor }}>{data.role && roleIcons[data.role]}</span>
         )}
         <span
-          className={`font-semibold ${isTopLevel ? 'text-sm' : 'text-xs'}`}
+          className={`font-semibold ${isTopLevel ? 'text-2xl' : 'text-lg'}`}
           style={{ color: baseColor }}
         >
           {data.label}
