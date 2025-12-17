@@ -55,7 +55,7 @@ function CategoryNode({ data, selected }: NodeProps<CategoryNodeType>) {
   const TopIcon = data.category === 'frontend' ? Monitor : Server;
 
   // For circular containers, use the larger dimension to make it a proper circle
-  const circleSize = isTopLevel ? Math.max(data.width, data.height) : null;
+  const circleSize = isTopLevel ? Math.max(data.width, data.height) : undefined;
 
   return (
     <>
@@ -63,8 +63,8 @@ function CategoryNode({ data, selected }: NodeProps<CategoryNodeType>) {
       <NodeResizer
         color={baseColor}
         isVisible={selected}
-        minWidth={isTopLevel ? 400 : 250}
-        minHeight={isTopLevel ? 400 : 150}
+        minWidth={isTopLevel ? 300 : 250}
+        minHeight={isTopLevel ? 300 : 150}
         handleStyle={{
           width: 10,
           height: 10,
