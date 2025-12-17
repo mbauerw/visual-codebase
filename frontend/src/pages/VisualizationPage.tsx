@@ -12,7 +12,6 @@ import {
   type NodeTypes,
   BackgroundVariant,
   Panel,
-  ReactFlowProvider,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import {
@@ -26,7 +25,6 @@ import {
 import CustomNode, { type CustomNodeType } from '../components/CustomNode';
 import CategoryNode, { type CategoryNodeType, type CategoryNodeData } from '../components/CategoryNode';
 import NodeDetailPanel from '../components/NodeDetailPanel';
-import Magnifier from '../components/Magnifier';
 import type {
   ReactFlowGraph,
   ReactFlowNodeData,
@@ -47,14 +45,14 @@ type AllNodeTypes = CustomNodeType | CategoryNodeType;
 
 const nodeWidth = 200;
 const nodeHeight = 90;
-const nodeGapX = 40;  // Increased: horizontal space between file nodes
-const nodeGapY = 35;  // Increased: vertical space between file nodes
-const rolePadding = 45;  // Increased: padding inside role containers
-const roleHeaderHeight = 55;  // Increased: space for role header
-const topCategoryPadding = 80;  // Increased: padding inside top-level categories
-const topCategoryHeaderHeight = 70;  // Increased: space for top-level header
-const roleGapX = 50;  // Increased: horizontal gap between role containers
-const roleGapY = 50;  // Increased: vertical gap between role containers
+const nodeGapX = 40;  // Horizontal space between file nodes
+const nodeGapY = 35;  // Vertical space between file nodes
+const rolePadding = 45;  // Padding inside role containers
+const roleHeaderHeight = 55;  // Space for role header
+const topCategoryPadding = 80;  // Padding inside top-level categories
+const topCategoryHeaderHeight = 70;  // Space for top-level header
+const roleGapX = 50;  // Horizontal gap between role containers
+const roleGapY = 50;  // Vertical gap between role containers
 
 // Categorize nodes into Frontend vs Backend groups
 function categorizeNode(category: Category): 'frontend' | 'backend' {
@@ -73,8 +71,62 @@ function categorizeNode(category: Category): 'frontend' | 'backend' {
   }
 }
 
+// Calculate tree layout positions for nodes
+// Returns array of {row, col, totalInRow} for each node index
+function getTreePositions(nodeCount: number): { row: number; col: number; totalInRow: number }[] {
+  const positions: { row: number; col: number; totalInRow: number }[] = [];
+  let remaining = nodeCount;
+  let row = 0;
+  let index = 0;
+
+  while (remaining > 0) {
+    const nodesInRow = row + 1; // Row 0 has 1 node, row 1 has 2, etc.
+    const actualInRow = Math.min(nodesInRow, remaining);
+
+    for (let col = 0; col < actualInRow; col++) {
+      positions.push({ row, col, totalInRow: actualInRow });
+      index++;
+    }
+
+    remaining -= actualInRow;
+    row++;
+  }
+
+  return positions;
+}
+
+// Calculate dimensions for a role category with tree layout
+function calculateTreeRoleDimensions(nodeCount: number): { width: number; height: number; rows: number; maxCols: number } {
+  if (nodeCount === 0) {
+    return { width: 250, height: 150, rows: 0, maxCols: 0 };
+  }
+
+  // Calculate number of rows needed for tree layout
+  let remaining = nodeCount;
+  let rows = 0;
+  let maxCols = 0;
+
+  while (remaining > 0) {
+    const nodesInRow = rows + 1;
+    const actualInRow = Math.min(nodesInRow, remaining);
+    maxCols = Math.max(maxCols, actualInRow);
+    remaining -= actualInRow;
+    rows++;
+  }
+
+  const width = maxCols * (nodeWidth + nodeGapX) + rolePadding * 2;
+  const height = roleHeaderHeight + rows * (nodeHeight + nodeGapY) + rolePadding;
+
+  return {
+    width: Math.max(width, 300),
+    height: Math.max(height, 180),
+    rows,
+    maxCols,
+  };
+}
+
 // Custom layout that creates nested category hierarchy:
-// Frontend/Backend -> Role Categories -> File Nodes
+// Frontend/Backend -> Role Categories -> File Nodes (in tree pattern)
 function getNestedCategoryLayout(
   fileNodes: CustomNodeType[],
   edges: Edge[]
@@ -95,7 +147,6 @@ function getNestedCategoryLayout(
 
   // Group nodes by category (frontend/backend) and then by role
   type RoleGroup = { role: ArchitecturalRole; nodes: CustomNodeType[] };
-  type CategoryGroup = { category: 'frontend' | 'backend'; roleGroups: RoleGroup[] };
 
   const frontendRoles: Map<ArchitecturalRole, CustomNodeType[]> = new Map();
   const backendRoles: Map<ArchitecturalRole, CustomNodeType[]> = new Map();
@@ -131,19 +182,7 @@ function getNestedCategoryLayout(
   const frontendRoleGroups = sortRoleGroups(frontendRoles);
   const backendRoleGroups = sortRoleGroups(backendRoles);
 
-  // Calculate dimensions for a role category based on its nodes
-  const nodesPerRowInRole = 2; // Keep role categories compact
-
-  const calculateRoleDimensions = (nodeCount: number) => {
-    const rows = Math.ceil(nodeCount / nodesPerRowInRole);
-    const cols = Math.min(nodeCount, nodesPerRowInRole);
-    const width = cols * (nodeWidth + nodeGapX) + rolePadding * 2;
-    const height = roleHeaderHeight + rows * (nodeHeight + nodeGapY) + rolePadding;
-    return { width: Math.max(width, 250), height: Math.max(height, 150) };
-  };
-
   // Layout role categories within a top-level category
-  // Returns: positioned role category nodes, positioned file nodes, and total dimensions
   const layoutRoleCategories = (
     roleGroups: RoleGroup[],
     topCategoryId: string,
@@ -162,10 +201,10 @@ function getNestedCategoryLayout(
     let rowHeight = 0;
     let maxWidth = 0;
     let totalHeight = topCategoryHeaderHeight;
-    const maxRowWidth = 1200; // Max width before wrapping to next row
+    const maxRowWidth = 1400; // Max width before wrapping to next row
 
     roleGroups.forEach((roleGroup) => {
-      const dims = calculateRoleDimensions(roleGroup.nodes.length);
+      const dims = calculateTreeRoleDimensions(roleGroup.nodes.length);
 
       // Check if we need to wrap to the next row
       if (currentX + dims.width > maxRowWidth && currentX > topCategoryPadding) {
@@ -198,17 +237,21 @@ function getNestedCategoryLayout(
       };
       roleCategoryNodes.push(roleCategoryNode);
 
-      // Position file nodes within this role category
+      // Position file nodes in tree pattern within this role category
+      const treePositions = getTreePositions(roleGroup.nodes.length);
+      const containerCenterX = dims.width / 2;
+
       roleGroup.nodes.forEach((node, index) => {
-        const row = Math.floor(index / nodesPerRowInRole);
-        const col = index % nodesPerRowInRole;
+        const pos = treePositions[index];
+        // Calculate x position to center the row
+        const rowWidth = pos.totalInRow * nodeWidth + (pos.totalInRow - 1) * nodeGapX;
+        const rowStartX = containerCenterX - rowWidth / 2;
+        const x = rowStartX + pos.col * (nodeWidth + nodeGapX);
+        const y = roleHeaderHeight + pos.row * (nodeHeight + nodeGapY);
 
         positionedFileNodes.push({
           ...node,
-          position: {
-            x: rolePadding + col * (nodeWidth + nodeGapX),
-            y: roleHeaderHeight + row * (nodeHeight + nodeGapY),
-          },
+          position: { x, y },
           parentId: roleCategoryId,
           extent: 'parent' as const,
           expandParent: true,
@@ -289,7 +332,7 @@ function getNestedCategoryLayout(
   return { nodes: allNodes, edges };
 }
 
-function VisualizationContent() {
+export default function VisualizationPage() {
   const navigate = useNavigate();
   const [graphData, setGraphData] = useState<ReactFlowGraph | null>(null);
   const [nodes, setNodes, onNodesChange] = useNodesState<AllNodeTypes>([]);
@@ -298,7 +341,6 @@ function VisualizationContent() {
   const [searchQuery, setSearchQuery] = useState('');
   const [languageFilter, setLanguageFilter] = useState<Language | 'all'>('all');
   const [roleFilter, setRoleFilter] = useState<ArchitecturalRole | 'all'>('all');
-  const [magnifierEnabled, setMagnifierEnabled] = useState(true);
 
   // Load data from session storage
   useEffect(() => {
@@ -352,7 +394,7 @@ function VisualizationContent() {
       data: n.data,
     }));
 
-    // Apply nested category layout (Frontend/Backend -> Role -> Files)
+    // Apply nested category layout (Frontend/Backend -> Role -> Files in tree pattern)
     const { nodes: layoutedNodes, edges: layoutedEdges } = getNestedCategoryLayout(
       fileNodesForLayout,
       filteredEdges
@@ -473,9 +515,6 @@ function VisualizationContent() {
             className="!bg-slate-800 !border-slate-700"
           />
 
-          {/* Magnifier component */}
-          <Magnifier enabled={magnifierEnabled} size={160} zoom={2} />
-
           {/* Filters Panel */}
           <Panel position="top-left" className="!m-4">
             <div className="bg-slate-800 border border-slate-700 rounded-lg p-3 space-y-3 w-64">
@@ -492,23 +531,6 @@ function VisualizationContent() {
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="w-full pl-8 pr-3 py-1.5 bg-slate-900 border border-slate-700 rounded text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                 />
-              </div>
-
-              {/* Magnifier Toggle */}
-              <div className="flex items-center justify-between">
-                <label className="text-xs text-slate-500 uppercase tracking-wide">
-                  Magnifier
-                </label>
-                <button
-                  onClick={() => setMagnifierEnabled(!magnifierEnabled)}
-                  className={`px-3 py-1 text-xs rounded transition-colors ${
-                    magnifierEnabled
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-slate-700 text-slate-400'
-                  }`}
-                >
-                  {magnifierEnabled ? 'ON' : 'OFF'}
-                </button>
               </div>
 
               {/* Language Filter */}
@@ -593,14 +615,5 @@ function VisualizationContent() {
         <NodeDetailPanel data={selectedNode} onClose={() => setSelectedNode(null)} />
       </div>
     </div>
-  );
-}
-
-// Wrap with ReactFlowProvider for the Magnifier to work
-export default function VisualizationPage() {
-  return (
-    <ReactFlowProvider>
-      <VisualizationContent />
-    </ReactFlowProvider>
   );
 }
