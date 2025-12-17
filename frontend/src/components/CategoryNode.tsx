@@ -1,5 +1,5 @@
 import { memo } from 'react';
-import { type NodeProps, type Node } from '@xyflow/react';
+import { type NodeProps, type Node, NodeResizer } from '@xyflow/react';
 import {
   Monitor,
   Server,
@@ -10,7 +10,7 @@ import {
   TestTube,
   FileCode,
 } from 'lucide-react';
-import { categoryColors, roleColors, roleLabels } from '../types';
+import { categoryColors, roleColors } from '../types';
 import type { ArchitecturalRole } from '../types';
 
 export interface CategoryNodeData extends Record<string, unknown> {
@@ -54,59 +54,83 @@ function CategoryNode({ data, selected }: NodeProps<CategoryNodeType>) {
   // Top-level icons
   const TopIcon = data.category === 'frontend' ? Monitor : Server;
 
-  // Get the appropriate icon
-  const Icon = isTopLevel ? TopIcon : (data.role ? () => roleIcons[data.role!] : TopIcon);
+  // For circular containers, use the larger dimension to make it a proper circle
+  const circleSize = isTopLevel ? Math.max(data.width, data.height) : null;
 
   return (
-    <div
-      className={`
-        relative transition-all duration-200
-        ${selected ? 'ring-2 ring-blue-500 ring-offset-2 ring-offset-slate-900' : ''}
-      `}
-      style={{
-        width: isTopLevel ? data.width + 400 : data.width,
-        height: isTopLevel ? data.height + 400 : data.height,
-        backgroundColor: isTopLevel ? `${baseColor}05` : `${baseColor}08`,
-        border: `2px ${isTopLevel ? 'dashed' : 'solid'} ${baseColor}`,
-        borderRadius: isTopLevel ? '50%' : '20px',
-        boxShadow: isTopLevel
-          ? `0 0 40px ${baseColor}10`
-          : `0 0 20px ${baseColor}15`,
-      }}
-    >
-      {/* Header label */}
+    <>
+      {/* Resizer handles */}
+      <NodeResizer
+        color={baseColor}
+        isVisible={selected}
+        minWidth={isTopLevel ? 400 : 250}
+        minHeight={isTopLevel ? 400 : 150}
+        handleStyle={{
+          width: 10,
+          height: 10,
+          borderRadius: '50%',
+          backgroundColor: baseColor,
+          border: '2px solid #0f172a',
+        }}
+        lineStyle={{
+          borderColor: baseColor,
+          borderWidth: 2,
+        }}
+      />
+
       <div
         className={`
-          absolute flex items-center gap-2 rounded-full
-          ${isTopLevel ? '-top-4 left-1/2 -translate-x-1/2 px-5 py-2' : '-top-3 left-4 px-3 py-1.5'}
+          relative transition-all duration-200
+          ${selected ? 'ring-2 ring-blue-500 ring-offset-2 ring-offset-slate-900' : ''}
         `}
         style={{
-          backgroundColor: '#0f172a',
-          border: `2px solid ${baseColor}`,
+          width: isTopLevel ? circleSize : data.width,
+          height: isTopLevel ? circleSize : data.height,
+          backgroundColor: isTopLevel ? `${baseColor}08` : `${baseColor}10`,
+          border: `3px ${isTopLevel ? 'dashed' : 'solid'} ${baseColor}`,
+          borderRadius: isTopLevel ? '50%' : '24px',
+          boxShadow: isTopLevel
+            ? `0 0 60px 20px ${baseColor}20, inset 0 0 60px ${baseColor}10`
+            : `0 0 30px 5px ${baseColor}15`,
         }}
       >
-        {isTopLevel ? (
-          <TopIcon size={18} color={baseColor} />
-        ) : (
-          <span style={{ color: baseColor }}>{data.role && roleIcons[data.role]}</span>
-        )}
-        <span
-          className={`font-semibold ${isTopLevel ? 'text-2xl' : 'text-lg'}`}
-          style={{ color: baseColor }}
-        >
-          {data.label}
-        </span>
-        <span
-          className={`px-2 py-0.5 rounded-full ml-1 ${isTopLevel ? 'text-xs' : 'text-[10px]'}`}
+        {/* Header label - positioned at top center for circles */}
+        <div
+          className={`
+            absolute flex items-center gap-2 rounded-full
+            ${isTopLevel
+              ? 'left-1/2 -translate-x-1/2 -top-5 px-6 py-2.5'
+              : '-top-3 left-4 px-3 py-1.5'}
+          `}
           style={{
-            backgroundColor: `${baseColor}20`,
-            color: baseColor,
+            backgroundColor: '#0f172a',
+            border: `2px solid ${baseColor}`,
+            boxShadow: `0 0 15px ${baseColor}30`,
           }}
         >
-          {data.nodeCount}
-        </span>
+          {isTopLevel ? (
+            <TopIcon size={20} color={baseColor} />
+          ) : (
+            <span style={{ color: baseColor }}>{data.role && roleIcons[data.role]}</span>
+          )}
+          <span
+            className={`font-semibold ${isTopLevel ? 'text-base' : 'text-xs'}`}
+            style={{ color: baseColor }}
+          >
+            {data.label}
+          </span>
+          <span
+            className={`px-2 py-0.5 rounded-full ml-1 ${isTopLevel ? 'text-sm' : 'text-[10px]'}`}
+            style={{
+              backgroundColor: `${baseColor}25`,
+              color: baseColor,
+            }}
+          >
+            {data.nodeCount}
+          </span>
+        </div>
       </div>
-    </div>
+    </>
   );
 }
 

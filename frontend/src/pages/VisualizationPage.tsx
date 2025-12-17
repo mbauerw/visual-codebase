@@ -182,44 +182,79 @@ function getNestedCategoryLayout(
   const frontendRoleGroups = sortRoleGroups(frontendRoles);
   const backendRoleGroups = sortRoleGroups(backendRoles);
 
-  // Layout role categories within a top-level category
-  const layoutRoleCategories = (
+  // Layout role categories in a circular pattern within a top-level category
+  const layoutRoleCategoriesInCircle = (
     roleGroups: RoleGroup[],
     topCategoryId: string,
     topCategory: 'frontend' | 'backend'
   ): {
     roleCategoryNodes: CategoryNodeType[];
     fileNodes: CustomNodeType[];
-    totalWidth: number;
-    totalHeight: number;
+    circleRadius: number;
   } => {
     const roleCategoryNodes: CategoryNodeType[] = [];
     const positionedFileNodes: CustomNodeType[] = [];
 
-    let currentX = topCategoryPadding;
-    let currentY = topCategoryHeaderHeight;
-    let rowHeight = 0;
-    let maxWidth = 0;
-    let totalHeight = topCategoryHeaderHeight;
-    const maxRowWidth = 1400; // Max width before wrapping to next row
+    if (roleGroups.length === 0) {
+      return { roleCategoryNodes, fileNodes: positionedFileNodes, circleRadius: 300 };
+    }
 
-    roleGroups.forEach((roleGroup) => {
-      const dims = calculateTreeRoleDimensions(roleGroup.nodes.length);
+    // Calculate dimensions for all role categories first
+    const roleDimensions = roleGroups.map((rg) => calculateTreeRoleDimensions(rg.nodes.length));
+    const maxRoleWidth = Math.max(...roleDimensions.map((d) => d.width));
+    const maxRoleHeight = Math.max(...roleDimensions.map((d) => d.height));
 
-      // Check if we need to wrap to the next row
-      if (currentX + dims.width > maxRowWidth && currentX > topCategoryPadding) {
-        currentX = topCategoryPadding;
-        currentY += rowHeight + roleGapY;
-        rowHeight = 0;
-      }
+    // Calculate the circle radius needed to fit all role containers
+    // Use a larger radius for more containers
+    const numRoles = roleGroups.length;
+    const roleSpacing = 80; // Space between role containers
 
+    // Calculate radius based on number of roles - arrange in concentric rings if many
+    let circleRadius: number;
+    if (numRoles <= 1) {
+      circleRadius = Math.max(maxRoleWidth, maxRoleHeight) / 2 + 150;
+    } else if (numRoles <= 4) {
+      // Small number - arrange in a tight circle
+      circleRadius = (maxRoleWidth + roleSpacing) * 1.2;
+    } else if (numRoles <= 8) {
+      // Medium number - larger circle
+      circleRadius = (numRoles * (maxRoleWidth + roleSpacing)) / (2 * Math.PI) + maxRoleHeight;
+    } else {
+      // Many roles - use multiple rings or grid-like arrangement
+      circleRadius = (numRoles * (maxRoleWidth + roleSpacing)) / (2 * Math.PI) + maxRoleHeight;
+    }
+
+    // Ensure minimum size
+    circleRadius = Math.max(circleRadius, 400);
+
+    // Position role containers in a circular pattern
+    const centerX = circleRadius;
+    const centerY = circleRadius;
+    const placementRadius = circleRadius - maxRoleHeight / 2 - 100; // Inset from edge
+
+    roleGroups.forEach((roleGroup, index) => {
+      const dims = roleDimensions[index];
       const roleCategoryId = `${topCategoryId}-${roleGroup.role}`;
+
+      // Calculate position on the circle
+      let x: number, y: number;
+
+      if (numRoles === 1) {
+        // Single role - center it
+        x = centerX - dims.width / 2;
+        y = centerY - dims.height / 2;
+      } else {
+        // Multiple roles - arrange in circle, starting from top
+        const angle = (index / numRoles) * 2 * Math.PI - Math.PI / 2; // Start from top
+        x = centerX + Math.cos(angle) * placementRadius - dims.width / 2;
+        y = centerY + Math.sin(angle) * placementRadius - dims.height / 2;
+      }
 
       // Create role category node
       const roleCategoryNode: CategoryNodeType = {
         id: roleCategoryId,
         type: 'category',
-        position: { x: currentX, y: currentY },
+        position: { x, y },
         data: {
           label: roleLabels[roleGroup.role],
           category: topCategory,
@@ -241,49 +276,44 @@ function getNestedCategoryLayout(
       const treePositions = getTreePositions(roleGroup.nodes.length);
       const containerCenterX = dims.width / 2;
 
-      roleGroup.nodes.forEach((node, index) => {
-        const pos = treePositions[index];
-        // Calculate x position to center the row
+      roleGroup.nodes.forEach((node, nodeIndex) => {
+        const pos = treePositions[nodeIndex];
         const rowWidth = pos.totalInRow * nodeWidth + (pos.totalInRow - 1) * nodeGapX;
         const rowStartX = containerCenterX - rowWidth / 2;
-        const x = rowStartX + pos.col * (nodeWidth + nodeGapX);
-        const y = roleHeaderHeight + pos.row * (nodeHeight + nodeGapY);
+        const nodeX = rowStartX + pos.col * (nodeWidth + nodeGapX);
+        const nodeY = roleHeaderHeight + pos.row * (nodeHeight + nodeGapY);
 
         positionedFileNodes.push({
           ...node,
-          position: { x, y },
+          position: { x: nodeX, y: nodeY },
           parentId: roleCategoryId,
           extent: 'parent' as const,
           expandParent: true,
         });
       });
-
-      // Update positioning for next role category
-      currentX += dims.width + roleGapX;
-      rowHeight = Math.max(rowHeight, dims.height);
-      maxWidth = Math.max(maxWidth, currentX);
-      totalHeight = Math.max(totalHeight, currentY + dims.height + topCategoryPadding);
     });
 
     return {
       roleCategoryNodes,
       fileNodes: positionedFileNodes,
-      totalWidth: maxWidth + topCategoryPadding,
-      totalHeight,
+      circleRadius: circleRadius * 2, // Diameter
     };
   };
 
   // Layout frontend categories
-  const frontendLayout = layoutRoleCategories(frontendRoleGroups, 'category-frontend', 'frontend');
+  const frontendLayout = layoutRoleCategoriesInCircle(frontendRoleGroups, 'category-frontend', 'frontend');
 
   // Layout backend categories
-  const backendLayout = layoutRoleCategories(backendRoleGroups, 'category-backend', 'backend');
+  const backendLayout = layoutRoleCategoriesInCircle(backendRoleGroups, 'category-backend', 'backend');
 
   // Calculate total node counts
   const frontendNodeCount = frontendRoleGroups.reduce((sum, rg) => sum + rg.nodes.length, 0);
   const backendNodeCount = backendRoleGroups.reduce((sum, rg) => sum + rg.nodes.length, 0);
 
-  // Create top-level category nodes
+  // Create top-level category nodes (circular - width equals height)
+  const frontendSize = Math.max(frontendLayout.circleRadius, 600);
+  const backendSize = Math.max(backendLayout.circleRadius, 600);
+
   const frontendCategoryNode: CategoryNodeType = {
     id: 'category-frontend',
     type: 'category',
@@ -291,8 +321,8 @@ function getNestedCategoryLayout(
     data: {
       label: 'Frontend',
       category: 'frontend',
-      width: Math.max(frontendLayout.totalWidth, 400),
-      height: Math.max(frontendLayout.totalHeight, 300),
+      width: frontendSize,
+      height: frontendSize,
       nodeCount: frontendNodeCount,
       level: 'top',
     },
@@ -303,12 +333,12 @@ function getNestedCategoryLayout(
   const backendCategoryNode: CategoryNodeType = {
     id: 'category-backend',
     type: 'category',
-    position: { x: Math.max(frontendLayout.totalWidth, 400) + 80, y: 0 },
+    position: { x: frontendSize + 100, y: 0 },
     data: {
       label: 'Backend',
       category: 'backend',
-      width: Math.max(backendLayout.totalWidth, 400),
-      height: Math.max(backendLayout.totalHeight, 300),
+      width: backendSize,
+      height: backendSize,
       nodeCount: backendNodeCount,
       level: 'top',
     },
