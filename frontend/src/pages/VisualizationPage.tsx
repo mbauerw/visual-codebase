@@ -474,7 +474,7 @@ export default function VisualizationPage() {
   }
 
   return (
-    <div className="h-screen w-screen bg-slate-200 flex flex-col overflow-hidden">
+    <div className="h-screen w-screen bg-gray-100 flex flex-col overflow-hidden">
       {/* Header */}
       {/* No changes needed here, keeping it fixed as requested */}
       <div className="h-14 fixed top-0 left-0 w-full bg-slate-800 border-b border-slate-700 flex items-center justify-between px-4 flex-shrink-0 z-50">
@@ -516,20 +516,24 @@ export default function VisualizationPage() {
 
         {/* Overflow portion */}
         {/* Hidden scrollbar with scroll-smooth for modern feel */}
-        <div className='h-full overflow-y-auto flex flex-col items-center [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]'>
+        <div className='h-full overflow-y-auto flex flex-col items-center  [-ms-overflow-style:none] [scrollbar-width:10]'>
 
           {/* Hero Section */}
-          <div className='max-w-[900px] h-[900px] w-full py-12 px-8 flex-shrink-0'>
-            <div className='rounded-2xl p-8 shadow-2xl backdrop-blur-sm'>
-              <div className='flex items-start gap-6'>
-                <div className='p-4 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl shadow-lg'>
-                  <FileCode size={32} className='text-white' />
+          <div className='max-w-[900px] h-[500px] w-full py-12 px-8 flex-shrink-0'>
+            <div className='rounded-2xl h-full p-8 shadow-2xl backdrop-blur-sm bg-white'>
+              <div className='flex flex-col items-start gap-6 h-full'>
+                <div className='flex w-full items-center justify-center relative h-16'>
+                  <div className='p-4 absolute left-0 top-0 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl shadow-lg'>
+                    <FileCode size={32} className='text-white' />
+                  </div>
+                  <h2 className='text-2xl text-red-500 text-center '>OVERVIEW</h2>
                 </div>
-                <div className='flex-1'>
+                {/* This should fill the remaining space */}
+                <div className='flex-1 w-full items-center justify-around flex flex-col gap-5'>
                   <h2 className='text-7xl font-bold text-black mb-3 tracking-tight'>
                     {graphData.metadata.directory_path.split('/').pop()}
                   </h2>
-                  <p className='text-slate-400 text-lg leading-relaxed mb-6'>
+                  <p className='text-slate-400 text-lg w-3/4 leading-relaxed mb-6'>
                     A comprehensive visualization of your codebase architecture. Explore {graphData.metadata.file_count} files
                     with {graphData.metadata.edge_count} dependencies across your project structure.
                   </p>
@@ -553,11 +557,10 @@ export default function VisualizationPage() {
           </div>
 
           {/* React Flow Container */}
-          <div className='max-w-[900px] w-full px-8 pb-12 flex-shrink-0'>
-        
-            <div className='h-[900px] w-full rounded-2xl overflow-hidden border border-slate-400/50 shadow-2xl bg-slate-900 relative'>
-              {/* Decorative gradient border effect */}
-            
+          <div className=' w-full px-8 pb-12 flex-shrink-0 justify-center flex items-center'>
+
+            <div className='h-[900px] max-w-[1200px] w-full rounded-2xl overflow-hidden border border-slate-400/50 shadow-2xl bg-slate-900 relative'>
+
               <ReactFlow
                 nodes={nodes}
                 edges={edges}
