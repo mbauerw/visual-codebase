@@ -57,3 +57,12 @@ body {
   border: 1px solid #334155;
   border-radius: 8px;
 }
+
+/* Node hover magnifier effect */
+.react-flow__node:hover {
+  z-index: 1000 !important;
+}
+
+.react-flow__node.selected {
+  z-index: 1001 !important;
+}

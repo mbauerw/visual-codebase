@@ -13,13 +13,14 @@ import {
   Panel,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import dagre from '@dagrejs/dagre';
 import {
   ArrowLeft,
   Search,
   FileCode,
   GitBranch,
   Clock,
+  Monitor,
+  Server,
 } from 'lucide-react';
 
 import CustomNode, { type CustomNodeType } from '../components/CustomNode';
@@ -29,50 +30,136 @@ import type {
   ReactFlowNodeData,
   Language,
   ArchitecturalRole,
+  Category,
 } from '../types';
-import { roleColors, languageColors } from '../types';
+import { roleColors, languageColors, categoryColors } from '../types';
 
 // Define node types with proper typing for React Flow v12
 const nodeTypes: NodeTypes = {
   custom: CustomNode,
 };
 
-const dagreGraph = new dagre.graphlib.Graph();
-dagreGraph.setDefaultEdgeLabel(() => ({}));
-
 const nodeWidth = 220;
-const nodeHeight = 80;
+const nodeHeight = 120;
+const nodeGapX = 40;
+const nodeGapY = 30;
+const categoryPadding = 60;
+const categoryHeaderHeight = 50;
 
-function getLayoutedElements(
+// Categorize nodes into Frontend vs Backend groups
+function categorizeNode(category: Category): 'frontend' | 'backend' {
+  switch (category) {
+    case 'frontend':
+      return 'frontend';
+    case 'backend':
+    case 'infrastructure':
+      return 'backend';
+    case 'shared':
+    case 'test':
+    case 'config':
+    case 'unknown':
+    default:
+      // Shared/test/config/unknown go to frontend by default, or could be split
+      return 'frontend';
+  }
+}
+
+// Custom layout that groups nodes by Frontend/Backend with dependency-based ordering
+function getCategorizedLayout(
   nodes: CustomNodeType[],
   edges: Edge[],
-  direction: 'TB' | 'LR' = 'TB'
-): { nodes: CustomNodeType[]; edges: Edge[] } {
-  const isHorizontal = direction === 'LR';
-  dagreGraph.setGraph({ rankdir: direction, nodesep: 50, ranksep: 80 });
+  containerWidth: number = 1600
+): { nodes: CustomNodeType[]; edges: Edge[]; categoryBounds: { frontend: { x: number; y: number; width: number; height: number }; backend: { x: number; y: number; width: number; height: number } } } {
+  // Count dependencies for each node (incoming + outgoing)
+  const dependencyCount: Record<string, number> = {};
+  nodes.forEach((node) => {
+    dependencyCount[node.id] = 0;
+  });
+  edges.forEach((edge) => {
+    if (dependencyCount[edge.source] !== undefined) {
+      dependencyCount[edge.source]++;
+    }
+    if (dependencyCount[edge.target] !== undefined) {
+      dependencyCount[edge.target]++;
+    }
+  });
+
+  // Separate nodes into frontend and backend
+  const frontendNodes: CustomNodeType[] = [];
+  const backendNodes: CustomNodeType[] = [];
 
   nodes.forEach((node) => {
-    dagreGraph.setNode(node.id, { width: nodeWidth, height: nodeHeight });
+    const group = categorizeNode(node.data.category);
+    if (group === 'frontend') {
+      frontendNodes.push(node);
+    } else {
+      backendNodes.push(node);
+    }
   });
 
-  edges.forEach((edge) => {
-    dagreGraph.setEdge(edge.source, edge.target);
-  });
+  // Sort each group by dependency count (descending - more deps at top)
+  const sortByDeps = (a: CustomNodeType, b: CustomNodeType) =>
+    dependencyCount[b.id] - dependencyCount[a.id];
 
-  dagre.layout(dagreGraph);
+  frontendNodes.sort(sortByDeps);
+  backendNodes.sort(sortByDeps);
 
-  const layoutedNodes = nodes.map((node): CustomNodeType => {
-    const nodeWithPosition = dagreGraph.node(node.id);
-    return {
-      ...node,
-      position: {
-        x: nodeWithPosition.x - nodeWidth / 2,
-        y: nodeWithPosition.y - nodeHeight / 2,
-      },
-    };
-  });
+  // Calculate layout dimensions
+  const halfWidth = (containerWidth - categoryPadding * 3) / 2;
+  const nodesPerRow = Math.max(1, Math.floor(halfWidth / (nodeWidth + nodeGapX)));
 
-  return { nodes: layoutedNodes, edges };
+  // Position frontend nodes (left side)
+  const positionNodesInCategory = (
+    categoryNodes: CustomNodeType[],
+    startX: number
+  ): { nodes: CustomNodeType[]; height: number } => {
+    const positioned = categoryNodes.map((node, index): CustomNodeType => {
+      const row = Math.floor(index / nodesPerRow);
+      const col = index % nodesPerRow;
+      return {
+        ...node,
+        position: {
+          x: startX + col * (nodeWidth + nodeGapX),
+          y: categoryHeaderHeight + row * (nodeHeight + nodeGapY),
+        },
+      };
+    });
+    const rows = Math.ceil(categoryNodes.length / nodesPerRow);
+    const height = categoryHeaderHeight + rows * (nodeHeight + nodeGapY);
+    return { nodes: positioned, height };
+  };
+
+  const frontendResult = positionNodesInCategory(frontendNodes, categoryPadding);
+  const backendResult = positionNodesInCategory(backendNodes, categoryPadding + halfWidth + categoryPadding);
+
+  const maxHeight = Math.max(frontendResult.height, backendResult.height, 400);
+
+  const categoryBounds = {
+    frontend: {
+      x: categoryPadding / 2,
+      y: 0,
+      width: halfWidth + categoryPadding,
+      height: maxHeight,
+    },
+    backend: {
+      x: categoryPadding + halfWidth + categoryPadding / 2,
+      y: 0,
+      width: halfWidth + categoryPadding,
+      height: maxHeight,
+    },
+  };
+
+  return {
+    nodes: [...frontendResult.nodes, ...backendResult.nodes],
+    edges,
+    categoryBounds,
+  };
+}
+
+// Category bounds type
+interface CategoryBounds {
+  frontend: { x: number; y: number; width: number; height: number };
+  backend: { x: number; y: number; width: number; height: number };
 }
 
 export default function VisualizationPage() {
@@ -84,6 +171,7 @@ export default function VisualizationPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [languageFilter, setLanguageFilter] = useState<Language | 'all'>('all');
   const [roleFilter, setRoleFilter] = useState<ArchitecturalRole | 'all'>('all');
+  const [categoryBounds, setCategoryBounds] = useState<CategoryBounds | null>(null);
 
   // Load data from session storage
   useEffect(() => {
@@ -137,14 +225,15 @@ export default function VisualizationPage() {
       data: n.data,
     }));
 
-    // Apply dagre layout
-    const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(
+    // Apply categorized layout (Frontend | Backend)
+    const { nodes: layoutedNodes, edges: layoutedEdges, categoryBounds: bounds } = getCategorizedLayout(
       nodesForLayout,
       filteredEdges
     );
 
     setNodes(layoutedNodes);
     setEdges(layoutedEdges);
+    setCategoryBounds(bounds);
   }, [graphData, searchQuery, languageFilter, roleFilter, setNodes, setEdges]);
 
   // Handle node selection
@@ -234,6 +323,80 @@ export default function VisualizationPage() {
           }}
         >
           <Background variant={BackgroundVariant.Dots} color="#334155" gap={20} />
+
+          {/* Category Container Overlays */}
+          {categoryBounds && (
+            <svg
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: '100%',
+                height: '100%',
+                pointerEvents: 'none',
+                overflow: 'visible',
+              }}
+            >
+              {/* Frontend Container */}
+              <g transform={`translate(${categoryBounds.frontend.x}, ${categoryBounds.frontend.y})`}>
+                <rect
+                  width={categoryBounds.frontend.width}
+                  height={categoryBounds.frontend.height}
+                  fill="rgba(97, 218, 251, 0.03)"
+                  stroke={categoryColors.frontend}
+                  strokeWidth={2}
+                  strokeDasharray="8 4"
+                  rx={12}
+                />
+                <rect
+                  x={0}
+                  y={0}
+                  width={140}
+                  height={36}
+                  fill="#0f172a"
+                  rx={8}
+                />
+                <foreignObject x={8} y={6} width={130} height={28}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Monitor size={16} color={categoryColors.frontend} />
+                    <span style={{ color: categoryColors.frontend, fontWeight: 600, fontSize: '14px' }}>
+                      Frontend
+                    </span>
+                  </div>
+                </foreignObject>
+              </g>
+
+              {/* Backend Container */}
+              <g transform={`translate(${categoryBounds.backend.x}, ${categoryBounds.backend.y})`}>
+                <rect
+                  width={categoryBounds.backend.width}
+                  height={categoryBounds.backend.height}
+                  fill="rgba(16, 185, 129, 0.03)"
+                  stroke={categoryColors.backend}
+                  strokeWidth={2}
+                  strokeDasharray="8 4"
+                  rx={12}
+                />
+                <rect
+                  x={0}
+                  y={0}
+                  width={130}
+                  height={36}
+                  fill="#0f172a"
+                  rx={8}
+                />
+                <foreignObject x={8} y={6} width={120} height={28}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Server size={16} color={categoryColors.backend} />
+                    <span style={{ color: categoryColors.backend, fontWeight: 600, fontSize: '14px' }}>
+                      Backend
+                    </span>
+                  </div>
+                </foreignObject>
+              </g>
+            </svg>
+          )}
+
           <Controls className="!bg-slate-800 !border-slate-700" />
           <MiniMap
             nodeColor={(node) => {
