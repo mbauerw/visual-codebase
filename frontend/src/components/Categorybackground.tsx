@@ -49,7 +49,7 @@ function CategoryBackground({ sections, transform }: CategoryBackgroundProps) {
             >
               {/* Background container */}
               <div
-                className="w-full h-full rounded-[35%]"
+                className="w-full h-full rounded-[50%]"
                 style={{
                   backgroundColor: `${baseColor}06`,
                   border: `3px dashed ${baseColor}40`,

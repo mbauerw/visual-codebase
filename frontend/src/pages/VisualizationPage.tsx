@@ -233,7 +233,7 @@ function getNestedCategoryLayout(
 
     // Calculate center position (with offset for this category section)
     const centerX = offsetX + circleRadius;
-    const centerY = circleRadius + 50; // Add some top padding
+    const centerY = circleRadius; // Add some top padding
     const placementRadius = circleRadius - maxRoleHeight / 2 - 100;
 
     roleGroups.forEach((roleGroup, index) => {
@@ -529,8 +529,8 @@ function VisualizationPageInner() {
                   </div>
                   <h2 className='text-2xl text-red-500 text-center '>OVERVIEW</h2>
                 </div>
-                <div className='flex-1 w-full items-center justify-around flex flex-col gap-5'>
-                  <h2 className='text-7xl font-bold text-black mb-3 tracking-tight'>
+                <div className='flex-1 w-full items-center justify-between flex flex-col gap-5'>
+                  <h2 className='text-7xl font-semibold text-black mb-3 tracking-tight'>
                     {graphData.metadata.directory_path.split('/').pop()}
                   </h2>
                   <p className='text-slate-400 text-lg w-3/4 leading-relaxed mb-6'>
