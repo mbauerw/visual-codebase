@@ -20,7 +20,7 @@ function CategoryNode({ data, selected }: NodeProps<CategoryNodeType>) {
   return (
     <div
       className={`
-        relative rounded-[40px] transition-all duration-200
+        relative rounded-full transition-all duration-200
         ${selected ? 'ring-2 ring-blue-500 ring-offset-2 ring-offset-slate-900' : ''}
       `}
       style={{
