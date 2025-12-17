@@ -519,14 +519,14 @@ export default function VisualizationPage() {
         <div className='h-full overflow-y-auto flex flex-col items-center [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]'>
 
           {/* Hero Section */}
-          <div className='max-w-[900px] w-full py-12 px-8 flex-shrink-0'>
-            <div className='bg-gradient-to-br from-slate-800 via-slate-800 to-indigo-900/30 rounded-2xl p-8 shadow-2xl border border-slate-700/50 backdrop-blur-sm'>
+          <div className='max-w-[900px] h-[900px] w-full py-12 px-8 flex-shrink-0'>
+            <div className='rounded-2xl p-8 shadow-2xl backdrop-blur-sm'>
               <div className='flex items-start gap-6'>
                 <div className='p-4 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl shadow-lg'>
                   <FileCode size={32} className='text-white' />
                 </div>
                 <div className='flex-1'>
-                  <h2 className='text-3xl font-bold text-white mb-3 tracking-tight'>
+                  <h2 className='text-7xl font-bold text-black mb-3 tracking-tight'>
                     {graphData.metadata.directory_path.split('/').pop()}
                   </h2>
                   <p className='text-slate-400 text-lg leading-relaxed mb-6'>
@@ -554,10 +554,10 @@ export default function VisualizationPage() {
 
           {/* React Flow Container */}
           <div className='max-w-[900px] w-full px-8 pb-12 flex-shrink-0'>
-            <div className='h-[700px] w-full rounded-2xl overflow-hidden border border-slate-700/50 shadow-2xl bg-slate-900 relative'>
+        
+            <div className='h-[900px] w-full rounded-2xl overflow-hidden border border-slate-400/50 shadow-2xl bg-slate-900 relative'>
               {/* Decorative gradient border effect */}
-              <div className='absolute inset-0 rounded-2xl bg-gradient-to-br from-indigo-500/20 via-transparent to-purple-500/20 pointer-events-none' />
-              <div className='absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 rounded-t-2xl' />
+            
               <ReactFlow
                 nodes={nodes}
                 edges={edges}
