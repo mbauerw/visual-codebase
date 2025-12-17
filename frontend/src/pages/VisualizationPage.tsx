@@ -34,7 +34,7 @@ import type {
   ArchitecturalRole,
   Category,
 } from '../types';
-import { roleColors, languageColors, categoryColors } from '../types';
+import { roleColors, languageColors, categoryColors, roleLabels } from '../types';
 
 // Define node types with proper typing for React Flow v12
 const nodeTypes: NodeTypes = {
@@ -45,12 +45,16 @@ const nodeTypes: NodeTypes = {
 // Combined node type for all nodes in the graph
 type AllNodeTypes = CustomNodeType | CategoryNodeType;
 
-const nodeWidth = 220;
-const nodeHeight = 100;
-const nodeGapX = 30;
-const nodeGapY = 20;
-const categoryPadding = 40;
-const categoryHeaderHeight = 60;
+const nodeWidth = 200;
+const nodeHeight = 90;
+const nodeGapX = 20;
+const nodeGapY = 15;
+const rolePadding = 25;
+const roleHeaderHeight = 45;
+const topCategoryPadding = 50;
+const topCategoryHeaderHeight = 60;
+const roleGapX = 30;
+const roleGapY = 30;
 
 // Categorize nodes into Frontend vs Backend groups
 function categorizeNode(category: Category): 'frontend' | 'backend' {
@@ -69,11 +73,11 @@ function categorizeNode(category: Category): 'frontend' | 'backend' {
   }
 }
 
-// Custom layout that creates category parent nodes and positions children inside
-function getCategorizedLayout(
+// Custom layout that creates nested category hierarchy:
+// Frontend/Backend -> Role Categories -> File Nodes
+function getNestedCategoryLayout(
   fileNodes: CustomNodeType[],
-  edges: Edge[],
-  containerWidth: number = 1400
+  edges: Edge[]
 ): { nodes: AllNodeTypes[]; edges: Edge[] } {
   // Count dependencies for each node
   const dependencyCount: Record<string, number> = {};
@@ -89,41 +93,154 @@ function getCategorizedLayout(
     }
   });
 
-  // Separate nodes into frontend and backend
-  const frontendFileNodes: CustomNodeType[] = [];
-  const backendFileNodes: CustomNodeType[] = [];
+  // Group nodes by category (frontend/backend) and then by role
+  type RoleGroup = { role: ArchitecturalRole; nodes: CustomNodeType[] };
+  type CategoryGroup = { category: 'frontend' | 'backend'; roleGroups: RoleGroup[] };
+
+  const frontendRoles: Map<ArchitecturalRole, CustomNodeType[]> = new Map();
+  const backendRoles: Map<ArchitecturalRole, CustomNodeType[]> = new Map();
 
   fileNodes.forEach((node) => {
-    const group = categorizeNode(node.data.category);
-    if (group === 'frontend') {
-      frontendFileNodes.push(node);
-    } else {
-      backendFileNodes.push(node);
+    const categoryGroup = categorizeNode(node.data.category);
+    const roleMap = categoryGroup === 'frontend' ? frontendRoles : backendRoles;
+
+    if (!roleMap.has(node.data.role)) {
+      roleMap.set(node.data.role, []);
     }
+    roleMap.get(node.data.role)!.push(node);
   });
 
-  // Sort each group by dependency count (descending)
+  // Sort nodes within each role by dependency count
   const sortByDeps = (a: CustomNodeType, b: CustomNodeType) =>
     dependencyCount[b.id] - dependencyCount[a.id];
 
-  frontendFileNodes.sort(sortByDeps);
-  backendFileNodes.sort(sortByDeps);
+  frontendRoles.forEach((nodes) => nodes.sort(sortByDeps));
+  backendRoles.forEach((nodes) => nodes.sort(sortByDeps));
 
-  // Calculate dimensions for each category
-  const halfWidth = (containerWidth - categoryPadding * 3) / 2;
-  const nodesPerRow = Math.max(1, Math.floor((halfWidth - categoryPadding * 2) / (nodeWidth + nodeGapX)));
-
-  const calculateCategoryDimensions = (nodeCount: number) => {
-    const rows = Math.ceil(nodeCount / nodesPerRow);
-    const width = Math.min(nodeCount, nodesPerRow) * (nodeWidth + nodeGapX) + categoryPadding * 2;
-    const height = categoryHeaderHeight + rows * (nodeHeight + nodeGapY) + categoryPadding;
-    return { width: Math.max(width, 300), height: Math.max(height, 200) };
+  // Sort role groups by total dependency count (sum of all nodes in the role)
+  const sortRoleGroups = (roleMap: Map<ArchitecturalRole, CustomNodeType[]>): RoleGroup[] => {
+    return Array.from(roleMap.entries())
+      .map(([role, nodes]) => ({ role, nodes }))
+      .sort((a, b) => {
+        const totalDepsA = a.nodes.reduce((sum, n) => sum + dependencyCount[n.id], 0);
+        const totalDepsB = b.nodes.reduce((sum, n) => sum + dependencyCount[n.id], 0);
+        return totalDepsB - totalDepsA;
+      });
   };
 
-  const frontendDims = calculateCategoryDimensions(frontendFileNodes.length);
-  const backendDims = calculateCategoryDimensions(backendFileNodes.length);
+  const frontendRoleGroups = sortRoleGroups(frontendRoles);
+  const backendRoleGroups = sortRoleGroups(backendRoles);
 
-  // Create category parent nodes
+  // Calculate dimensions for a role category based on its nodes
+  const nodesPerRowInRole = 2; // Keep role categories compact
+
+  const calculateRoleDimensions = (nodeCount: number) => {
+    const rows = Math.ceil(nodeCount / nodesPerRowInRole);
+    const cols = Math.min(nodeCount, nodesPerRowInRole);
+    const width = cols * (nodeWidth + nodeGapX) + rolePadding * 2;
+    const height = roleHeaderHeight + rows * (nodeHeight + nodeGapY) + rolePadding;
+    return { width: Math.max(width, 250), height: Math.max(height, 150) };
+  };
+
+  // Layout role categories within a top-level category
+  // Returns: positioned role category nodes, positioned file nodes, and total dimensions
+  const layoutRoleCategories = (
+    roleGroups: RoleGroup[],
+    topCategoryId: string,
+    topCategory: 'frontend' | 'backend'
+  ): {
+    roleCategoryNodes: CategoryNodeType[];
+    fileNodes: CustomNodeType[];
+    totalWidth: number;
+    totalHeight: number;
+  } => {
+    const roleCategoryNodes: CategoryNodeType[] = [];
+    const positionedFileNodes: CustomNodeType[] = [];
+
+    let currentX = topCategoryPadding;
+    let currentY = topCategoryHeaderHeight;
+    let rowHeight = 0;
+    let maxWidth = 0;
+    let totalHeight = topCategoryHeaderHeight;
+    const maxRowWidth = 900; // Max width before wrapping to next row
+
+    roleGroups.forEach((roleGroup) => {
+      const dims = calculateRoleDimensions(roleGroup.nodes.length);
+
+      // Check if we need to wrap to the next row
+      if (currentX + dims.width > maxRowWidth && currentX > topCategoryPadding) {
+        currentX = topCategoryPadding;
+        currentY += rowHeight + roleGapY;
+        rowHeight = 0;
+      }
+
+      const roleCategoryId = `${topCategoryId}-${roleGroup.role}`;
+
+      // Create role category node
+      const roleCategoryNode: CategoryNodeType = {
+        id: roleCategoryId,
+        type: 'category',
+        position: { x: currentX, y: currentY },
+        data: {
+          label: roleLabels[roleGroup.role],
+          category: topCategory,
+          role: roleGroup.role,
+          width: dims.width,
+          height: dims.height,
+          nodeCount: roleGroup.nodes.length,
+          level: 'role',
+        },
+        parentId: topCategoryId,
+        extent: 'parent' as const,
+        draggable: true,
+        selectable: true,
+        expandParent: true,
+      };
+      roleCategoryNodes.push(roleCategoryNode);
+
+      // Position file nodes within this role category
+      roleGroup.nodes.forEach((node, index) => {
+        const row = Math.floor(index / nodesPerRowInRole);
+        const col = index % nodesPerRowInRole;
+
+        positionedFileNodes.push({
+          ...node,
+          position: {
+            x: rolePadding + col * (nodeWidth + nodeGapX),
+            y: roleHeaderHeight + row * (nodeHeight + nodeGapY),
+          },
+          parentId: roleCategoryId,
+          extent: 'parent' as const,
+          expandParent: true,
+        });
+      });
+
+      // Update positioning for next role category
+      currentX += dims.width + roleGapX;
+      rowHeight = Math.max(rowHeight, dims.height);
+      maxWidth = Math.max(maxWidth, currentX);
+      totalHeight = Math.max(totalHeight, currentY + dims.height + topCategoryPadding);
+    });
+
+    return {
+      roleCategoryNodes,
+      fileNodes: positionedFileNodes,
+      totalWidth: maxWidth + topCategoryPadding,
+      totalHeight,
+    };
+  };
+
+  // Layout frontend categories
+  const frontendLayout = layoutRoleCategories(frontendRoleGroups, 'category-frontend', 'frontend');
+
+  // Layout backend categories
+  const backendLayout = layoutRoleCategories(backendRoleGroups, 'category-backend', 'backend');
+
+  // Calculate total node counts
+  const frontendNodeCount = frontendRoleGroups.reduce((sum, rg) => sum + rg.nodes.length, 0);
+  const backendNodeCount = backendRoleGroups.reduce((sum, rg) => sum + rg.nodes.length, 0);
+
+  // Create top-level category nodes
   const frontendCategoryNode: CategoryNodeType = {
     id: 'category-frontend',
     type: 'category',
@@ -131,9 +248,10 @@ function getCategorizedLayout(
     data: {
       label: 'Frontend',
       category: 'frontend',
-      width: frontendDims.width,
-      height: frontendDims.height,
-      nodeCount: frontendFileNodes.length,
+      width: Math.max(frontendLayout.totalWidth, 400),
+      height: Math.max(frontendLayout.totalHeight, 300),
+      nodeCount: frontendNodeCount,
+      level: 'top',
     },
     draggable: true,
     selectable: true,
@@ -142,48 +260,30 @@ function getCategorizedLayout(
   const backendCategoryNode: CategoryNodeType = {
     id: 'category-backend',
     type: 'category',
-    position: { x: frontendDims.width + categoryPadding * 2, y: 0 },
+    position: { x: Math.max(frontendLayout.totalWidth, 400) + 80, y: 0 },
     data: {
       label: 'Backend',
       category: 'backend',
-      width: backendDims.width,
-      height: backendDims.height,
-      nodeCount: backendFileNodes.length,
+      width: Math.max(backendLayout.totalWidth, 400),
+      height: Math.max(backendLayout.totalHeight, 300),
+      nodeCount: backendNodeCount,
+      level: 'top',
     },
     draggable: true,
     selectable: true,
   };
 
-  // Position file nodes inside their parent categories
-  const positionNodesInCategory = (
-    categoryNodes: CustomNodeType[],
-    parentId: string
-  ): CustomNodeType[] => {
-    return categoryNodes.map((node, index): CustomNodeType => {
-      const row = Math.floor(index / nodesPerRow);
-      const col = index % nodesPerRow;
-      return {
-        ...node,
-        position: {
-          x: categoryPadding + col * (nodeWidth + nodeGapX),
-          y: categoryHeaderHeight + row * (nodeHeight + nodeGapY),
-        },
-        parentId,
-        extent: 'parent' as const,
-        expandParent: true,
-      };
-    });
-  };
-
-  const positionedFrontendNodes = positionNodesInCategory(frontendFileNodes, 'category-frontend');
-  const positionedBackendNodes = positionNodesInCategory(backendFileNodes, 'category-backend');
-
-  // Combine all nodes: category nodes first (so they render behind), then file nodes
+  // Combine all nodes in the correct order:
+  // 1. Top-level categories (render first, behind everything)
+  // 2. Role categories (render second, behind file nodes)
+  // 3. File nodes (render last, on top)
   const allNodes: AllNodeTypes[] = [
     frontendCategoryNode,
     backendCategoryNode,
-    ...positionedFrontendNodes,
-    ...positionedBackendNodes,
+    ...frontendLayout.roleCategoryNodes,
+    ...backendLayout.roleCategoryNodes,
+    ...frontendLayout.fileNodes,
+    ...backendLayout.fileNodes,
   ];
 
   return { nodes: allNodes, edges };
@@ -252,8 +352,8 @@ function VisualizationContent() {
       data: n.data,
     }));
 
-    // Apply categorized layout with parent nodes
-    const { nodes: layoutedNodes, edges: layoutedEdges } = getCategorizedLayout(
+    // Apply nested category layout (Frontend/Backend -> Role -> Files)
+    const { nodes: layoutedNodes, edges: layoutedEdges } = getNestedCategoryLayout(
       fileNodesForLayout,
       filteredEdges
     );

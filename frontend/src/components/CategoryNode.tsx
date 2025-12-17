@@ -1,81 +1,111 @@
 import { memo } from 'react';
-import { Handle, Position, type NodeProps, type Node } from '@xyflow/react';
-import { Monitor, Server } from 'lucide-react';
-import { categoryColors } from '../types';
+import { type NodeProps, type Node } from '@xyflow/react';
+import {
+  Monitor,
+  Server,
+  Layers,
+  Cog,
+  Box,
+  Settings,
+  TestTube,
+  FileCode,
+} from 'lucide-react';
+import { categoryColors, roleColors, roleLabels } from '../types';
+import type { ArchitecturalRole } from '../types';
 
 export interface CategoryNodeData extends Record<string, unknown> {
   label: string;
   category: 'frontend' | 'backend';
+  role?: ArchitecturalRole; // If present, this is a role-level category
   width: number;
   height: number;
   nodeCount: number;
+  level: 'top' | 'role'; // Category level
 }
 
 export type CategoryNodeType = Node<CategoryNodeData, 'category'>;
 
+// Icons for each role
+const roleIcons: Record<ArchitecturalRole, React.ReactNode> = {
+  react_component: <Layers size={14} />,
+  utility: <Cog size={14} />,
+  api_service: <Box size={14} />,
+  model: <Box size={14} />,
+  config: <Settings size={14} />,
+  test: <TestTube size={14} />,
+  hook: <Layers size={14} />,
+  context: <Layers size={14} />,
+  store: <Box size={14} />,
+  middleware: <Box size={14} />,
+  controller: <Box size={14} />,
+  router: <Box size={14} />,
+  schema: <Box size={14} />,
+  unknown: <FileCode size={14} />,
+};
+
 function CategoryNode({ data, selected }: NodeProps<CategoryNodeType>) {
-  const color = data.category === 'frontend' ? categoryColors.frontend : categoryColors.backend;
-  const Icon = data.category === 'frontend' ? Monitor : Server;
+  const isTopLevel = data.level === 'top';
+
+  // Determine colors based on level
+  const baseColor = isTopLevel
+    ? (data.category === 'frontend' ? categoryColors.frontend : categoryColors.backend)
+    : (data.role ? roleColors[data.role] : '#6b7280');
+
+  // Top-level icons
+  const TopIcon = data.category === 'frontend' ? Monitor : Server;
+
+  // Get the appropriate icon
+  const Icon = isTopLevel ? TopIcon : (data.role ? () => roleIcons[data.role!] : TopIcon);
 
   return (
     <div
       className={`
-        relative rounded-full transition-all duration-200
+        relative transition-all duration-200
         ${selected ? 'ring-2 ring-blue-500 ring-offset-2 ring-offset-slate-900' : ''}
       `}
       style={{
         width: data.width,
         height: data.height,
-        backgroundColor: `${color}08`,
-        border: `2px dashed ${color}`,
-        boxShadow: `0 0 30px ${color}15`,
+        backgroundColor: isTopLevel ? `${baseColor}05` : `${baseColor}08`,
+        border: `2px ${isTopLevel ? 'dashed' : 'solid'} ${baseColor}`,
+        borderRadius: isTopLevel ? '50px' : '20px',
+        boxShadow: isTopLevel
+          ? `0 0 40px ${baseColor}10`
+          : `0 0 20px ${baseColor}15`,
       }}
     >
       {/* Header label */}
       <div
-        className="absolute -top-3 left-6 flex items-center gap-2 px-4 py-1.5 rounded-full"
+        className={`
+          absolute flex items-center gap-2 rounded-full
+          ${isTopLevel ? '-top-4 left-8 px-5 py-2' : '-top-3 left-4 px-3 py-1.5'}
+        `}
         style={{
           backgroundColor: '#0f172a',
-          border: `2px solid ${color}`,
+          border: `2px solid ${baseColor}`,
         }}
       >
-        <Icon size={18} color={color} />
+        {isTopLevel ? (
+          <TopIcon size={18} color={baseColor} />
+        ) : (
+          <span style={{ color: baseColor }}>{data.role && roleIcons[data.role]}</span>
+        )}
         <span
-          className="font-semibold text-sm"
-          style={{ color }}
+          className={`font-semibold ${isTopLevel ? 'text-sm' : 'text-xs'}`}
+          style={{ color: baseColor }}
         >
           {data.label}
         </span>
         <span
-          className="text-xs px-2 py-0.5 rounded-full ml-1"
+          className={`px-2 py-0.5 rounded-full ml-1 ${isTopLevel ? 'text-xs' : 'text-[10px]'}`}
           style={{
-            backgroundColor: `${color}20`,
-            color,
+            backgroundColor: `${baseColor}20`,
+            color: baseColor,
           }}
         >
-          {data.nodeCount} files
+          {data.nodeCount}
         </span>
       </div>
-
-      {/* Connection handles for cross-category edges */}
-      <Handle
-        type="target"
-        position={Position.Left}
-        className="!w-4 !h-4 !border-2"
-        style={{
-          backgroundColor: color,
-          borderColor: '#0f172a',
-        }}
-      />
-      <Handle
-        type="source"
-        position={Position.Right}
-        className="!w-4 !h-4 !border-2"
-        style={{
-          backgroundColor: color,
-          borderColor: '#0f172a',
-        }}
-      />
     </div>
   );
 }
