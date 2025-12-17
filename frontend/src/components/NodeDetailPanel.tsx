@@ -1,4 +1,4 @@
-import { X, FileCode, Folder, ArrowRight, Hash, Code } from 'lucide-react';
+import { X, FileCode, Folder, ArrowRight, Hash, Code, Layers } from 'lucide-react';
 import type { ReactFlowNodeData } from '../types';
 import { roleColors, languageColors, roleLabels, categoryColors } from '../types';
 
@@ -8,7 +8,19 @@ interface NodeDetailPanelProps {
 }
 
 export default function NodeDetailPanel({ data, onClose }: NodeDetailPanelProps) {
-  if (!data) return null;
+  if (!data) {
+    return (
+      <div className="h-full w-full flex flex-col items-center justify-center p-8 text-center">
+        <div className="p-6 bg-slate-800/50 rounded-2xl border border-slate-700/50 mb-4">
+          <Layers size={48} className="text-slate-600" />
+        </div>
+        <h3 className="text-lg font-medium text-slate-400 mb-2">No File Selected</h3>
+        <p className="text-sm text-slate-500 max-w-[200px]">
+          Click on a file node in the visualization to view its details
+        </p>
+      </div>
+    );
+  }
 
   const roleColor = roleColors[data.role] || roleColors.unknown;
   const langColor = languageColors[data.language] || languageColors.unknown;
@@ -21,113 +33,134 @@ export default function NodeDetailPanel({ data, onClose }: NodeDetailPanelProps)
   };
 
   return (
-    <div className="absolute relative right-0 top-0 h-full w-full bg-slate-800 border-l border-slate-700 shadow-xl overflow-hidden flex flex-col z-50">
-      {/* Header */}
-      <div className="p-4 border-b border-slate-700 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <FileCode size={20} className="text-slate-400" />
-          <h2 className="text-lg font-semibold text-white truncate" title={data.label}>
-            {data.label}
-          </h2>
+    <div className="h-full w-full flex flex-col">
+      {/* Header with gradient accent */}
+      <div className="relative">
+        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500" />
+        <div className="p-6 border-b border-slate-800 bg-slate-800/30">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex items-center gap-4 min-w-0">
+              <div className="p-3 bg-gradient-to-br from-indigo-500/20 to-purple-500/20 rounded-xl border border-indigo-500/30 flex-shrink-0">
+                <FileCode size={24} className="text-indigo-400" />
+              </div>
+              <div className="min-w-0">
+                <h2 className="text-xl font-bold text-white truncate" title={data.label}>
+                  {data.label}
+                </h2>
+                <p className="text-sm text-slate-500 mt-1">File Details</p>
+              </div>
+            </div>
+            <button
+              onClick={onClose}
+              className="p-2 hover:bg-slate-700 rounded-xl transition-all duration-200 hover:scale-105 flex-shrink-0"
+            >
+              <X size={18} className="text-slate-400" />
+            </button>
+          </div>
         </div>
-        <button
-          onClick={onClose}
-          className="p-1 hover:bg-slate-700 rounded-lg transition-colors"
-        >
-          <X size={20} className="text-slate-400" />
-        </button>
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {/* Path */}
-        <div>
-          <label className="text-xs text-slate-500 uppercase tracking-wide mb-1 block">
-            Path
-          </label>
-          <div className="flex items-center gap-2 text-slate-300 text-sm">
-            <Folder size={14} className="text-slate-500 flex-shrink-0" />
-            <code className="bg-slate-900 px-2 py-1 rounded text-xs break-all">
-              {data.path}
-            </code>
-          </div>
-        </div>
-
-        {/* Badges */}
+      <div className="flex-1 overflow-y-auto p-6 space-y-6 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+        {/* Badges Section */}
         <div className="flex flex-wrap gap-2">
           <span
-            className="text-xs px-2 py-1 rounded-full font-medium"
+            className="text-xs px-3 py-1.5 rounded-full font-semibold border transition-transform hover:scale-105"
             style={{
-              backgroundColor: `${roleColor}20`,
+              backgroundColor: `${roleColor}15`,
               color: roleColor,
+              borderColor: `${roleColor}30`,
             }}
           >
             {roleLabels[data.role]}
           </span>
           <span
-            className="text-xs px-2 py-1 rounded-full font-medium"
+            className="text-xs px-3 py-1.5 rounded-full font-semibold border transition-transform hover:scale-105"
             style={{
-              backgroundColor: `${langColor}20`,
+              backgroundColor: `${langColor}15`,
               color: langColor,
+              borderColor: `${langColor}30`,
             }}
           >
             {data.language}
           </span>
           <span
-            className="text-xs px-2 py-1 rounded-full font-medium"
+            className="text-xs px-3 py-1.5 rounded-full font-semibold border transition-transform hover:scale-105"
             style={{
-              backgroundColor: `${categoryColor}20`,
+              backgroundColor: `${categoryColor}15`,
               color: categoryColor,
+              borderColor: `${categoryColor}30`,
             }}
           >
             {data.category}
           </span>
         </div>
 
+        {/* Path Section */}
+        <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700/50">
+          <div className="flex items-center gap-2 text-slate-400 mb-3">
+            <Folder size={16} />
+            <span className="text-xs uppercase tracking-wider font-semibold">File Path</span>
+          </div>
+          <code className="text-sm text-slate-300 break-all leading-relaxed block">
+            {data.path}
+          </code>
+        </div>
+
         {/* Description */}
         {data.description && (
-          <div>
-            <label className="text-xs text-slate-500 uppercase tracking-wide mb-1 block">
+          <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700/50">
+            <label className="text-xs text-slate-400 uppercase tracking-wider font-semibold mb-3 block">
               Description
             </label>
-            <p className="text-slate-300 text-sm">{data.description}</p>
+            <p className="text-slate-300 text-sm leading-relaxed">{data.description}</p>
           </div>
         )}
 
-        {/* Stats */}
-        <div className="grid grid-cols-2 gap-3">
-          <div className="bg-slate-900 rounded-lg p-3">
-            <div className="flex items-center gap-2 text-slate-500 mb-1">
-              <Hash size={14} />
-              <span className="text-xs uppercase tracking-wide">Lines</span>
+        {/* Stats Grid */}
+        <div className="grid grid-cols-2 gap-4">
+          <div className="bg-gradient-to-br from-slate-800/80 to-slate-800/40 rounded-xl p-5 border border-slate-700/50 hover:border-indigo-500/30 transition-colors">
+            <div className="flex items-center gap-2 text-slate-400 mb-3">
+              <div className="p-1.5 bg-indigo-500/20 rounded-lg">
+                <Hash size={14} className="text-indigo-400" />
+              </div>
+              <span className="text-xs uppercase tracking-wider font-semibold">Lines</span>
             </div>
-            <p className="text-xl font-semibold text-white">{data.line_count}</p>
+            <p className="text-2xl font-bold text-white">{data.line_count.toLocaleString()}</p>
           </div>
-          <div className="bg-slate-900 rounded-lg p-3">
-            <div className="flex items-center gap-2 text-slate-500 mb-1">
-              <Code size={14} />
-              <span className="text-xs uppercase tracking-wide">Size</span>
+          <div className="bg-gradient-to-br from-slate-800/80 to-slate-800/40 rounded-xl p-5 border border-slate-700/50 hover:border-purple-500/30 transition-colors">
+            <div className="flex items-center gap-2 text-slate-400 mb-3">
+              <div className="p-1.5 bg-purple-500/20 rounded-lg">
+                <Code size={14} className="text-purple-400" />
+              </div>
+              <span className="text-xs uppercase tracking-wider font-semibold">Size</span>
             </div>
-            <p className="text-xl font-semibold text-white">
+            <p className="text-2xl font-bold text-white">
               {formatBytes(data.size_bytes)}
             </p>
           </div>
         </div>
 
-        {/* Imports */}
+        {/* Imports Section */}
         {data.imports.length > 0 && (
-          <div>
-            <label className="text-xs text-slate-500 uppercase tracking-wide mb-2 block">
-              Imports ({data.imports.length})
-            </label>
-            <div className="space-y-1 max-h-48 overflow-y-auto">
+          <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700/50">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2 text-slate-400">
+                <ArrowRight size={16} />
+                <span className="text-xs uppercase tracking-wider font-semibold">Imports</span>
+              </div>
+              <span className="text-xs bg-slate-700/50 text-slate-400 px-2.5 py-1 rounded-full font-medium">
+                {data.imports.length}
+              </span>
+            </div>
+            <div className="space-y-2 max-h-64 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
               {data.imports.map((imp, index) => (
                 <div
                   key={index}
-                  className="flex items-center gap-2 text-sm text-slate-400 bg-slate-900 px-2 py-1.5 rounded"
+                  className="flex items-center gap-3 text-sm text-slate-300 bg-slate-900/50 px-3 py-2.5 rounded-lg border border-slate-700/30 hover:border-slate-600/50 transition-colors"
                 >
-                  <ArrowRight size={12} className="text-slate-600 flex-shrink-0" />
-                  <code className="truncate" title={imp}>
+                  <ArrowRight size={12} className="text-indigo-400 flex-shrink-0" />
+                  <code className="truncate text-xs" title={imp}>
                     {imp}
                   </code>
                 </div>

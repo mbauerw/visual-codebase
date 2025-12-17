@@ -515,16 +515,50 @@ export default function VisualizationPage() {
       <div className="grid xl:grid-cols-[5fr_minmax(400px,1fr)] grid-cols-[3fr_minmax(250px,1fr)] mt-14 h-[calc(100vh-3.5rem)] relative overflow-hidden">
 
         {/* Overflow portion */}
-        {/* CHANGE 2: added h-full so it fills the parent and enables the scrollbar */}
-        <div className='h-full overflow-y-auto flex flex-col items-center'>
+        {/* Hidden scrollbar with scroll-smooth for modern feel */}
+        <div className='h-full overflow-y-auto flex flex-col items-center [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]'>
 
-          <div className='max-h-[900px] max-w-[900px] h-[900px] w-[900px] bg-red-800 flex-shrink-0'>
-            {/* Added flex-shrink-0 just to be safe so it doesn't squash */}
+          {/* Hero Section */}
+          <div className='max-w-[900px] w-full py-12 px-8 flex-shrink-0'>
+            <div className='bg-gradient-to-br from-slate-800 via-slate-800 to-indigo-900/30 rounded-2xl p-8 shadow-2xl border border-slate-700/50 backdrop-blur-sm'>
+              <div className='flex items-start gap-6'>
+                <div className='p-4 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl shadow-lg'>
+                  <FileCode size={32} className='text-white' />
+                </div>
+                <div className='flex-1'>
+                  <h2 className='text-3xl font-bold text-white mb-3 tracking-tight'>
+                    {graphData.metadata.directory_path.split('/').pop()}
+                  </h2>
+                  <p className='text-slate-400 text-lg leading-relaxed mb-6'>
+                    A comprehensive visualization of your codebase architecture. Explore {graphData.metadata.file_count} files
+                    with {graphData.metadata.edge_count} dependencies across your project structure.
+                  </p>
+                  <div className='flex flex-wrap gap-3'>
+                    <div className='flex items-center gap-2 bg-slate-700/50 px-4 py-2 rounded-full'>
+                      <FileCode size={16} className='text-indigo-400' />
+                      <span className='text-slate-300 text-sm font-medium'>{graphData.metadata.file_count} Files</span>
+                    </div>
+                    <div className='flex items-center gap-2 bg-slate-700/50 px-4 py-2 rounded-full'>
+                      <GitBranch size={16} className='text-emerald-400' />
+                      <span className='text-slate-300 text-sm font-medium'>{graphData.metadata.edge_count} Dependencies</span>
+                    </div>
+                    <div className='flex items-center gap-2 bg-slate-700/50 px-4 py-2 rounded-full'>
+                      <Clock size={16} className='text-amber-400' />
+                      <span className='text-slate-300 text-sm font-medium'>Analyzed in {graphData.metadata.analysis_time_seconds.toFixed(1)}s</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
 
           {/* React Flow Container */}
-          <div className='max-h-[900px] max-w-[900px] h-[900px] w-[900px] flex-shrink-0 relative'>
-            <ReactFlow
+          <div className='max-w-[900px] w-full px-8 pb-12 flex-shrink-0'>
+            <div className='h-[700px] w-full rounded-2xl overflow-hidden border border-slate-700/50 shadow-2xl bg-slate-900 relative'>
+              {/* Decorative gradient border effect */}
+              <div className='absolute inset-0 rounded-2xl bg-gradient-to-br from-indigo-500/20 via-transparent to-purple-500/20 pointer-events-none' />
+              <div className='absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 rounded-t-2xl' />
+              <ReactFlow
               nodes={nodes}
               edges={edges}
               onNodesChange={onNodesChange}
@@ -564,13 +598,13 @@ export default function VisualizationPage() {
                 </div>
               </Panel>
             </ReactFlow>
+            </div>
           </div>
 
         </div>
 
         {/* Right Panel / NodeDetailPanel */}
-        {/* CHANGE 3: Cleaned up classes. Removed absolute positioning so it acts as the 2nd grid column */}
-        <div className='h-full bg-gray-300 overflow-y-auto border-l border-slate-300'>
+        <div className='h-full bg-slate-900 overflow-y-auto border-l border-slate-800 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]'>
           <NodeDetailPanel data={selectedNode} onClose={() => setSelectedNode(null)} />
         </div>
       </div>
