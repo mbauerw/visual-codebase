@@ -32,14 +32,12 @@ function CustomNode({ data, selected }: NodeProps<CustomNodeType>) {
     <div
       className={`
         relative px-3 py-2 rounded-lg shadow-lg min-w-[180px] max-w-[250px]
-        transition-all duration-200 cursor-zoom-in
-        hover:scale-110 hover:shadow-xl hover:z-50
-        ${selected ? 'ring-2 ring-blue-500 ring-offset-2 ring-offset-slate-900 scale-105' : ''}
+        transition-all duration-200
+        ${selected ? 'ring-2 ring-blue-500 ring-offset-2 ring-offset-slate-900' : ''}
       `}
       style={{
         backgroundColor: '#1e293b',
         borderLeft: `4px solid ${roleColor}`,
-        transformOrigin: 'center center',
       }}
     >
       {/* Target handle */}

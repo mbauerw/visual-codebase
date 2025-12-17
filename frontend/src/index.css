@@ -58,11 +58,11 @@ body {
   border-radius: 8px;
 }
 
-/* Node hover magnifier effect */
-.react-flow__node:hover {
-  z-index: 1000 !important;
+/* Category node styling */
+.react-flow__node-category {
+  z-index: -1 !important;
 }
 
 .react-flow__node.selected {
-  z-index: 1001 !important;
+  z-index: 10 !important;
 }

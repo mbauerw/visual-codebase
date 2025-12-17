@@ -8,9 +8,11 @@ import {
   useNodesState,
   useEdgesState,
   type Edge,
+  type Node,
   type NodeTypes,
   BackgroundVariant,
   Panel,
+  ReactFlowProvider,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import {
@@ -19,12 +21,12 @@ import {
   FileCode,
   GitBranch,
   Clock,
-  Monitor,
-  Server,
 } from 'lucide-react';
 
 import CustomNode, { type CustomNodeType } from '../components/CustomNode';
+import CategoryNode, { type CategoryNodeType, type CategoryNodeData } from '../components/CategoryNode';
 import NodeDetailPanel from '../components/NodeDetailPanel';
+import Magnifier from '../components/Magnifier';
 import type {
   ReactFlowGraph,
   ReactFlowNodeData,
@@ -37,14 +39,18 @@ import { roleColors, languageColors, categoryColors } from '../types';
 // Define node types with proper typing for React Flow v12
 const nodeTypes: NodeTypes = {
   custom: CustomNode,
+  category: CategoryNode,
 };
 
+// Combined node type for all nodes in the graph
+type AllNodeTypes = CustomNodeType | CategoryNodeType;
+
 const nodeWidth = 220;
-const nodeHeight = 120;
-const nodeGapX = 40;
-const nodeGapY = 30;
-const categoryPadding = 60;
-const categoryHeaderHeight = 50;
+const nodeHeight = 100;
+const nodeGapX = 30;
+const nodeGapY = 20;
+const categoryPadding = 40;
+const categoryHeaderHeight = 60;
 
 // Categorize nodes into Frontend vs Backend groups
 function categorizeNode(category: Category): 'frontend' | 'backend' {
@@ -59,20 +65,19 @@ function categorizeNode(category: Category): 'frontend' | 'backend' {
     case 'config':
     case 'unknown':
     default:
-      // Shared/test/config/unknown go to frontend by default, or could be split
       return 'frontend';
   }
 }
 
-// Custom layout that groups nodes by Frontend/Backend with dependency-based ordering
+// Custom layout that creates category parent nodes and positions children inside
 function getCategorizedLayout(
-  nodes: CustomNodeType[],
+  fileNodes: CustomNodeType[],
   edges: Edge[],
-  containerWidth: number = 1600
-): { nodes: CustomNodeType[]; edges: Edge[]; categoryBounds: { frontend: { x: number; y: number; width: number; height: number }; backend: { x: number; y: number; width: number; height: number } } } {
-  // Count dependencies for each node (incoming + outgoing)
+  containerWidth: number = 1400
+): { nodes: AllNodeTypes[]; edges: Edge[] } {
+  // Count dependencies for each node
   const dependencyCount: Record<string, number> = {};
-  nodes.forEach((node) => {
+  fileNodes.forEach((node) => {
     dependencyCount[node.id] = 0;
   });
   edges.forEach((edge) => {
@@ -85,93 +90,115 @@ function getCategorizedLayout(
   });
 
   // Separate nodes into frontend and backend
-  const frontendNodes: CustomNodeType[] = [];
-  const backendNodes: CustomNodeType[] = [];
+  const frontendFileNodes: CustomNodeType[] = [];
+  const backendFileNodes: CustomNodeType[] = [];
 
-  nodes.forEach((node) => {
+  fileNodes.forEach((node) => {
     const group = categorizeNode(node.data.category);
     if (group === 'frontend') {
-      frontendNodes.push(node);
+      frontendFileNodes.push(node);
     } else {
-      backendNodes.push(node);
+      backendFileNodes.push(node);
     }
   });
 
-  // Sort each group by dependency count (descending - more deps at top)
+  // Sort each group by dependency count (descending)
   const sortByDeps = (a: CustomNodeType, b: CustomNodeType) =>
     dependencyCount[b.id] - dependencyCount[a.id];
 
-  frontendNodes.sort(sortByDeps);
-  backendNodes.sort(sortByDeps);
+  frontendFileNodes.sort(sortByDeps);
+  backendFileNodes.sort(sortByDeps);
 
-  // Calculate layout dimensions
+  // Calculate dimensions for each category
   const halfWidth = (containerWidth - categoryPadding * 3) / 2;
-  const nodesPerRow = Math.max(1, Math.floor(halfWidth / (nodeWidth + nodeGapX)));
+  const nodesPerRow = Math.max(1, Math.floor((halfWidth - categoryPadding * 2) / (nodeWidth + nodeGapX)));
 
-  // Position frontend nodes (left side)
+  const calculateCategoryDimensions = (nodeCount: number) => {
+    const rows = Math.ceil(nodeCount / nodesPerRow);
+    const width = Math.min(nodeCount, nodesPerRow) * (nodeWidth + nodeGapX) + categoryPadding * 2;
+    const height = categoryHeaderHeight + rows * (nodeHeight + nodeGapY) + categoryPadding;
+    return { width: Math.max(width, 300), height: Math.max(height, 200) };
+  };
+
+  const frontendDims = calculateCategoryDimensions(frontendFileNodes.length);
+  const backendDims = calculateCategoryDimensions(backendFileNodes.length);
+
+  // Create category parent nodes
+  const frontendCategoryNode: CategoryNodeType = {
+    id: 'category-frontend',
+    type: 'category',
+    position: { x: 0, y: 0 },
+    data: {
+      label: 'Frontend',
+      category: 'frontend',
+      width: frontendDims.width,
+      height: frontendDims.height,
+      nodeCount: frontendFileNodes.length,
+    },
+    draggable: true,
+    selectable: true,
+  };
+
+  const backendCategoryNode: CategoryNodeType = {
+    id: 'category-backend',
+    type: 'category',
+    position: { x: frontendDims.width + categoryPadding * 2, y: 0 },
+    data: {
+      label: 'Backend',
+      category: 'backend',
+      width: backendDims.width,
+      height: backendDims.height,
+      nodeCount: backendFileNodes.length,
+    },
+    draggable: true,
+    selectable: true,
+  };
+
+  // Position file nodes inside their parent categories
   const positionNodesInCategory = (
     categoryNodes: CustomNodeType[],
-    startX: number
-  ): { nodes: CustomNodeType[]; height: number } => {
-    const positioned = categoryNodes.map((node, index): CustomNodeType => {
+    parentId: string
+  ): CustomNodeType[] => {
+    return categoryNodes.map((node, index): CustomNodeType => {
       const row = Math.floor(index / nodesPerRow);
       const col = index % nodesPerRow;
       return {
         ...node,
         position: {
-          x: startX + col * (nodeWidth + nodeGapX),
+          x: categoryPadding + col * (nodeWidth + nodeGapX),
           y: categoryHeaderHeight + row * (nodeHeight + nodeGapY),
         },
+        parentId,
+        extent: 'parent' as const,
+        expandParent: true,
       };
     });
-    const rows = Math.ceil(categoryNodes.length / nodesPerRow);
-    const height = categoryHeaderHeight + rows * (nodeHeight + nodeGapY);
-    return { nodes: positioned, height };
   };
 
-  const frontendResult = positionNodesInCategory(frontendNodes, categoryPadding);
-  const backendResult = positionNodesInCategory(backendNodes, categoryPadding + halfWidth + categoryPadding);
+  const positionedFrontendNodes = positionNodesInCategory(frontendFileNodes, 'category-frontend');
+  const positionedBackendNodes = positionNodesInCategory(backendFileNodes, 'category-backend');
 
-  const maxHeight = Math.max(frontendResult.height, backendResult.height, 400);
+  // Combine all nodes: category nodes first (so they render behind), then file nodes
+  const allNodes: AllNodeTypes[] = [
+    frontendCategoryNode,
+    backendCategoryNode,
+    ...positionedFrontendNodes,
+    ...positionedBackendNodes,
+  ];
 
-  const categoryBounds = {
-    frontend: {
-      x: categoryPadding / 2,
-      y: 0,
-      width: halfWidth + categoryPadding,
-      height: maxHeight,
-    },
-    backend: {
-      x: categoryPadding + halfWidth + categoryPadding / 2,
-      y: 0,
-      width: halfWidth + categoryPadding,
-      height: maxHeight,
-    },
-  };
-
-  return {
-    nodes: [...frontendResult.nodes, ...backendResult.nodes],
-    edges,
-    categoryBounds,
-  };
+  return { nodes: allNodes, edges };
 }
 
-// Category bounds type
-interface CategoryBounds {
-  frontend: { x: number; y: number; width: number; height: number };
-  backend: { x: number; y: number; width: number; height: number };
-}
-
-export default function VisualizationPage() {
+function VisualizationContent() {
   const navigate = useNavigate();
   const [graphData, setGraphData] = useState<ReactFlowGraph | null>(null);
-  const [nodes, setNodes, onNodesChange] = useNodesState<CustomNodeType>([]);
+  const [nodes, setNodes, onNodesChange] = useNodesState<AllNodeTypes>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const [selectedNode, setSelectedNode] = useState<ReactFlowNodeData | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [languageFilter, setLanguageFilter] = useState<Language | 'all'>('all');
   const [roleFilter, setRoleFilter] = useState<ArchitecturalRole | 'all'>('all');
-  const [categoryBounds, setCategoryBounds] = useState<CategoryBounds | null>(null);
+  const [magnifierEnabled, setMagnifierEnabled] = useState(true);
 
   // Load data from session storage
   useEffect(() => {
@@ -218,28 +245,30 @@ export default function VisualizationPage() {
     );
 
     // Convert to CustomNodeType format
-    const nodesForLayout: CustomNodeType[] = filteredNodes.map((n) => ({
+    const fileNodesForLayout: CustomNodeType[] = filteredNodes.map((n) => ({
       id: n.id,
       type: 'custom' as const,
       position: n.position,
       data: n.data,
     }));
 
-    // Apply categorized layout (Frontend | Backend)
-    const { nodes: layoutedNodes, edges: layoutedEdges, categoryBounds: bounds } = getCategorizedLayout(
-      nodesForLayout,
+    // Apply categorized layout with parent nodes
+    const { nodes: layoutedNodes, edges: layoutedEdges } = getCategorizedLayout(
+      fileNodesForLayout,
       filteredEdges
     );
 
     setNodes(layoutedNodes);
     setEdges(layoutedEdges);
-    setCategoryBounds(bounds);
   }, [graphData, searchQuery, languageFilter, roleFilter, setNodes, setEdges]);
 
   // Handle node selection
   const onNodeClick = useCallback(
-    (_: React.MouseEvent, node: CustomNodeType) => {
-      setSelectedNode(node.data);
+    (_: React.MouseEvent, node: Node) => {
+      // Only select file nodes, not category nodes
+      if (node.type === 'custom') {
+        setSelectedNode(node.data as ReactFlowNodeData);
+      }
     },
     []
   );
@@ -258,6 +287,11 @@ export default function VisualizationPage() {
     if (!graphData) return [];
     return [...new Set(graphData.nodes.map((n) => n.data.role))];
   }, [graphData]);
+
+  // Count file nodes (excluding category nodes)
+  const fileNodeCount = useMemo(() => {
+    return nodes.filter(n => n.type === 'custom').length;
+  }, [nodes]);
 
   if (!graphData) {
     return (
@@ -323,89 +357,24 @@ export default function VisualizationPage() {
           }}
         >
           <Background variant={BackgroundVariant.Dots} color="#334155" gap={20} />
-
-          {/* Category Container Overlays */}
-          {categoryBounds && (
-            <svg
-              style={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                width: '100%',
-                height: '100%',
-                pointerEvents: 'none',
-                overflow: 'visible',
-              }}
-            >
-              {/* Frontend Container */}
-              <g transform={`translate(${categoryBounds.frontend.x}, ${categoryBounds.frontend.y})`}>
-                <rect
-                  width={categoryBounds.frontend.width}
-                  height={categoryBounds.frontend.height}
-                  fill="rgba(97, 218, 251, 0.03)"
-                  stroke={categoryColors.frontend}
-                  strokeWidth={2}
-                  strokeDasharray="8 4"
-                  rx={12}
-                />
-                <rect
-                  x={0}
-                  y={0}
-                  width={140}
-                  height={36}
-                  fill="#0f172a"
-                  rx={8}
-                />
-                <foreignObject x={8} y={6} width={130} height={28}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <Monitor size={16} color={categoryColors.frontend} />
-                    <span style={{ color: categoryColors.frontend, fontWeight: 600, fontSize: '14px' }}>
-                      Frontend
-                    </span>
-                  </div>
-                </foreignObject>
-              </g>
-
-              {/* Backend Container */}
-              <g transform={`translate(${categoryBounds.backend.x}, ${categoryBounds.backend.y})`}>
-                <rect
-                  width={categoryBounds.backend.width}
-                  height={categoryBounds.backend.height}
-                  fill="rgba(16, 185, 129, 0.03)"
-                  stroke={categoryColors.backend}
-                  strokeWidth={2}
-                  strokeDasharray="8 4"
-                  rx={12}
-                />
-                <rect
-                  x={0}
-                  y={0}
-                  width={130}
-                  height={36}
-                  fill="#0f172a"
-                  rx={8}
-                />
-                <foreignObject x={8} y={6} width={120} height={28}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <Server size={16} color={categoryColors.backend} />
-                    <span style={{ color: categoryColors.backend, fontWeight: 600, fontSize: '14px' }}>
-                      Backend
-                    </span>
-                  </div>
-                </foreignObject>
-              </g>
-            </svg>
-          )}
-
           <Controls className="!bg-slate-800 !border-slate-700" />
           <MiniMap
             nodeColor={(node) => {
+              if (node.type === 'category') {
+                const catData = node.data as CategoryNodeData | undefined;
+                return catData?.category === 'frontend'
+                  ? categoryColors.frontend
+                  : categoryColors.backend;
+              }
               const data = node.data as ReactFlowNodeData | undefined;
               return data?.role ? roleColors[data.role] : '#6b7280';
             }}
             maskColor="rgba(15, 23, 42, 0.8)"
             className="!bg-slate-800 !border-slate-700"
           />
+
+          {/* Magnifier component */}
+          <Magnifier enabled={magnifierEnabled} size={160} zoom={2} />
 
           {/* Filters Panel */}
           <Panel position="top-left" className="!m-4">
@@ -423,6 +392,23 @@ export default function VisualizationPage() {
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="w-full pl-8 pr-3 py-1.5 bg-slate-900 border border-slate-700 rounded text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                 />
+              </div>
+
+              {/* Magnifier Toggle */}
+              <div className="flex items-center justify-between">
+                <label className="text-xs text-slate-500 uppercase tracking-wide">
+                  Magnifier
+                </label>
+                <button
+                  onClick={() => setMagnifierEnabled(!magnifierEnabled)}
+                  className={`px-3 py-1 text-xs rounded transition-colors ${
+                    magnifierEnabled
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-slate-700 text-slate-400'
+                  }`}
+                >
+                  {magnifierEnabled ? 'ON' : 'OFF'}
+                </button>
               </div>
 
               {/* Language Filter */}
@@ -497,7 +483,7 @@ export default function VisualizationPage() {
 
               {/* Stats */}
               <div className="text-xs text-slate-500 pt-2 border-t border-slate-700">
-                Showing {nodes.length} of {graphData.nodes.length} files
+                Showing {fileNodeCount} of {graphData.nodes.length} files
               </div>
             </div>
           </Panel>
@@ -507,5 +493,14 @@ export default function VisualizationPage() {
         <NodeDetailPanel data={selectedNode} onClose={() => setSelectedNode(null)} />
       </div>
     </div>
+  );
+}
+
+// Wrap with ReactFlowProvider for the Magnifier to work
+export default function VisualizationPage() {
+  return (
+    <ReactFlowProvider>
+      <VisualizationContent />
+    </ReactFlowProvider>
   );
 }
