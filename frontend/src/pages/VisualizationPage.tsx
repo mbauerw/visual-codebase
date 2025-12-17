@@ -559,45 +559,126 @@ export default function VisualizationPage() {
               <div className='absolute inset-0 rounded-2xl bg-gradient-to-br from-indigo-500/20 via-transparent to-purple-500/20 pointer-events-none' />
               <div className='absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 rounded-t-2xl' />
               <ReactFlow
-              nodes={nodes}
-              edges={edges}
-              onNodesChange={onNodesChange}
-              onEdgesChange={onEdgesChange}
-              onNodeClick={onNodeClick}
-              onPaneClick={onPaneClick}
-              nodeTypes={nodeTypes}
-              fitView
-              minZoom={0.1}
-              maxZoom={2}
-              defaultEdgeOptions={{
-                type: 'smoothstep',
-                animated: false,
-                style: { stroke: '#475569', strokeWidth: 1.5 },
-              }}
-            >
-              <Controls className="" />
-              <MiniMap
-                nodeColor={(node) => {
-                  if (node.type === 'category') {
-                    const catData = node.data as CategoryNodeData | undefined;
-                    return catData?.category === 'frontend'
-                      ? categoryColors.frontend
-                      : categoryColors.backend;
-                  }
-                  const data = node.data as ReactFlowNodeData | undefined;
-                  return data?.role ? roleColors[data.role] : '#6b7280';
+                nodes={nodes}
+                edges={edges}
+                onNodesChange={onNodesChange}
+                onEdgesChange={onEdgesChange}
+                onNodeClick={onNodeClick}
+                onPaneClick={onPaneClick}
+                nodeTypes={nodeTypes}
+                fitView
+                minZoom={0.1}
+                maxZoom={2}
+                defaultEdgeOptions={{
+                  type: 'smoothstep',
+                  animated: false,
+                  style: { stroke: '#475569', strokeWidth: 1.5 },
                 }}
-                maskColor="rgba(15, 23, 42, 0.8)"
-                className="!bg-slate-800 !border-slate-700"
-              />
+              >
+                <Controls className="" />
+                <MiniMap
+                  nodeColor={(node) => {
+                    if (node.type === 'category') {
+                      const catData = node.data as CategoryNodeData | undefined;
+                      return catData?.category === 'frontend'
+                        ? categoryColors.frontend
+                        : categoryColors.backend;
+                    }
+                    const data = node.data as ReactFlowNodeData | undefined;
+                    return data?.role ? roleColors[data.role] : '#6b7280';
+                  }}
+                  maskColor="rgba(15, 23, 42, 0.8)"
+                  className="!bg-slate-800 !border-slate-700"
+                />
 
-              {/* Filters Panel - Kept as is */}
-              <Panel position="top-left" className="!m-4">
-                <div className="bg-slate-800 border border-slate-700 rounded-lg p-3 space-y-3 w-64">
-                  {/* ... (Search, Filter, Stats content omitted for brevity, keep as is) ... */}
-                </div>
-              </Panel>
-            </ReactFlow>
+                {/* Filters Panel - Kept as is */}
+                <Panel position="top-left" className="!m-4">
+                  <div className="bg-slate-800 border border-slate-700 rounded-lg p-3 space-y-3 w-52">
+                    {/* Search */}
+                    <div className="relative">
+                      <Search
+                        size={16}
+                        className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500"
+                      />
+                      <input
+                        type="text"
+                        placeholder="Search files..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="w-full pl-8 pr-3 py-1.5 bg-slate-900 border border-slate-700 rounded text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      />
+                    </div>
+                    {/* Language Filter */}
+                    <div>
+                      <label className="text-xs text-slate-500 uppercase tracking-wide mb-1 block">
+                        Language
+                      </label>
+                      <div className="flex flex-wrap gap-1">
+                        <button
+                          onClick={() => setLanguageFilter('all')}
+                          className={`px-2 py-1 text-xs rounded transition-colors ${languageFilter === 'all'
+                            ? 'bg-blue-600 text-white'
+                            : 'bg-slate-700 text-slate-400 hover:text-white'
+                            }`}
+                        >
+                          All
+                        </button>
+                        {availableLanguages.map((lang) => (
+                          <button
+                            key={lang}
+                            onClick={() => setLanguageFilter(lang)}
+                            className={`px-2 py-1 text-xs rounded transition-colors ${languageFilter === lang
+                              ? 'bg-blue-600 text-white'
+                              : 'bg-slate-700 text-slate-400 hover:text-white'
+                              }`}
+                            style={{
+                              borderLeft: `2px solid ${languageColors[lang]}`,
+                            }}
+                          >
+                            {lang}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    {/* Role Filter */}
+                    <div>
+                      <label className="text-xs text-slate-500 uppercase tracking-wide mb-1 block">
+                        Role
+                      </label>
+                      <div className="flex flex-wrap gap-1 max-h-24 overflow-y-auto">
+                        <button
+                          onClick={() => setRoleFilter('all')}
+                          className={`px-2 py-1 text-xs rounded transition-colors ${roleFilter === 'all'
+                            ? 'bg-blue-600 text-white'
+                            : 'bg-slate-700 text-slate-400 hover:text-white'
+                            }`}
+                        >
+                          All
+                        </button>
+                        {availableRoles.map((role) => (
+                          <button
+                            key={role}
+                            onClick={() => setRoleFilter(role)}
+                            className={`px-2 py-1 text-xs rounded transition-colors ${roleFilter === role
+                              ? 'bg-blue-600 text-white'
+                              : 'bg-slate-700 text-slate-400 hover:text-white'
+                              }`}
+                            style={{
+                              borderLeft: `2px solid ${roleColors[role]}`,
+                            }}
+                          >
+                            {role.replace('_', ' ')}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    {/* Stats */}
+                    <div className="text-xs text-slate-500 pt-2 border-t border-slate-700">
+                      Showing {fileNodeCount} of {graphData.nodes.length} files
+                    </div>
+                  </div>
+                </Panel>
+              </ReactFlow>
             </div>
           </div>
 
