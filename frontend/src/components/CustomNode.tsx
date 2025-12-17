@@ -27,17 +27,18 @@ const roleIcons: Record<ArchitecturalRole, React.ReactNode> = {
 function CustomNode({ data, selected }: NodeProps<CustomNodeType>) {
   const roleColor = roleColors[data.role] || roleColors.unknown;
   const langColor = languageColors[data.language] || languageColors.unknown;
+  const borderColor = '#7d7d7de9' ;
 
   return (
     <div
       className={`
-        relative px-3 py-2 rounded-lg shadow-lg min-w-[240px] max-w-[300px]
+        relative px-3 py-2 rounded-lg shadow-lg min-w-[280px] max-w-[320px]
         transition-all duration-200
         ${selected ? 'ring-2 ring-blue-500 ring-offset-2 ring-offset-slate-900' : ''}
       `}
       style={{
         backgroundColor: '#1e293b',
-        borderLeft: `4px solid ${roleColor}`,
+        borderLeft: `4px solid ${borderColor}`,
       }}
     >
       {/* Target handle */}
@@ -50,7 +51,7 @@ function CustomNode({ data, selected }: NodeProps<CustomNodeType>) {
       {/* Header with file name */}
       <div className="flex items-center gap-2 mb-1">
         <span style={{ color: langColor }}>{roleIcons[data.role]}</span>
-        <span className="text-sm font-medium text-white truncate" title={data.label}>
+        <span className="text-lg font-medium text-white truncate" title={data.label}>
           {data.label}
         </span>
       </div>
@@ -58,7 +59,7 @@ function CustomNode({ data, selected }: NodeProps<CustomNodeType>) {
       {/* Role badge */}
       <div className="flex items-center gap-2 mb-1">
         <span
-          className="text-xs px-1.5 py-0.5 rounded-full"
+          className="text-md px-1.5 py-0.5 rounded-full"
           style={{
             backgroundColor: `${roleColor}20`,
             color: roleColor,
@@ -67,7 +68,7 @@ function CustomNode({ data, selected }: NodeProps<CustomNodeType>) {
           {roleLabels[data.role]}
         </span>
         <span
-          className="text-xs px-1.5 py-0.5 rounded-full"
+          className="text-md px-1.5 py-0.5 rounded-full"
           style={{
             backgroundColor: `${langColor}20`,
             color: langColor,
@@ -80,7 +81,7 @@ function CustomNode({ data, selected }: NodeProps<CustomNodeType>) {
       {/* Description */}
       {data.description && (
         <p
-          className="text-xs text-slate-400 line-clamp-2 mt-1"
+          className="text-md text-slate-400 line-clamp-2 mt-1"
           title={data.description}
         >
           {data.description}

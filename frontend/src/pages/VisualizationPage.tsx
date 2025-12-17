@@ -4,14 +4,15 @@ import {
   ReactFlow,
   Controls,
   MiniMap,
-  Background,
   useNodesState,
   useEdgesState,
+  useReactFlow,
+  ReactFlowProvider,
   type Edge,
   type Node,
   type NodeTypes,
-  BackgroundVariant,
   Panel,
+  type Viewport,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import {
@@ -24,6 +25,7 @@ import {
 
 import CustomNode, { type CustomNodeType } from '../components/CustomNode';
 import CategoryNode, { type CategoryNodeType, type CategoryNodeData } from '../components/CategoryNode';
+import CategoryBackground, { type CategorySection } from '../components/Categorybackground'
 import NodeDetailPanel from '../components/NodeDetailPanel';
 import type {
   ReactFlowGraph,
@@ -49,10 +51,6 @@ const nodeGapX = 40;  // Horizontal space between file nodes
 const nodeGapY = 35;  // Vertical space between file nodes
 const rolePadding = 45;  // Padding inside role containers
 const roleHeaderHeight = 55;  // Space for role header
-const topCategoryPadding = 80;  // Padding inside top-level categories
-const topCategoryHeaderHeight = 70;  // Space for top-level header
-const roleGapX = 50;  // Horizontal gap between role containers
-const roleGapY = 50;  // Vertical gap between role containers
 
 // Categorize nodes into Frontend vs Backend groups
 function categorizeNode(category: Category): 'frontend' | 'backend' {
@@ -72,20 +70,17 @@ function categorizeNode(category: Category): 'frontend' | 'backend' {
 }
 
 // Calculate tree layout positions for nodes
-// Returns array of {row, col, totalInRow} for each node index
 function getTreePositions(nodeCount: number): { row: number; col: number; totalInRow: number }[] {
   const positions: { row: number; col: number; totalInRow: number }[] = [];
   let remaining = nodeCount;
   let row = 0;
-  let index = 0;
 
   while (remaining > 0) {
-    const nodesInRow = row + 1; // Row 0 has 1 node, row 1 has 2, etc.
+    const nodesInRow = row + 1;
     const actualInRow = Math.min(nodesInRow, remaining);
 
     for (let col = 0; col < actualInRow; col++) {
       positions.push({ row, col, totalInRow: actualInRow });
-      index++;
     }
 
     remaining -= actualInRow;
@@ -101,7 +96,6 @@ function calculateTreeRoleDimensions(nodeCount: number): { width: number; height
     return { width: 250, height: 150, rows: 0, maxCols: 0 };
   }
 
-  // Calculate number of rows needed for tree layout
   let remaining = nodeCount;
   let rows = 0;
   let maxCols = 0;
@@ -114,8 +108,8 @@ function calculateTreeRoleDimensions(nodeCount: number): { width: number; height
     rows++;
   }
 
-  const width = maxCols * (nodeWidth + nodeGapX) + rolePadding * 2;
-  const height = roleHeaderHeight + rows * (nodeHeight + nodeGapY) + rolePadding;
+  const width = maxCols * (nodeWidth + nodeGapX) + rolePadding * 2 + 50;
+  const height = roleHeaderHeight + rows * (nodeHeight + nodeGapY) + rolePadding + 100;
 
   return {
     width: Math.max(width, 300),
@@ -125,12 +119,19 @@ function calculateTreeRoleDimensions(nodeCount: number): { width: number; height
   };
 }
 
+// Layout interface for return type
+interface LayoutResult {
+  nodes: AllNodeTypes[];
+  edges: Edge[];
+  categorySections: CategorySection[];
+}
+
 // Custom layout that creates nested category hierarchy:
-// Frontend/Backend -> Role Categories -> File Nodes (in tree pattern)
+// Static Background (Frontend/Backend) -> Role Categories (nodes) -> File Nodes (in tree pattern)
 function getNestedCategoryLayout(
   fileNodes: CustomNodeType[],
   edges: Edge[]
-): { nodes: AllNodeTypes[]; edges: Edge[] } {
+): LayoutResult {
   // Count dependencies for each node
   const dependencyCount: Record<string, number> = {};
   fileNodes.forEach((node) => {
@@ -168,7 +169,7 @@ function getNestedCategoryLayout(
   frontendRoles.forEach((nodes) => nodes.sort(sortByDeps));
   backendRoles.forEach((nodes) => nodes.sort(sortByDeps));
 
-  // Sort role groups by total dependency count (sum of all nodes in the role)
+  // Sort role groups by total dependency count
   const sortRoleGroups = (roleMap: Map<ArchitecturalRole, CustomNodeType[]>): RoleGroup[] => {
     return Array.from(roleMap.entries())
       .map(([role, nodes]) => ({ role, nodes }))
@@ -182,21 +183,30 @@ function getNestedCategoryLayout(
   const frontendRoleGroups = sortRoleGroups(frontendRoles);
   const backendRoleGroups = sortRoleGroups(backendRoles);
 
-  // Layout role categories in a circular pattern within a top-level category
+  // Layout role categories in a circular pattern and return absolute positions
   const layoutRoleCategoriesInCircle = (
     roleGroups: RoleGroup[],
-    topCategoryId: string,
-    topCategory: 'frontend' | 'backend'
+    categoryId: string,
+    topCategory: 'frontend' | 'backend',
+    offsetX: number
   ): {
     roleCategoryNodes: CategoryNodeType[];
     fileNodes: CustomNodeType[];
     circleRadius: number;
+    centerX: number;
+    centerY: number;
   } => {
     const roleCategoryNodes: CategoryNodeType[] = [];
     const positionedFileNodes: CustomNodeType[] = [];
 
     if (roleGroups.length === 0) {
-      return { roleCategoryNodes, fileNodes: positionedFileNodes, circleRadius: 300 };
+      return { 
+        roleCategoryNodes, 
+        fileNodes: positionedFileNodes, 
+        circleRadius: 300,
+        centerX: offsetX + 300,
+        centerY: 300,
+      };
     }
 
     // Calculate dimensions for all role categories first
@@ -204,53 +214,45 @@ function getNestedCategoryLayout(
     const maxRoleWidth = Math.max(...roleDimensions.map((d) => d.width));
     const maxRoleHeight = Math.max(...roleDimensions.map((d) => d.height));
 
-    // Calculate the circle radius needed to fit all role containers
-    // Use a larger radius for more containers
+    // Calculate the circle radius needed
     const numRoles = roleGroups.length;
-    const roleSpacing = 30; // Space between role containers
+    const roleSpacing = 10;
 
-    // Calculate radius based on number of roles - arrange in concentric rings if many
     let circleRadius: number;
     if (numRoles <= 1) {
-      circleRadius = Math.max(maxRoleWidth, maxRoleHeight) / 2;
+      circleRadius = Math.max(maxRoleWidth, maxRoleHeight) / 2 + 100;
     } else if (numRoles <= 4) {
-      // Small number - arrange in a tight circle
-      circleRadius = (maxRoleWidth + roleSpacing);
+      circleRadius = (maxRoleWidth + roleSpacing) + 100;
     } else if (numRoles <= 8) {
-      // Medium number - larger circle
       circleRadius = (numRoles * (maxRoleWidth + roleSpacing)) / (2 * Math.PI) + maxRoleHeight;
     } else {
-      // Many roles - use multiple rings or grid-like arrangement
       circleRadius = (numRoles * (maxRoleWidth + roleSpacing)) / (2 * Math.PI) + maxRoleHeight;
     }
 
-    // Ensure minimum size
     circleRadius = Math.max(circleRadius, 400);
 
-    // Position role containers in a circular pattern
-    const centerX = circleRadius;
-    const centerY = circleRadius;
-    const placementRadius = circleRadius - maxRoleHeight / 2 - 100; // Inset from edge
+    // Calculate center position (with offset for this category section)
+    const centerX = offsetX + circleRadius;
+    const centerY = circleRadius + 50; // Add some top padding
+    const placementRadius = circleRadius - maxRoleHeight / 2 - 100;
 
     roleGroups.forEach((roleGroup, index) => {
       const dims = roleDimensions[index];
-      const roleCategoryId = `${topCategoryId}-${roleGroup.role}`;
+      const roleCategoryId = `${categoryId}-${roleGroup.role}`;
 
-      // Calculate position on the circle
+      // Calculate absolute position on the circle
       let x: number, y: number;
 
       if (numRoles === 1) {
-        // Single role - center it
         x = centerX - dims.width / 2;
         y = centerY - dims.height / 2;
       } else {
-        // Multiple roles - arrange in circle, starting from top
-        const angle = (index / numRoles) * 2 * Math.PI - Math.PI / 2; // Start from top
+        const angle = (index / numRoles) * 2 * Math.PI - Math.PI / 2;
         x = centerX + Math.cos(angle) * placementRadius - dims.width / 2;
         y = centerY + Math.sin(angle) * placementRadius - dims.height / 2;
       }
 
-      // Create role category node
+      // Create role category node (NO parentId - absolute positioning)
       const roleCategoryNode: CategoryNodeType = {
         id: roleCategoryId,
         type: 'category',
@@ -264,11 +266,8 @@ function getNestedCategoryLayout(
           nodeCount: roleGroup.nodes.length,
           level: 'role',
         },
-        parentId: topCategoryId,
-        extent: 'parent' as const,
         draggable: true,
         selectable: true,
-        expandParent: true,
       };
       roleCategoryNodes.push(roleCategoryNode);
 
@@ -296,74 +295,75 @@ function getNestedCategoryLayout(
     return {
       roleCategoryNodes,
       fileNodes: positionedFileNodes,
-      circleRadius: circleRadius * 2, // Diameter
+      circleRadius: circleRadius * 2,
+      centerX,
+      centerY,
     };
   };
 
-  // Layout frontend categories
-  const frontendLayout = layoutRoleCategoriesInCircle(frontendRoleGroups, 'category-frontend', 'frontend');
+  // Layout frontend categories (starting at x=0)
+  const frontendLayout = layoutRoleCategoriesInCircle(
+    frontendRoleGroups, 
+    'frontend', 
+    'frontend',
+    50 // Left padding
+  );
 
-  // Layout backend categories
-  const backendLayout = layoutRoleCategoriesInCircle(backendRoleGroups, 'category-backend', 'backend');
+  // Layout backend categories (offset to the right of frontend)
+  const frontendWidth = frontendLayout.circleRadius + 100;
+  const backendLayout = layoutRoleCategoriesInCircle(
+    backendRoleGroups, 
+    'backend', 
+    'backend',
+    frontendWidth + 50 // Gap between sections
+  );
 
   // Calculate total node counts
   const frontendNodeCount = frontendRoleGroups.reduce((sum, rg) => sum + rg.nodes.length, 0);
   const backendNodeCount = backendRoleGroups.reduce((sum, rg) => sum + rg.nodes.length, 0);
 
-  // Create top-level category nodes (circular - width equals height)
+  // Create category sections for the static background
   const frontendSize = Math.max(frontendLayout.circleRadius, 600);
   const backendSize = Math.max(backendLayout.circleRadius, 600);
 
-  const frontendCategoryNode: CategoryNodeType = {
-    id: 'category-frontend',
-    type: 'category',
-    position: { x: 0, y: 0 },
-    data: {
+  const categorySections: CategorySection[] = [
+    {
+      id: 'section-frontend',
       label: 'Frontend',
       category: 'frontend',
+      x: frontendLayout.centerX - frontendSize / 2,
+      y: frontendLayout.centerY - frontendSize / 2,
       width: frontendSize,
       height: frontendSize,
       nodeCount: frontendNodeCount,
-      level: 'top',
     },
-    draggable: true,
-    selectable: true,
-  };
-
-  const backendCategoryNode: CategoryNodeType = {
-    id: 'category-backend',
-    type: 'category',
-    position: { x: frontendSize + 100, y: 0 },
-    data: {
+    {
+      id: 'section-backend',
       label: 'Backend',
       category: 'backend',
+      x: backendLayout.centerX - backendSize / 2,
+      y: backendLayout.centerY - backendSize / 2,
       width: backendSize,
       height: backendSize,
       nodeCount: backendNodeCount,
-      level: 'top',
     },
-    draggable: true,
-    selectable: true,
-  };
+  ];
 
-  // Combine all nodes in the correct order:
-  // 1. Top-level categories (render first, behind everything)
-  // 2. Role categories (render second, behind file nodes)
-  // 3. File nodes (render last, on top)
+  // Combine all nodes (only role categories and file nodes - no top-level category nodes)
   const allNodes: AllNodeTypes[] = [
-    frontendCategoryNode,
-    backendCategoryNode,
     ...frontendLayout.roleCategoryNodes,
     ...backendLayout.roleCategoryNodes,
     ...frontendLayout.fileNodes,
     ...backendLayout.fileNodes,
   ];
 
-  return { nodes: allNodes, edges };
+  return { nodes: allNodes, edges, categorySections };
 }
 
-export default function VisualizationPage() {
+// Inner component that uses useReactFlow
+function VisualizationPageInner() {
   const navigate = useNavigate();
+  const { getViewport } = useReactFlow();
   const [graphData, setGraphData] = useState<ReactFlowGraph | null>(null);
   const [nodes, setNodes, onNodesChange] = useNodesState<AllNodeTypes>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
@@ -371,6 +371,8 @@ export default function VisualizationPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [languageFilter, setLanguageFilter] = useState<Language | 'all'>('all');
   const [roleFilter, setRoleFilter] = useState<ArchitecturalRole | 'all'>('all');
+  const [categorySections, setCategorySections] = useState<CategorySection[]>([]);
+  const [viewport, setViewport] = useState<Viewport>({ x: 0, y: 0, zoom: 1 });
 
   // Load data from session storage
   useEffect(() => {
@@ -424,20 +426,18 @@ export default function VisualizationPage() {
       data: n.data,
     }));
 
-    // Apply nested category layout (Frontend/Backend -> Role -> Files in tree pattern)
-    const { nodes: layoutedNodes, edges: layoutedEdges } = getNestedCategoryLayout(
-      fileNodesForLayout,
-      filteredEdges
-    );
+    // Apply nested category layout
+    const { nodes: layoutedNodes, edges: layoutedEdges, categorySections: sections } = 
+      getNestedCategoryLayout(fileNodesForLayout, filteredEdges);
 
     setNodes(layoutedNodes);
     setEdges(layoutedEdges);
+    setCategorySections(sections);
   }, [graphData, searchQuery, languageFilter, roleFilter, setNodes, setEdges]);
 
   // Handle node selection
   const onNodeClick = useCallback(
     (_: React.MouseEvent, node: Node) => {
-      // Only select file nodes, not category nodes
       if (node.type === 'custom') {
         setSelectedNode(node.data as ReactFlowNodeData);
       }
@@ -448,6 +448,11 @@ export default function VisualizationPage() {
   const onPaneClick = useCallback(() => {
     setSelectedNode(null);
   }, []);
+
+  // Track viewport changes for background sync
+  const onMove = useCallback(() => {
+    setViewport(getViewport());
+  }, [getViewport]);
 
   // Get unique languages and roles for filters
   const availableLanguages = useMemo(() => {
@@ -476,7 +481,6 @@ export default function VisualizationPage() {
   return (
     <div className="h-screen w-screen bg-gray-100 flex flex-col overflow-hidden">
       {/* Header */}
-      {/* No changes needed here, keeping it fixed as requested */}
       <div className="h-14 fixed top-0 left-0 w-full bg-slate-800 border-b border-slate-700 flex items-center justify-between px-4 flex-shrink-0 z-50">
         <div className="flex items-center gap-4">
           <button
@@ -511,12 +515,9 @@ export default function VisualizationPage() {
       </div>
 
       {/* Main content */}
-      {/* CHANGE 1: added h-[calc(100vh-3.5rem)] so the grid doesn't grow off screen */}
       <div className="grid xl:grid-cols-[5fr_minmax(400px,1fr)] grid-cols-[3fr_minmax(250px,1fr)] mt-14 h-[calc(100vh-3.5rem)] relative overflow-hidden">
 
-        {/* Overflow portion */}
-        {/* Hidden scrollbar with scroll-smooth for modern feel */}
-        <div className='h-full overflow-y-auto flex flex-col items-center  [-ms-overflow-style:none] [scrollbar-width:10]'>
+        <div className='h-full overflow-y-auto flex flex-col items-center [-ms-overflow-style:none] [scrollbar-width:10]'>
 
           {/* Hero Section */}
           <div className='max-w-[900px] h-[500px] w-full py-12 px-8 flex-shrink-0'>
@@ -528,7 +529,6 @@ export default function VisualizationPage() {
                   </div>
                   <h2 className='text-2xl text-red-500 text-center '>OVERVIEW</h2>
                 </div>
-                {/* This should fill the remaining space */}
                 <div className='flex-1 w-full items-center justify-around flex flex-col gap-5'>
                   <h2 className='text-7xl font-bold text-black mb-3 tracking-tight'>
                     {graphData.metadata.directory_path.split('/').pop()}
@@ -557,9 +557,14 @@ export default function VisualizationPage() {
           </div>
 
           {/* React Flow Container */}
-          <div className=' w-full px-8 pb-12 flex-shrink-0 justify-center flex items-center'>
-
-            <div className='h-[900px] max-w-[1200px] w-full rounded-2xl overflow-hidden border border-slate-400/50 shadow-2xl bg-slate-900 relative'>
+          <div className='w-full px-8 pb-12 flex-shrink-0 justify-center flex items-center'>
+            <div className='h-[900px] max-w-[1200px] w-full rounded-2xl overflow-hidden border border-slate-400/50 shadow-2xl bg-slate-300 relative'>
+              
+              {/* Static category background */}
+              <CategoryBackground 
+                sections={categorySections} 
+                transform={viewport} 
+              />
 
               <ReactFlow
                 nodes={nodes}
@@ -568,6 +573,7 @@ export default function VisualizationPage() {
                 onEdgesChange={onEdgesChange}
                 onNodeClick={onNodeClick}
                 onPaneClick={onPaneClick}
+                onMove={onMove}
                 nodeTypes={nodeTypes}
                 fitView
                 minZoom={0.1}
@@ -578,7 +584,7 @@ export default function VisualizationPage() {
                   style: { stroke: '#475569', strokeWidth: 1.5 },
                 }}
               >
-                <Controls className="" />
+                <Controls />
                 <MiniMap
                   nodeColor={(node) => {
                     if (node.type === 'category') {
@@ -594,7 +600,7 @@ export default function VisualizationPage() {
                   className="!bg-slate-800 !border-slate-700"
                 />
 
-                {/* Filters Panel - Kept as is */}
+                {/* Filters Panel */}
                 <Panel position="top-left" className="!m-4">
                   <div className="bg-slate-800 border border-slate-700 rounded-lg p-3 space-y-3 w-52">
                     {/* Search */}
@@ -693,5 +699,14 @@ export default function VisualizationPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+// Wrap with ReactFlowProvider to enable useReactFlow hook
+export default function VisualizationPage() {
+  return (
+    <ReactFlowProvider>
+      <VisualizationPageInner />
+    </ReactFlowProvider>
   );
 }

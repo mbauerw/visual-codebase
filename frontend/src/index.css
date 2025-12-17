@@ -58,21 +58,21 @@ body {
   border-radius: 8px;
 }
 
-/* Category node styling - nested categories need proper z-index */
+/* Role category nodes (containers for file nodes) */
 .react-flow__node-category {
   z-index: 0 !important;
 }
 
-/* Role-level categories should be above top-level */
-.react-flow__node-category[data-id*="-"] {
-  z-index: 1 !important;
-}
-
-/* File nodes should be above all categories */
+/* File nodes should be above category containers */
 .react-flow__node-custom {
-  z-index: 2 !important;
+  z-index: 1 !important;
 }
 
 .react-flow__node.selected {
   z-index: 100 !important;
+}
+
+/* Ensure panels are above everything */
+.react-flow__panel {
+  z-index: 10 !important;
 }
