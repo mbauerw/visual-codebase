@@ -572,7 +572,7 @@ function VisualizationPageInner() {
 
           {/* React Flow Container */}
           <div className='w-full px-8 pb-12 flex-shrink-0 justify-center flex items-center'>
-            <div className='h-[900px] max-w-[1200px] w-full rounded-2xl overflow-hidden border border-4 border-gray-600 outline outline-4 outline-gray-500 shadow-2xl shadow-black bg-slate-300 relative'>
+            <div className='h-[900px] max-w-[1200px] w-full rounded-2xl overflow-hidden border border-4 border-neutral-700 outline outline-2 outline-neutral-500 shadow-2xl shadow-black bg-slate-300 relative'>
 
               {/* Static category background */}
               <CategoryBackground
