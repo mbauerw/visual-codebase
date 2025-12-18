@@ -1,26 +1,46 @@
-import { X, FileCode, Folder, ArrowRight, Hash, Code, Layers } from 'lucide-react';
+import { X, FileCode, Folder, ArrowRight, Hash, Code, Layers, ChevronsLeftRight } from 'lucide-react';
 import type { ReactFlowNodeData } from '../types';
 import { roleColors, languageColors, roleLabels, categoryColors } from '../types';
 
 interface NodeDetailPanelProps {
   data: ReactFlowNodeData | null;
   onClose: () => void;
+  setExpand: React.Dispatch<React.SetStateAction<boolean>>;
+  expanded?: boolean;
 }
 
-export default function NodeDetailPanel({ data, onClose }: NodeDetailPanelProps) {
+export default function NodeDetailPanel({ data, onClose, setExpand, expanded }: NodeDetailPanelProps) {
+  const handleExpandToggle = () => {
+    console.log("Toggling expand state");
+    setExpand(prev => !prev);
+  }
+
+  //  ${expanded ? 'w-full' : 'w-[50px]'} transition-all duration-1000 
+
   if (!data) {
     return (
-      <div className="h-full w-full flex flex-col items-center justify-center p-8 text-center">
-        <div className="p-6 bg-slate-800/50 rounded-2xl border border-slate-700/50 mb-4">
-          <Layers size={48} className="text-slate-600" />
+      <div className={`h-full  w-full relative flex flex-col items-center justify-center p-8 text-center`}>
+        <div className='absolute top-2 left-2 flex items-center cursor-pointer gap-2 text-slate-400 z-50 ' >
+          <ChevronsLeftRight size={26} onMouseDown={handleExpandToggle} className='z-50 pointer-events-all' />
+          {/* <span className="text-sm uppercase tracking-wider font-semibold">Node Details</span> */}
         </div>
-        <h3 className="text-lg font-medium text-slate-400 mb-2">No File Selected</h3>
-        <p className="text-sm text-slate-500 max-w-[200px]">
-          Click on a file node in the visualization to view its details
-        </p>
+        {expanded &&
+          <div className='flex flex-col items-center justify-center'>
+            <div className="p-6 bg-slate-800/50 w-[96px] rounded-2xl border border-slate-700/50 mb-4">
+              <Layers size={48} className="text-slate-600" />
+            </div>
+            <h3 className="text-lg font-medium text-slate-400 mb-2">No File Selected</h3>
+            <p className="text-sm text-slate-500 max-w-[200px]">
+              Click on a file node in the visualization to view its details
+            </p>
+          </div>
+
+        }
+
       </div>
     );
   }
+
 
   const roleColor = roleColors[data.role] || roleColors.unknown;
   const langColor = languageColors[data.language] || languageColors.unknown;
@@ -32,12 +52,16 @@ export default function NodeDetailPanel({ data, onClose }: NodeDetailPanelProps)
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
 
+
   return (
     <div className="h-full w-full flex flex-col">
       {/* Header with gradient accent */}
       <div className="relative">
-        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500" />
-        <div className="p-6 border-b border-slate-800 bg-slate-800/30">
+        <div className='absolute top-2 left-2 flex items-center cursor-pointer gap-2 text-slate-400 z-50 ' >
+          <ChevronsLeftRight size={26} onMouseDown={handleExpandToggle} className='z-50 pointer-events-all' />
+          {/* <span className="text-sm uppercase tracking-wider font-semibold">Node Details</span> */}
+        </div>
+        <div className="p-6 mt-8 border-b border-slate-800 bg-slate-800/30">
           <div className="flex items-start justify-between gap-4">
             <div className="flex items-center gap-4 min-w-0">
               <div className="p-3 bg-gradient-to-br from-indigo-500/20 to-purple-500/20 rounded-xl border border-indigo-500/30 flex-shrink-0">

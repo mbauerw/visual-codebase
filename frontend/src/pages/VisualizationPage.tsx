@@ -200,9 +200,9 @@ function getNestedCategoryLayout(
     const positionedFileNodes: CustomNodeType[] = [];
 
     if (roleGroups.length === 0) {
-      return { 
-        roleCategoryNodes, 
-        fileNodes: positionedFileNodes, 
+      return {
+        roleCategoryNodes,
+        fileNodes: positionedFileNodes,
         circleRadius: 300,
         centerX: offsetX + 300,
         centerY: 300,
@@ -303,8 +303,8 @@ function getNestedCategoryLayout(
 
   // Layout frontend categories (starting at x=0)
   const frontendLayout = layoutRoleCategoriesInCircle(
-    frontendRoleGroups, 
-    'frontend', 
+    frontendRoleGroups,
+    'frontend',
     'frontend',
     50 // Left padding
   );
@@ -312,8 +312,8 @@ function getNestedCategoryLayout(
   // Layout backend categories (offset to the right of frontend)
   const frontendWidth = frontendLayout.circleRadius + 100;
   const backendLayout = layoutRoleCategoriesInCircle(
-    backendRoleGroups, 
-    'backend', 
+    backendRoleGroups,
+    'backend',
     'backend',
     frontendWidth + 50 // Gap between sections
   );
@@ -373,6 +373,7 @@ function VisualizationPageInner() {
   const [roleFilter, setRoleFilter] = useState<ArchitecturalRole | 'all'>('all');
   const [categorySections, setCategorySections] = useState<CategorySection[]>([]);
   const [viewport, setViewport] = useState<Viewport>({ x: 0, y: 0, zoom: 1 });
+  const [expanded, setExpanded] = useState<boolean>(true);
 
   // Load data from session storage
   useEffect(() => {
@@ -427,7 +428,7 @@ function VisualizationPageInner() {
     }));
 
     // Apply nested category layout
-    const { nodes: layoutedNodes, edges: layoutedEdges, categorySections: sections } = 
+    const { nodes: layoutedNodes, edges: layoutedEdges, categorySections: sections } =
       getNestedCategoryLayout(fileNodesForLayout, filteredEdges);
 
     setNodes(layoutedNodes);
@@ -479,9 +480,9 @@ function VisualizationPageInner() {
   }
 
   return (
-    <div className="h-screen w-screen bg-gray-100 flex flex-col overflow-hidden">
+    <div className="h-screen w-screen bg-gray-100 flex flex-col overflow-hidden ">
       {/* Header */}
-      <div className="h-14 fixed top-0 left-0 w-full bg-slate-800 border-b border-slate-700 flex items-center justify-between px-4 flex-shrink-0 z-50">
+      <div className="h-14 fixed top-0 left-0 w-full bg-slate-800 flex items-center justify-between px-4 flex-shrink-0 z-50">
         <div className="flex items-center gap-4">
           <button
             onClick={() => navigate('/')}
@@ -515,18 +516,21 @@ function VisualizationPageInner() {
       </div>
 
       {/* Main content */}
-      <div className="grid xl:grid-cols-[5fr_minmax(400px,1fr)] grid-cols-[3fr_minmax(250px,1fr)] mt-14 h-[calc(100vh-3.5rem)] relative overflow-hidden">
+      <div className={`grid mt-14 transition-all duration-200 h-[calc(100vh-3.5rem)] relative overflow-hidden ${expanded
+        ? 'xl:grid-cols-[5fr_minmax(400px,1fr)] grid-cols-[3fr_minmax(250px,1fr)]'
+        : 'grid-cols-[1fr_38px]'
+        }`}>
 
         <div className='h-full overflow-y-auto flex flex-col items-center [-ms-overflow-style:none] [scrollbar-width:10]'>
 
           {/* Hero Section */}
           <div className='max-w-[900px] h-[500px] w-full py-12 px-8 flex-shrink-0'>
-            <div className='rounded-2xl h-full p-8 shadow-2xl backdrop-blur-sm bg-white'>
+            <div className='rounded-2xl h-full p-8  backdrop-blur-sm bg-none'>
               <div className='flex flex-col items-start gap-6 h-full'>
                 <div className='flex w-full items-center justify-center relative h-16'>
-                  <div className='p-4 absolute left-0 top-0 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl shadow-lg'>
+                  {/* <div className='p-4 absolute left-0 top-0 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl shadow-lg'>
                     <FileCode size={32} className='text-white' />
-                  </div>
+                  </div> */}
                   <h2 className='text-2xl text-red-500 text-center '>OVERVIEW</h2>
                 </div>
                 <div className='flex-1 w-full items-center justify-between flex flex-col gap-5'>
@@ -558,12 +562,12 @@ function VisualizationPageInner() {
 
           {/* React Flow Container */}
           <div className='w-full px-8 pb-12 flex-shrink-0 justify-center flex items-center'>
-            <div className='h-[900px] max-w-[1200px] w-full rounded-2xl overflow-hidden border border-slate-400/50 shadow-2xl bg-slate-300 relative'>
-              
+            <div className='h-[900px] max-w-[1200px] w-full rounded-2xl overflow-hidden border border-4 border-gray-600 outline outline-4 outline-gray-500 shadow-2xl shadow-black bg-slate-300 relative'>
+
               {/* Static category background */}
-              <CategoryBackground 
-                sections={categorySections} 
-                transform={viewport} 
+              <CategoryBackground
+                sections={categorySections}
+                transform={viewport}
               />
 
               <ReactFlow
@@ -694,8 +698,8 @@ function VisualizationPageInner() {
         </div>
 
         {/* Right Panel / NodeDetailPanel */}
-        <div className='h-full bg-slate-900 overflow-y-auto border-l border-slate-800 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]'>
-          <NodeDetailPanel data={selectedNode} onClose={() => setSelectedNode(null)} />
+        <div className="h-full bg-slate-900  overflow-y-auto border-l border-slate-800 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+          <NodeDetailPanel data={selectedNode} onClose={() => setSelectedNode(null)} setExpand={setExpanded} expanded={expanded} />
         </div>
       </div>
     </div>
