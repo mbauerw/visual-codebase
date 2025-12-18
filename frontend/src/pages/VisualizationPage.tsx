@@ -446,6 +446,16 @@ function VisualizationPageInner() {
     []
   );
 
+  // Handle node double-click to expand the panel
+  const onNodeDoubleClick = useCallback(
+    (_: React.MouseEvent, node: Node) => {
+      if (node.type === 'custom') {
+        setExpanded(true);
+      }
+    },
+    []
+  );
+
   const onPaneClick = useCallback(() => {
     setSelectedNode(null);
   }, []);
@@ -576,6 +586,7 @@ function VisualizationPageInner() {
                 onNodesChange={onNodesChange}
                 onEdgesChange={onEdgesChange}
                 onNodeClick={onNodeClick}
+                onNodeDoubleClick={onNodeDoubleClick}
                 onPaneClick={onPaneClick}
                 onMove={onMove}
                 nodeTypes={nodeTypes}
