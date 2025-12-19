@@ -11,6 +11,12 @@
   },
   "dependencies": {
     "@dagrejs/dagre": "^1.1.2",
+    "@emotion/react": "^11.14.0",
+    "@emotion/style": "^0.8.0",
+    "@emotion/styled": "^11.14.1",
+    "@mui/icons-material": "^7.3.6",
+    "@mui/material": "^7.3.6",
+    "@mui/x-tree-view": "^8.22.0",
     "@xyflow/react": "^12.0.0",
     "axios": "^1.6.7",
     "lucide-react": "^0.330.0",

@@ -527,7 +527,7 @@ function VisualizationPageInner() {
       </div>
 
       {/* Main content */}
-      <div className={`grid mt-14 transition-all duration-200 h-[calc(100vh-3.5rem)] relative overflow-hidden ${expanded
+      <div className={`grid mt-14 transition-all duration-200 min-h-[calc(100vh-3.5rem)] relative overflow-hidden ${expanded
         ? 'xl:grid-cols-[5fr_minmax(400px,1fr)] grid-cols-[3fr_minmax(250px,1fr)]'
         : 'grid-cols-[1fr_38px]'
         }`}>
