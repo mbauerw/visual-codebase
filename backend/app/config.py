@@ -2,6 +2,7 @@
 import os
 from functools import lru_cache
 from pydantic_settings import BaseSettings
+from pydantic import Field
 
 
 class Settings(BaseSettings):
@@ -22,6 +23,9 @@ class Settings(BaseSettings):
     # LLM settings
     llm_model: str = "claude-sonnet-4-20250514"
     llm_max_tokens: int = 4096
+
+    # Github settings
+    github_token: str = Field(..., description="GitHub API token")
 
     class Config:
         env_file = ".env"

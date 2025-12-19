@@ -1,6 +1,5 @@
-"""API routes for the Visual Codebase application."""
 import asyncio
-from fastapi import APIRouter, BackgroundTasks, HTTPException
+from fastapi import FastAPI, APIRouter, BackgroundTasks, HTTPException
 
 from ..models.schemas import (
     AnalyzeRequest,

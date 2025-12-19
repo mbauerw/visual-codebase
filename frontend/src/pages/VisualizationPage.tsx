@@ -35,6 +35,7 @@ import type {
   Category,
 } from '../types';
 import { roleColors, languageColors, categoryColors, roleLabels } from '../types';
+import GithubEmbed from '../components/GithubEmbed';
 
 // Define node types with proper typing for React Flow v12
 const nodeTypes: NodeTypes = {
@@ -490,7 +491,7 @@ function VisualizationPageInner() {
   }
 
   return (
-    <div className="h-screen w-screen bg-gray-100 flex flex-col overflow-hidden ">
+    <div className="min-h-screen w-screen bg-gray-100 flex flex-col overflow-hidden ">
       {/* Header */}
       <div className="h-14 fixed top-0 left-0 w-full bg-slate-800 flex items-center justify-between px-4 flex-shrink-0 z-50">
         <div className="flex items-center gap-4">
@@ -531,10 +532,10 @@ function VisualizationPageInner() {
         : 'grid-cols-[1fr_38px]'
         }`}>
 
-        <div className='h-full overflow-y-auto flex flex-col items-center [-ms-overflow-style:none] [scrollbar-width:10]'>
+        <div className='min-h-full overflow-y-auto flex flex-col items-center [scrollbar-width:10]'>
 
           {/* Hero Section */}
-          <div className='max-w-[900px] h-[500px] w-full py-12 px-8 flex-shrink-0'>
+          <div className='max-w-[900px] h-[500px] w-full py-12 px-8 '>
             <div className='rounded-2xl h-full p-8  backdrop-blur-sm bg-none'>
               <div className='flex flex-col items-start gap-6 h-full'>
                 <div className='flex w-full items-center justify-center relative h-16'>
@@ -571,7 +572,7 @@ function VisualizationPageInner() {
           </div>
 
           {/* React Flow Container */}
-          <div className='w-full px-8 pb-12 flex-shrink-0 justify-center flex items-center'>
+          <div className='w-full px-8 pb-12  justify-center flex items-center'>
             <div className='h-[900px] max-w-[1200px] w-full rounded-2xl overflow-hidden border border-4 border-neutral-700 outline outline-2 outline-neutral-500 shadow-2xl shadow-black bg-slate-300 relative'>
 
               {/* Static category background */}
@@ -705,13 +706,21 @@ function VisualizationPageInner() {
               </ReactFlow>
             </div>
           </div>
+          <div className="h-[900px] w-[80%] bg-white ">
+            <GithubEmbed
+              owner="facebook" 
+              repo="react" 
+              initialPath="packages"/>
 
+          </div>
+          
         </div>
 
         {/* Right Panel / NodeDetailPanel */}
         <div className="h-full bg-slate-900  overflow-y-auto border-l border-slate-800 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
           <NodeDetailPanel data={selectedNode} onClose={() => setSelectedNode(null)} setExpand={setExpanded} expanded={expanded} />
         </div>
+        
       </div>
     </div>
   );
