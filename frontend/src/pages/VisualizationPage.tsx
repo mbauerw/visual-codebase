@@ -491,7 +491,7 @@ function VisualizationPageInner() {
   }
 
   return (
-    <div className="min-h-screen w-screen bg-gray-100 flex flex-col overflow-hidden ">
+    <div className="min-h-screen max-h-screen w-screen bg-gray-100 flex flex-col overflow-hidden ">
       {/* Header */}
       <div className="h-14 fixed top-0 left-0 w-full bg-slate-800 flex items-center justify-between px-4 flex-shrink-0 z-50">
         <div className="flex items-center gap-4">
@@ -706,7 +706,7 @@ function VisualizationPageInner() {
               </ReactFlow>
             </div>
           </div>
-          <div className="h-[900px] w-[80%] bg-white ">
+          <div className="h-[900px] min-h-[800px] w-[80%] bg-none py-10 ">
             <GithubEmbed
               owner="facebook" 
               repo="react" 
@@ -717,7 +717,7 @@ function VisualizationPageInner() {
         </div>
 
         {/* Right Panel / NodeDetailPanel */}
-        <div className="h-full bg-slate-900  overflow-y-auto border-l border-slate-800 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+        <div className="h-screen bg-slate-900  overflow-hidden border-l border-slate-800 ">
           <NodeDetailPanel data={selectedNode} onClose={() => setSelectedNode(null)} setExpand={setExpanded} expanded={expanded} />
         </div>
         

@@ -19,7 +19,7 @@ export default function NodeDetailPanel({ data, onClose, setExpand, expanded }: 
 
   if (!data) {
     return (
-      <div className={`h-full  w-full relative flex flex-col items-center justify-center p-8 text-center`}>
+      <div className={`h-screen w-full fixed relative flex flex-col items-center justify-center p-8 text-center`}>
         <div className='absolute top-2 left-2 flex items-center cursor-pointer gap-2 text-slate-400 z-50 ' >
           <ChevronsLeftRight size={26} onMouseDown={handleExpandToggle} className='z-50 pointer-events-all' />
           {/* <span className="text-sm uppercase tracking-wider font-semibold">Node Details</span> */}
