@@ -17,13 +17,13 @@ export default function UploadPage() {
   useEffect(() => {
     const handleScroll = () => {
       const currentScrollY = window.scrollY;
-      
+
       if (currentScrollY > lastScrollY.current && currentScrollY > 80) {
         setNavVisible(false);
       } else {
         setNavVisible(true);
       }
-      
+
       lastScrollY.current = currentScrollY;
     };
 
@@ -68,10 +68,9 @@ export default function UploadPage() {
       </div> */}
 
       {/* Navigation */}
-      <header 
-        className={`fixed z-50 left-3 right-3 md:left-5 md:right-5 transition-all duration-500 ${
-          navVisible ? 'top-6 md:top-8' : '-top-24'
-        }`}
+      <header
+        className={`fixed z-50 left-3 right-3 md:left-5 md:right-5 transition-all duration-500 ${navVisible ? 'top-6 md:top-8' : '-top-24'
+          }`}
       >
         <nav className="bg-white/95 backdrop-blur-md rounded-full px-5 md:px-8 py-3 md:py-4 flex items-center justify-between max-w-6xl mx-auto shadow-lg shadow-black/[0.03] border border-gray-100">
           <a href="/" className="flex items-center gap-2">
@@ -99,7 +98,7 @@ export default function UploadPage() {
               <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></div>
               <span className="text-sm text-gray-500 font-medium">Ready</span>
             </div> */}
-            <button 
+            <button
               onClick={() => scrollToSection('analyze')}
               className="bg-gray-900 hover:bg-gray-800 text-white px-6 py-2.5 rounded-full font-medium transition-colors"
             >
@@ -108,7 +107,7 @@ export default function UploadPage() {
           </div>
 
           {/* Mobile menu button */}
-          <button 
+          <button
             className="md:hidden p-2"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
           >
@@ -129,7 +128,7 @@ export default function UploadPage() {
               <button onClick={() => scrollToSection('analyze')} className="text-gray-600 hover:text-gray-900 font-medium text-left py-2">
                 Analyze
               </button>
-              <button 
+              <button
                 onClick={() => scrollToSection('analyze')}
                 className="bg-gray-900 text-white px-6 py-3 rounded-full font-medium mt-2"
               >
@@ -149,51 +148,20 @@ export default function UploadPage() {
             className="absolute inset-0 opacity-[0.4] w-full h-full object-cover"
             src='public/spiral-grid-blue.jpeg'
           />
-          
+
           {/* Diagonal lines */}
           <svg className="absolute inset-0 w-full h-full opacity-20" xmlns="http://www.w3.org/2000/svg">
             <defs>
               <pattern id="diagonal" width="40" height="40" patternUnits="userSpaceOnUse">
-                <path d="M-10,10 l20,-20 M0,40 l40,-40 M30,50 l20,-20" stroke="#FF9A9D" strokeWidth="0.5"/>
+                <path d="M-10,10 l20,-20 M0,40 l40,-40 M30,50 l20,-20" stroke="#FF9A9D" strokeWidth="0.5" />
               </pattern>
             </defs>
             <rect width="100%" height="100%" fill="url(#diagonal)" />
           </svg>
 
-          {/* Floating 3D cubes - decorative */}
-          <div className="absolute top-1/4 right-[15%] hidden lg:block">
-            <div className="relative">
-              {[0, 1, 2, 3, 4, 5].map((i) => (
-                <div
-                  key={i}
-                  className="absolute w-12 h-12 rounded-lg bg-gradient-to-br from-[#F6D785] to-[#FFE4A0] shadow-lg"
-                  style={{
-                    transform: `translate(${(i % 3) * 50}px, ${Math.floor(i / 3) * 50 + (i % 2) * 20}px) rotate(${i * 5}deg)`,
-                    opacity: 0.8 - i * 0.1,
-                    animation: `float ${3 + i * 0.5}s ease-in-out infinite`,
-                    animationDelay: `${i * 0.2}s`
-                  }}
-                />
-              ))}
-            </div>
-          </div>
+          
 
-          <div className="absolute top-1/3 left-[15%] hidden lg:block">
-            <div className="relative">
-              {[0, 1, 2, 3, 4, 5].map((i) => (
-                <div
-                  key={i}
-                  className="absolute w-12 h-12 rounded-lg bg-gradient-to-br from-blue-800 to-blue-500 shadow-lg"
-                  style={{
-                    transform: `translate(${(i % 3) * 950}px, ${Math.floor(i ) * 450 + (i % 2) * 20}px) rotate(${i * 10}deg)`,
-                    opacity: 0.8 - i * 0.1,
-                    animation: `float ${3 + i * 0.5}s ease-in-out infinite`,
-                    animationDelay: `${i * 0.2}s`
-                  }}
-                />
-              ))}
-            </div>
-          </div>
+         
 
           {/* Gradient orbs */}
           <div className="absolute -top-40 -left-40 w-96 h-96 bg-gradient-to-br from-[#8FBCFA]/20 to-transparent rounded-full blur-3xl" />
@@ -206,7 +174,7 @@ export default function UploadPage() {
             codebase-<br className="sm:hidden" />remap
           </h1>
           <p className="text-lg md:text-xl text-gray-600 max-w-2xl mx-auto mb-10 leading-relaxed">
-            Visualize your codebase architecture with AI-powered dependency analysis. 
+            Visualize your codebase architecture with AI-powered dependency analysis.
             Understand file relationships at a glance.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
@@ -226,109 +194,12 @@ export default function UploadPage() {
         </div>
 
         {/* Scroll indicator */}
-        <button 
+        <button
           onClick={() => scrollToSection('features')}
           className="absolute bottom-10 left-1/2 -translate-x-1/2 text-gray-400 hover:text-gray-600 transition-colors animate-bounce"
         >
           <ChevronDown size={32} />
         </button>
-      </section>
-
-      {/* Features Section */}
-      <section id="features" className="py-20 md:py-32 px-4">
-        <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-16">
-            <span className="text-[#FF9A9D] font-semibold text-sm uppercase tracking-wider">Features</span>
-            <h2 className="text-3xl md:text-5xl font-bold text-gray-900 mt-4 mb-6">
-              Everything you need to understand your code
-            </h2>
-            <p className="text-gray-600 text-lg max-w-2xl mx-auto">
-              Powerful tools to analyze, visualize, and comprehend complex codebases
-            </p>
-          </div>
-
-          <div className="grid md:grid-cols-3 gap-6 md:gap-8">
-            {/* Feature 1 */}
-            <div className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100 hover:shadow-lg transition-shadow">
-              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#8FBCFA] to-[#6BA3F5] flex items-center justify-center mb-6">
-                <GitBranch size={28} className="text-white" />
-              </div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-3">Dependency Mapping</h3>
-              <p className="text-gray-600 leading-relaxed">
-                Automatically extract and visualize import statements across JavaScript, TypeScript, and Python files.
-              </p>
-            </div>
-
-            {/* Feature 2 */}
-            <div className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100 hover:shadow-lg transition-shadow">
-              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#FF9A9D] to-[#FF7A7D] flex items-center justify-center mb-6">
-                <Zap size={28} className="text-white" />
-              </div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-3">AI-Powered Analysis</h3>
-              <p className="text-gray-600 leading-relaxed">
-                Leverage AI to understand the role of each file and categorize them by their function in your architecture.
-              </p>
-            </div>
-
-            {/* Feature 3 */}
-            <div className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100 hover:shadow-lg transition-shadow">
-              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#F6D785] to-[#F0C560] flex items-center justify-center mb-6">
-                <Eye size={28} className="text-white" />
-              </div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-3">Interactive Visualization</h3>
-              <p className="text-gray-600 leading-relaxed">
-                Explore your codebase through an interactive node graph with zooming, panning, and filtering capabilities.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* How It Works Section */}
-      <section id="how-it-works" className="py-20 md:py-32 px-4 bg-white">
-        <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-16">
-            <span className="text-[#8FBCFA] font-semibold text-sm uppercase tracking-wider">How It Works</span>
-            <h2 className="text-3xl md:text-5xl font-bold text-gray-900 mt-4 mb-6">
-              Three simple steps
-            </h2>
-          </div>
-
-          <div className="grid md:grid-cols-3 gap-8">
-            {/* Step 1 */}
-            <div className="text-center">
-              <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[#FF9A9D]/20 to-[#FF9A9D]/10 flex items-center justify-center mx-auto mb-6 text-2xl font-bold text-[#FF9A9D]">
-                1
-              </div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-3">Point to Your Project</h3>
-              <p className="text-gray-600">
-                Enter the path to your project directory. We support JavaScript, TypeScript, and Python.
-              </p>
-            </div>
-
-            {/* Step 2 */}
-            <div className="text-center">
-              <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[#8FBCFA]/20 to-[#8FBCFA]/10 flex items-center justify-center mx-auto mb-6 text-2xl font-bold text-[#8FBCFA]">
-                2
-              </div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-3">AI Analysis</h3>
-              <p className="text-gray-600">
-                Our AI processes your files, extracting imports and understanding each file's purpose.
-              </p>
-            </div>
-
-            {/* Step 3 */}
-            <div className="text-center">
-              <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[#F6D785]/20 to-[#F6D785]/10 flex items-center justify-center mx-auto mb-6 text-2xl font-bold text-[#F6D785]">
-                3
-              </div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-3">Explore the Graph</h3>
-              <p className="text-gray-600">
-                Navigate your codebase visually, understanding dependencies and architecture at a glance.
-              </p>
-            </div>
-          </div>
-        </div>
       </section>
 
       {/* Analyze Section */}
@@ -455,6 +326,105 @@ export default function UploadPage() {
           </div>
         </div>
       </section>
+
+      {/* Features Section */}
+      <section id="features" className="py-20 md:py-32 px-4">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-16">
+            <span className="text-[#FF9A9D] font-semibold text-sm uppercase tracking-wider">Features</span>
+            <h2 className="text-3xl md:text-5xl font-bold text-gray-900 mt-4 mb-6">
+              Everything you need to understand your code
+            </h2>
+            <p className="text-gray-600 text-lg max-w-2xl mx-auto">
+              Powerful tools to analyze, visualize, and comprehend complex codebases
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-6 md:gap-8">
+            {/* Feature 1 */}
+            <div className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100 hover:shadow-lg transition-shadow">
+              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#8FBCFA] to-[#6BA3F5] flex items-center justify-center mb-6">
+                <GitBranch size={28} className="text-white" />
+              </div>
+              <h3 className="text-xl font-semibold text-gray-900 mb-3">Dependency Mapping</h3>
+              <p className="text-gray-600 leading-relaxed">
+                Automatically extract and visualize import statements across JavaScript, TypeScript, and Python files.
+              </p>
+            </div>
+
+            {/* Feature 2 */}
+            <div className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100 hover:shadow-lg transition-shadow">
+              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#FF9A9D] to-[#FF7A7D] flex items-center justify-center mb-6">
+                <Zap size={28} className="text-white" />
+              </div>
+              <h3 className="text-xl font-semibold text-gray-900 mb-3">AI-Powered Analysis</h3>
+              <p className="text-gray-600 leading-relaxed">
+                Leverage AI to understand the role of each file and categorize them by their function in your architecture.
+              </p>
+            </div>
+
+            {/* Feature 3 */}
+            <div className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100 hover:shadow-lg transition-shadow">
+              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#F6D785] to-[#F0C560] flex items-center justify-center mb-6">
+                <Eye size={28} className="text-white" />
+              </div>
+              <h3 className="text-xl font-semibold text-gray-900 mb-3">Interactive Visualization</h3>
+              <p className="text-gray-600 leading-relaxed">
+                Explore your codebase through an interactive node graph with zooming, panning, and filtering capabilities.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* How It Works Section */}
+      <section id="how-it-works" className="py-20 md:py-32 px-4 bg-white">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-16">
+            <span className="text-[#8FBCFA] font-semibold text-sm uppercase tracking-wider">How It Works</span>
+            <h2 className="text-3xl md:text-5xl font-bold text-gray-900 mt-4 mb-6">
+              Three simple steps
+            </h2>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-8">
+            {/* Step 1 */}
+            <div className="text-center">
+              <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[#FF9A9D]/20 to-[#FF9A9D]/10 flex items-center justify-center mx-auto mb-6 text-2xl font-bold text-[#FF9A9D]">
+                1
+              </div>
+              <h3 className="text-xl font-semibold text-gray-900 mb-3">Point to Your Project</h3>
+              <p className="text-gray-600">
+                Enter the path to your project directory. We support JavaScript, TypeScript, and Python.
+              </p>
+            </div>
+
+            {/* Step 2 */}
+            <div className="text-center">
+              <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[#8FBCFA]/20 to-[#8FBCFA]/10 flex items-center justify-center mx-auto mb-6 text-2xl font-bold text-[#8FBCFA]">
+                2
+              </div>
+              <h3 className="text-xl font-semibold text-gray-900 mb-3">AI Analysis</h3>
+              <p className="text-gray-600">
+                Our AI processes your files, extracting imports and understanding each file's purpose.
+              </p>
+            </div>
+
+            {/* Step 3 */}
+            <div className="text-center">
+              <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[#F6D785]/20 to-[#F6D785]/10 flex items-center justify-center mx-auto mb-6 text-2xl font-bold text-[#F6D785]">
+                3
+              </div>
+              <h3 className="text-xl font-semibold text-gray-900 mb-3">Explore the Graph</h3>
+              <p className="text-gray-600">
+                Navigate your codebase visually, understanding dependencies and architecture at a glance.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+
 
       {/* Footer */}
       <footer className="py-12 px-4 border-t border-gray-100">

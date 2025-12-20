@@ -215,22 +215,19 @@ const GithubEmbed = ({ owner, repo, initialPath = '' }: GithubEmbedProps) => {
   // --- API ---
 
   const fetchDirectory = async (path: string): Promise<GitHubContent[]> => {
-    // Determine Endpoint
     const cleanPath = extractGithubData(path);
     if (cleanPath) {
       owner = cleanPath.owner;
       repo = cleanPath.repo;
-    } else {
-      console.log("aint no sunshine when she's gone");
     }
-    console.log("Clean Path is: ", cleanPath);
-    const endpoint = cleanPath
-      ? `https://api.github.com/repos/${cleanPath.owner}/${cleanPath.repo}/contents`
-      : `https://api.github.com/repos/${owner}/${repo}/contents`;
-
+  
+    // Call your FastAPI backend
+    const endpoint = `/api/github/repo-content/${owner}/${repo}/`;
+  
     const response = await fetch(endpoint);
     if (!response.ok) throw new Error(`Status ${response.status}`);
     const data = await response.json();
+    console.log("Fetched data:", data);
     return Array.isArray(data) ? data : [data];
   };
 
