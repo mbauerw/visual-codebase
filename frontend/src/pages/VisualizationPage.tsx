@@ -490,10 +490,12 @@ function VisualizationPageInner() {
     );
   }
 
+  const mainSectionGap = 'gap-[100px]';
+
   return (
     <div className="min-h-screen max-h-screen w-screen bg-gray-100 flex flex-col overflow-hidden ">
       {/* Header */}
-      <div className="h-14 fixed top-0 left-0 w-full bg-slate-800 flex items-center justify-between px-4 flex-shrink-0 z-50">
+      <div className="h-14 fixed top-0 left-0 w-full bg-slate-800 flex items-center justify-between px-4 z-50">
         <div className="flex items-center gap-4">
           <button
             onClick={() => navigate('/')}
@@ -526,13 +528,14 @@ function VisualizationPageInner() {
         </div>
       </div>
 
-      {/* Main content */}
-      <div className={`grid mt-14 transition-all duration-200 min-h-[calc(100vh-3.5rem)] relative overflow-hidden ${expanded
+      {/* Main grid layout */}
+      <div className={`grid mt-14 grid-rows-1 transition-all duration-200 min-h-[calc(100vh-3.5rem)] relative overflow-hidden ${expanded
         ? 'xl:grid-cols-[5fr_minmax(400px,1fr)] grid-cols-[3fr_minmax(250px,1fr)]'
         : 'grid-cols-[1fr_38px]'
         }`}>
 
-        <div className='min-h-full overflow-y-auto flex flex-col items-center [scrollbar-width:10]'>
+        {/* Main content */}
+        <div className={`min-h-full overflow-y-auto flex flex-col ${mainSectionGap} items-center [scrollbar-width:10]`}>
 
           {/* Hero Section */}
           <div className='max-w-[900px] h-[500px] w-full py-12 px-8 '>
@@ -572,7 +575,13 @@ function VisualizationPageInner() {
           </div>
 
           {/* React Flow Container */}
-          <div className='w-full px-8 pb-12  justify-center flex items-center'>
+          <div className='w-full px-8 pb-12 justify-center flex flex-col gap-10 items-center'>
+            <div className='flex w-full items-center justify-center relative h-16'>
+              {/* <div className='p-4 absolute left-0 top-0 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl shadow-lg'>
+                    <FileCode size={32} className='text-white' />
+                  </div> */}
+              <h2 className='text-2xl text-red-500 text-center '>VISUALIZATION</h2>
+            </div>
             <div className='h-[900px] max-w-[1200px] w-full rounded-2xl overflow-hidden border border-4 border-neutral-700 outline outline-2 outline-neutral-500 shadow-2xl shadow-black bg-slate-300 relative'>
 
               {/* Static category background */}
@@ -708,19 +717,19 @@ function VisualizationPageInner() {
           </div>
           <div className="h-[900px] min-h-[800px] w-[80%] bg-none py-10 ">
             <GithubEmbed
-              owner="facebook" 
-              repo="react" 
-              initialPath="packages"/>
+              owner="facebook"
+              repo="react"
+              initialPath="packages" />
 
           </div>
-          
+
         </div>
 
         {/* Right Panel / NodeDetailPanel */}
-        <div className="h-screen bg-slate-900  overflow-hidden border-l border-slate-800 ">
+        <div className="h-full bg-slate-900  overflow-hidden border-l border-slate-800 ">
           <NodeDetailPanel data={selectedNode} onClose={() => setSelectedNode(null)} setExpand={setExpanded} expanded={expanded} />
         </div>
-        
+
       </div>
     </div>
   );

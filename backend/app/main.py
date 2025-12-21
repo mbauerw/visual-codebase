@@ -69,6 +69,6 @@ async def get_github_repo_content(owner: str, repo: str, path: str = ""):
             status_code=response.status_code, 
             detail=response.json().get("message", "GitHub API error")
         )
-    
+        
     return response.json()
 

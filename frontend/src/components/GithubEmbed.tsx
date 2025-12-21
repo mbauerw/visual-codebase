@@ -5,6 +5,8 @@ import { TreeViewBaseItem } from '@mui/x-tree-view/models';
 import AddBoxIcon from '@mui/icons-material/AddBox';
 import IndeterminateCheckBoxIcon from '@mui/icons-material/IndeterminateCheckBox';
 import SvgIcon, { SvgIconProps } from '@mui/material/SvgIcon';
+import ChevronRightIcon from '@mui/icons-material/ChevronRight';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 
 
 // Icons
@@ -15,6 +17,7 @@ import Typography from '@mui/material/Typography';
 import CircularProgress from '@mui/material/CircularProgress';
 import Alert from '@mui/material/Alert';
 import Stack from '@mui/material/Stack';
+import { File } from 'lucide-react';
 
 // --- Types ---
 
@@ -66,75 +69,6 @@ function CloseSquare(props: SvgIconProps) {
 }
 // --- Custom Tree Item Component ---
 // This component renders the "Row" look (Icon | Name | ... | Msg | Date)
-const GithubTreeItem = (props: TreeItemProps & { fileType?: 'file' | 'dir', commitMsg?: string, date?: string }) => {
-  const { fileType, commitMsg, date, ...other } = props;
-
-  // We use this to detect if we should render a folder or file icon
-  const Icon = fileType === 'dir' ? FolderIcon : InsertDriveFileIcon;
-  const iconColor = fileType === 'dir' ? GH_COLORS.iconDir : GH_COLORS.iconFile;
-
-  return (
-    <TreeItem
-      {...other}
-      // Custom styling for the Item Root
-      sx={{
-        '& .MuiTreeItem-content': {
-          padding: '8px 16px',
-          borderTop: `1px solid ${GH_COLORS.border}`,
-          borderRadius: 0,
-          gap: 1.5,
-          '&:hover': {
-            backgroundColor: GH_COLORS.rowHover,
-          },
-          '&.Mui-selected': {
-            backgroundColor: 'rgba(56, 139, 253, 0.1)',
-            '&:hover': {
-              backgroundColor: 'rgba(56, 139, 253, 0.15)',
-            },
-          },
-        },
-        // Hide the default expansion icon, we will rely on folder icon logic or add it back if preferred
-        '& .MuiTreeItem-iconContainer': {
-          display: 'none',
-        },
-      }}
-      // Customizing the Label to include columns
-      label={
-        <Box display="flex" alignItems="center" width="100%" justifyContent="space-between">
-          {/* Left: Icon and Name */}
-          <Box display="flex" alignItems="center" gap={1.5} minWidth={200}>
-            <Icon sx={{ color: iconColor, fontSize: 20 }} />
-            <Typography
-              variant="body2"
-              sx={{
-                color: GH_COLORS.textMain,
-                fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif',
-                fontWeight: fileType === 'dir' ? 600 : 400,
-                fontSize: '14px'
-              }}
-            >
-              {other.label}
-            </Typography>
-          </Box>
-
-          {/* Middle: Commit Message (Hidden on small screens) */}
-          <Box flex={1} mx={2} sx={{ display: { xs: 'none', md: 'block' } }}>
-            <Typography variant="body2" sx={{ color: GH_COLORS.textMuted, fontSize: '13px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 300 }}>
-              {commitMsg || 'update ' + other.label}
-            </Typography>
-          </Box>
-
-          {/* Right: Date */}
-          <Box sx={{ display: { xs: 'none', sm: 'block' }, minWidth: 80, textAlign: 'right' }}>
-            <Typography variant="body2" sx={{ color: GH_COLORS.textMuted, fontSize: '13px' }}>
-              {date || '2 mo ago'}
-            </Typography>
-          </Box>
-        </Box>
-      }
-    />
-  );
-};
 
 // --- Main Component ---
 
@@ -142,6 +76,11 @@ const GithubEmbed = ({ owner, repo, initialPath = '' }: GithubEmbedProps) => {
   const [items, setItems] = useState<ExtendedTreeItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [newOwner, setNewOwner] = useState(owner);
+  const [expandedItems, setExpandedItems] = useState<string[]>([]);
+  const [activeOwner, setActiveOwner] = useState(owner);
+  const [activeRepo, setActiveRepo] = useState(repo);
+
 
   // Track which folders have actually fetched their data
   const [fetchedFolders, setFetchedFolders] = useState<Set<string>>(new Set());
@@ -151,51 +90,85 @@ const GithubEmbed = ({ owner, repo, initialPath = '' }: GithubEmbedProps) => {
     e.preventDefault();
     const formData = new FormData(e.target as HTMLFormElement);
     const query = formData.get('search') as string;
-    console.log("query:", query);
-
+  
     try {
-      const data = await fetchDirectory(query)
+      setLoading(true);
+      setError(null);
+      
+      // Reset tree states for the new repository
+      setExpandedItems([]);
+      setFetchedFolders(new Set()); 
+  
+      const data = await fetchDirectory(query);
+      // data.forEach(item => {
+      //   console.log("The Item Type is:", item.type);
+      //   if (item.type === 'dir') {
+      //     console.log('Directory name:', item.name);
+      //     console.log('Directory path:', item.path);
+      //     item.array.forEach(element => {
+            
+      //     });
+      //   }
+      //   if (item.type === 'file') {
+      //     console.log('File url:', item.url);
+      //     console.log('File type:', item.type);
+      //   }
+        
+      // });  
+
       const treeItems = sortItems(data);
+    //   treeItems.forEach(item => {
+    //     if (item.type === 'dir') {
+    //       console.log('Directory found:', item.id);
+    //       console.log('Directory children:', item.children);
+    //     }
+    //     if (item.type === 'file') {
+    //       console.log('File found:', item.id);
+    //       console.log('File type:', item.type);
+    //     }
+    
+    // });
       setItems(treeItems);
-      // Mark root as fetched
-      setFetchedFolders(new Set([query || 'root']));
-    }
-    catch (err) {
-      console.error("Search failed", err);
+      
+      // Mark the new root as fetched
+      setFetchedFolders(new Set([''])); 
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Search failed');
+    } finally {
+      setLoading(false);
     }
   };
 
   const extractGithubData = (url: string) => {
-    
+
     const regex = /github\.com[:/]([\w-]+)\/([\w-.]+)/;
-    
     const match = url.match(regex);
-    
+
     if (match) {
       return {
         owner: match[1],
         repo: match[2].replace(/\.git$/, '') // Remove .git if present
       };
     }
-    
+
     return null;
   };
 
   // Merge new children into the existing tree structure recursively
-  const mergeChildren = useCallback((currentItems: ExtendedTreeItem[], parentId: string, newChildren: ExtendedTreeItem[]): ExtendedTreeItem[] => {
-    return currentItems.map((item) => {
-      if (item.id === parentId) {
-        return { ...item, children: newChildren };
-      }
-      if (item.children) {
-        return {
-          ...item,
-          children: mergeChildren(item.children as ExtendedTreeItem[], parentId, newChildren)
-        };
-      }
-      return item;
-    });
-  }, []);
+  // const mergeChildren = useCallback((currentItems: ExtendedTreeItem[], parentId: string, newChildren: ExtendedTreeItem[]): string[] => {
+  //   return currentItems.map((item) => {
+  //     if (item.id === parentId) {
+  //       return { ...item, children: newChildren };
+  //     }
+  //     if (item.children) {
+  //       return {
+  //         ...item,
+  //         children: mergeChildren(item.children as string[], parentId, newChildren)
+  //       };
+  //     }
+  //     return item;
+  //   });
+  // }, []);
 
   // Sort: Folders first, then files, alphabetical
   const sortItems = (data: GitHubContent[]): ExtendedTreeItem[] => {
@@ -206,8 +179,10 @@ const GithubEmbed = ({ owner, repo, initialPath = '' }: GithubEmbedProps) => {
 
     return sorted.map((file) => ({
       id: file.path,
-      label: file.name, // Add the missing label property
-      children: file.type === 'dir' ? [{ id: `${file.path}-loading`, label: 'Loading...', type: 'file' } as ExtendedTreeItem] : undefined,
+      label: file.name,
+      children: file.type === 'dir'
+        ? [{ id: `loading-${file.path}`, label: 'Loading...', type: 'file' } as ExtendedTreeItem]
+        : undefined,
       type: file.type,
     }));
   };
@@ -215,19 +190,33 @@ const GithubEmbed = ({ owner, repo, initialPath = '' }: GithubEmbedProps) => {
   // --- API ---
 
   const fetchDirectory = async (path: string): Promise<GitHubContent[]> => {
-    const cleanPath = extractGithubData(path);
-    if (cleanPath) {
-      owner = cleanPath.owner;
-      repo = cleanPath.repo;
+    // Use let so we can override them if a URL is provided
+    let targetOwner = activeOwner;
+    let targetRepo = activeRepo;
+    let subPath = path;
+  
+    const cleanPathData = extractGithubData(path);
+    
+    if (cleanPathData) {
+      // 1. We found a new Repo URL! Update our local variables for this fetch...
+      targetOwner = cleanPathData.owner;
+      targetRepo = cleanPathData.repo;
+      subPath = ''; 
+      
+      // ...and update State so future folder clicks use this new repo
+      setActiveOwner(targetOwner);
+      setActiveRepo(targetRepo);
     }
   
-    // Call your FastAPI backend
-    const endpoint = `/api/github/repo-content/${owner}/${repo}/`;
+    // 2. Build the endpoint using the resolved owner/repo
+    const endpoint = `/api/github/repo-content/${targetOwner}/${targetRepo}/${subPath}`;
   
     const response = await fetch(endpoint);
-    if (!response.ok) throw new Error(`Status ${response.status}`);
+    if (!response.ok) throw new Error(`Status ${response.status} for ${endpoint}`);
+    
     const data = await response.json();
-    console.log("Fetched data:", data);
+    console.log("Fetched GitHub data:", data);
+
     return Array.isArray(data) ? data : [data];
   };
 
@@ -251,24 +240,54 @@ const GithubEmbed = ({ owner, repo, initialPath = '' }: GithubEmbedProps) => {
     loadRoot();
   }, [owner, repo, initialPath]);
 
-  // Handle Expansion
-  const handleItemExpansion = (event: React.SyntheticEvent | null, itemId: string, isExpanded: boolean) => {
-    // If collapsing or if we already fetched this folder, do nothing
-    if (!isExpanded || fetchedFolders.has(itemId)) return;
+  // Update Tree
+  // Helper to recursively update children in the tree structure
+  const updateTreeItems = (
+    currentItems: ExtendedTreeItem[],
+    parentId: string,
+    newChildren: ExtendedTreeItem[]
+  ): ExtendedTreeItem[] => {
+    return currentItems.map((item) => {
+      if (item.id === parentId) {
+        return { ...item, children: newChildren };
+      }
+      if (item.children) {
+        return {
+          ...item,
+          children: updateTreeItems(item.children as ExtendedTreeItem[], parentId, newChildren),
+        };
+      }
+      return item;
+    });
+  };
 
-    // Find the item to see if it is a directory
-    // (In a real scenario, you might want a faster lookup than searching the tree, but for UI size it's fine)
-    (async () => {
+  // Handle Expansion
+  const handleItemExpansion = async (
+    event: React.SyntheticEvent | null,
+    itemId: string,
+    isExpanded: boolean
+  ) => {
+    // 1. Handle the visual expansion (Controlled state)
+    setExpandedItems((prev) =>
+      isExpanded ? [...prev, itemId] : prev.filter((id) => id !== itemId)
+    );
+
+    // 2. Handle lazy loading
+    // Only fetch if we are expanding and haven't fetched this folder yet
+    if (isExpanded && !fetchedFolders.has(itemId)) {
       try {
         const data = await fetchDirectory(itemId);
         const newChildren = sortItems(data);
 
-        setItems((prev) => mergeChildren(prev, itemId, newChildren));
+        // Update the tree structure
+        setItems((prevItems) => updateTreeItems(prevItems, itemId, newChildren));
+
+        // Mark as fetched so we don't call the API again
         setFetchedFolders((prev) => new Set(prev).add(itemId));
       } catch (err) {
         console.error("Failed to load subfolder", err);
       }
-    })();
+    }
   };
 
   if (loading && items.length === 0) return <Box p={3} display="flex" justifyContent="center"><CircularProgress /></Box>;
@@ -278,10 +297,12 @@ const GithubEmbed = ({ owner, repo, initialPath = '' }: GithubEmbedProps) => {
     <Box
       sx={{
         maxWidth: 1200,
+        minHeight: '100%',
+        height: '100%',
         border: `2px solid ${GH_COLORS.border}`,
         borderRadius: '12px',
         bgcolor: GH_COLORS.bg,
-        overflow: 'hidden',
+        overflow: 'auto',
         fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif',
       }}
     >
@@ -368,11 +389,11 @@ const GithubEmbed = ({ owner, repo, initialPath = '' }: GithubEmbedProps) => {
         <Box display="flex" alignItems="center" gap={1}>
           <Box
             component="img"
-            src={`https://github.com/${owner}.png`}
+            src={`https://github.com/${activeOwner}.png`}
             sx={{ width: 20, height: 20, borderRadius: '50%' }}
           />
           <Typography variant="body2" sx={{ fontWeight: 600, color: GH_COLORS.textMain }}>
-            {owner}
+            {activeOwner}/{activeRepo}
           </Typography>
           <Typography variant="body2" sx={{ color: GH_COLORS.textMuted }}>
             git ignore changes
@@ -387,13 +408,39 @@ const GithubEmbed = ({ owner, repo, initialPath = '' }: GithubEmbedProps) => {
       <Box sx={{ minHeight: 200 }}>
         <RichTreeView
           items={items}
+          expandedItems={expandedItems}
           onItemExpansionToggle={handleItemExpansion}
-          defaultExpandedItems={['grid']}
+          onExpandedItemsChange={(event, itemIds) => setExpandedItems(itemIds)}
+          sx={{
+            width: '100%',
+            color: GH_COLORS.textMain,
+            // Target every item row
+            '& .MuiTreeItem-content': {
+              padding: '6px 12px',
+              borderTop: `1px solid ${GH_COLORS.border}`,
+              gap: '8px',
+              '&:hover': {
+                backgroundColor: GH_COLORS.rowHover,
+              },
+              '&.Mui-selected': {
+                backgroundColor: 'rgba(56, 139, 253, 0.1)',
+                '&:hover': { backgroundColor: 'rgba(56, 139, 253, 0.2)' }
+              },
+            },
+            // Target the vertical lines for subfolders
+            '& .MuiTreeItem-groupTransition': {
+              marginLeft: '15px',
+              paddingLeft: '10px',
+            },
+            // Fix the expansion icon color
+            '& .MuiTreeItem-iconContainer': {
+              color: GH_COLORS.textMuted,
+            },
+          }}
           slots={{
-            item: GithubTreeItem,
-            expandIcon: AddBoxIcon,
-            collapseIcon: IndeterminateCheckBoxIcon,
-            endIcon: CloseSquare,
+            collapseIcon: ExpandMoreIcon,
+            expandIcon: ChevronRightIcon,
+            endIcon: File
           }}
         />
       </Box>
