@@ -70,8 +70,8 @@ function CategoryNode({ data, selected }: NodeProps<CategoryNodeType>) {
           ${selected ? 'ring-2 ring-blue-500 ring-offset-2 ring-offset-slate-900' : ''}
         `}
         style={{
-          width: data.width + 200,
-          height: data.height + 200,
+          width: data.width + 440,
+          height: data.height + 300,
           backgroundColor: `${baseColor}15`,
           border: `2px solid ${baseColor}60`,
           borderRadius: '16px',

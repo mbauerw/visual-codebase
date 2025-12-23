@@ -58,12 +58,14 @@ html {
 
 /* React Flow customizations for visualization page */
 .react-flow {
-  background-color: #0f172a;
+  background-color: #111a31;
+
 }
 
 .react-flow__node {
   border-radius: 8px;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+  background-color: #334155;
+  
 }
 
 .react-flow__edge-path {
@@ -105,6 +107,10 @@ html {
 
 /* File nodes should be above category containers */
 .react-flow__node-custom {
+  z-index: 100 !important;
+}
+
+.react-flow__node-category.selected {
   z-index: 1 !important;
 }
 

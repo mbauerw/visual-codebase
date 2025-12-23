@@ -207,8 +207,8 @@ class GraphBuilder:
 
         # Calculate initial positions in a grid
         cols = max(1, int(len(nodes) ** 0.5) + 1)
-        node_width = 250
-        node_height = 100
+        node_width = 50
+        node_height = 10
         padding = 50
 
         for i, node in enumerate(nodes):

@@ -32,7 +32,7 @@ function CustomNode({ data, selected }: NodeProps<CustomNodeType>) {
   return (
     <div
       className={`
-        relative px-3 py-4 rounded-lg shadow-lg min-w-[240px] max-w-[320px]
+        relative px-3 py-4 rounded-lg min-w-[240px] max-w-[320px]
         transition-all duration-200
         ${selected ? 'ring-2 ring-blue-500 ring-offset-2 ring-offset-slate-900' : ''}
       `}
