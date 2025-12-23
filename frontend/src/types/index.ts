@@ -29,6 +29,8 @@ export type Category =
   | 'config'
   | 'unknown';
 
+export type LayoutType = 'role' | 'file-hierarchy' | 'dependency';
+
 export type AnalysisStatus =
   | 'pending'
   | 'parsing'
