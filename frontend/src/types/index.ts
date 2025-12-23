@@ -68,6 +68,7 @@ export interface AnalysisStatusResponse {
 export interface ReactFlowNodeData extends Record<string, unknown> {
   label: string;
   path: string;
+  folder: string;
   language: Language;
   role: ArchitecturalRole;
   description: string;

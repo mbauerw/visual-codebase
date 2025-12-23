@@ -93,10 +93,14 @@ class FileParser:
             # Calculate relative path
             relative_path = os.path.relpath(file_path, base_path)
 
+            # Calculate folder path (directory containing the file, relative to base)
+            folder_path = os.path.dirname(relative_path)
+
             return ParsedFile(
                 path=file_path,
                 relative_path=relative_path,
                 name=os.path.basename(file_path),
+                folder=folder_path,
                 language=language,
                 imports=imports,
                 exports=exports,

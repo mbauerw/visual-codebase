@@ -122,6 +122,7 @@ class GraphBuilder:
                 id=self._generate_node_id(pf.relative_path),
                 path=pf.relative_path,
                 name=pf.name,
+                folder=pf.folder,
                 language=pf.language,
                 role=analysis.architectural_role if analysis else ArchitecturalRole.UNKNOWN,
                 description=analysis.description if analysis else "",
@@ -225,6 +226,7 @@ class GraphBuilder:
                 data=ReactFlowNodeData(
                     label=node.name,
                     path=node.path,
+                    folder=node.folder,
                     language=node.language,
                     role=node.role,
                     description=node.description,

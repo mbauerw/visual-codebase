@@ -101,6 +101,7 @@ class ParsedFile(BaseModel):
     path: str = Field(..., description="Absolute path to the file")
     relative_path: str = Field(..., description="Path relative to analysis root")
     name: str = Field(..., description="File name without path")
+    folder: str = Field(..., description="Folder path relative to analysis root")
     language: Language = Field(..., description="Detected programming language")
     imports: list[ImportInfo] = Field(
         default_factory=list, description="Import statements found"
@@ -138,6 +139,7 @@ class FileNode(BaseModel):
     id: str = Field(..., description="Unique identifier for the node")
     path: str = Field(..., description="File path")
     name: str = Field(..., description="File name")
+    folder: str = Field(default="", description="Folder path relative to analysis root")
     language: Language = Field(..., description="Programming language")
     role: ArchitecturalRole = Field(
         default=ArchitecturalRole.UNKNOWN, description="Architectural role"
@@ -225,6 +227,7 @@ class ReactFlowNodeData(BaseModel):
 
     label: str
     path: str
+    folder: str
     language: Language
     role: ArchitecturalRole
     description: str
