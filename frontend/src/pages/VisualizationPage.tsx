@@ -209,6 +209,7 @@ function getNestedCategoryLayout(
         roleCategoryNodes,
         fileNodes: positionedFileNodes,
         circleRadius: 300,
+
         centerX: offsetX + 300,
         centerY: 300,
       };
@@ -315,7 +316,7 @@ function getNestedCategoryLayout(
   );
 
   // Layout backend categories (offset to the right of frontend)
-  const frontendWidth = frontendLayout.circleRadius + 100;
+  const frontendWidth = frontendLayout.circleRadius;
   const backendLayout = layoutRoleCategoriesInCircle(
     backendRoleGroups,
     'backend',
@@ -482,7 +483,7 @@ function getFileHierarchyLayout(
       const childrenTotalWidth = node.children.reduce(
         (sum, child) => sum + child.subtreeWidth,
         0
-      ) + (node.children.length - 1) * folderGapX + 200;
+      ) + (node.children.length - 1) * folderGapX;
       node.subtreeWidth = Math.max(node.width, childrenTotalWidth);
     }
   }
@@ -535,8 +536,8 @@ function getFileHierarchyLayout(
         data: {
           label: node.name === 'root' ? '/' : node.name,
           category: 'folder',
-          width: node.width,
-          height: node.height,
+          width: node.width - 300,
+          height: node.height - 100,
           nodeCount: node.files.length,
           level: 'folder',
           depth: node.depth,
@@ -603,8 +604,9 @@ function getDependencyHierarchyLayout(
   fileNodes: CustomNodeType[],
   edges: Edge[]
 ): LayoutResult {
-  // Build a graph of import relationships
-  // Count how many times each file is imported (incoming edges)
+  
+  console.log("Files nodes: ", fileNodes);
+
   const importedByCount: Record<string, number> = {};
   const importersOf: Record<string, Set<string>> = {};
 
@@ -696,6 +698,92 @@ function getDependencyHierarchyLayout(
   return { nodes: positionedNodes, edges, categorySections: [] };
 }
 
+function testLayout(
+  fileNodes: CustomNodeType[],
+  edges: Edge[]
+): LayoutResult {
+  
+  console.log("Files nodes: ", fileNodes);
+
+  const columnWidth = 240;
+  const rowHeight = 100;
+  const positionedNodes: CustomNodeType[] = [];
+  const folderCategoryNodes: CategoryNodeType[] = [];
+  const folderNodes: Map<string, CustomNodeType[]> = new Map();
+
+  let x = 0
+  let y = 0
+  let ind = 0
+  let currentFolder = ''
+
+  fileNodes.forEach((node, index) =>{
+    x = x + columnWidth 
+    y = y 
+    ind = ind +1
+
+    if (!folderNodes.has(node.data.folder)){
+      folderNodes.set(node.data.folder, [])
+      x = 20
+      y = 50
+      ind = 0
+      currentFolder = node.data.folder;
+    }
+
+    folderNodes.get(node.data.folder)?.push(node)
+
+    
+    positionedNodes.push({
+      ...node,
+      position: {x, y},
+      parentId: node.data.folder
+    });
+  })
+
+  x = 0
+  y = 0
+
+
+  folderNodes.forEach((folder, key) => {
+
+    // position of folder nodes on graph
+    x = x + 400;
+    y = y + 350;
+    let height = 75;
+    let width = 100
+
+    const totalNodes = folder.length;
+    const columns = 3;
+    const rows = Math.floor(totalNodes / columns);
+
+
+
+    const folderCategoryNode: CategoryNodeType = {
+      id: key,
+      type: 'category',
+      position: { x, y },
+      data: {
+        label: key,
+        category: 'folder',
+        width: columns * width * totalNodes,
+        height: 300,
+        nodeCount: folder.length,
+        level: 'role',
+      },
+      draggable: true,
+      selectable: true,
+    };
+    folderCategoryNodes.push(folderCategoryNode);
+  })
+
+  const allNode: AllNodeTypes[] = [
+    ...folderCategoryNodes,
+    ...positionedNodes,
+  ]
+
+  return { nodes: allNode, edges: edges, categorySections: []}
+  
+}
+
 // Inner component that uses useReactFlow
 function VisualizationPageInner() {
   const navigate = useNavigate();
@@ -715,9 +803,12 @@ function VisualizationPageInner() {
   // Load data from session storage
   useEffect(() => {
     const storedData = sessionStorage.getItem('analysisResult');
+
     if (storedData) {
       try {
+        console.log("RAW STORED DATA: ", storedData)
         const data: ReactFlowGraph = JSON.parse(storedData);
+        console.log("JSON parsed data: ", data);
         setGraphData(data);
       } catch (e) {
         console.error('Failed to parse analysis result:', e);
@@ -771,7 +862,7 @@ function VisualizationPageInner() {
         layoutResult = getFileHierarchyLayout(fileNodesForLayout, filteredEdges);
         break;
       case 'dependency':
-        layoutResult = getDependencyHierarchyLayout(fileNodesForLayout, filteredEdges);
+        layoutResult = testLayout(fileNodesForLayout, filteredEdges);
         break;
       case 'role':
       default:

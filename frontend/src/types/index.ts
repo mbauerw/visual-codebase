@@ -24,6 +24,7 @@ export type Category =
   | 'frontend'
   | 'backend'
   | 'shared'
+  | 'folder'
   | 'infrastructure'
   | 'test'
   | 'config'
@@ -142,6 +143,7 @@ export const categoryColors: Record<Category, string> = {
   frontend: '#61dafb',
   backend: '#10b981',
   shared: '#8b5cf6',
+  folder: '#8b5cf6',
   infrastructure: '#f59e0b',
   test: '#ef4444',
   config: '#6b7280',
