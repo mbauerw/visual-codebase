@@ -447,8 +447,8 @@ function getFileHierarchyLayout(
   const fileGapX = 20;
   const fileGapY = 20;
   const filesPerRow = 3;
-  const folderGapX = 40; // Horizontal gap between sibling folders
-  const levelGapY = 120; // Vertical gap between depth levels
+  const folderGapX = 240; // Horizontal gap between sibling folders
+  const levelGapY = 320; // Vertical gap between depth levels
 
   // Calculate dimensions for a folder based on its files
   function calculateFolderDimensions(fileCount: number): { width: number; height: number } {
@@ -482,7 +482,7 @@ function getFileHierarchyLayout(
       const childrenTotalWidth = node.children.reduce(
         (sum, child) => sum + child.subtreeWidth,
         0
-      ) + (node.children.length - 1) * folderGapX;
+      ) + (node.children.length - 1) * folderGapX + 200;
       node.subtreeWidth = Math.max(node.width, childrenTotalWidth);
     }
   }

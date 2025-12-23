@@ -70,8 +70,8 @@ function CategoryNode({ data, selected }: NodeProps<CategoryNodeType>) {
           ${selected ? 'ring-2 ring-blue-500 ring-offset-2 ring-offset-slate-900' : ''}
         `}
         style={{
-          width: data.width,
-          height: data.height,
+          width: data.width + 200,
+          height: data.height + 200,
           backgroundColor: `${baseColor}15`,
           border: `2px solid ${baseColor}60`,
           borderRadius: '16px',
@@ -80,16 +80,16 @@ function CategoryNode({ data, selected }: NodeProps<CategoryNodeType>) {
       >
         {/* Folder header label */}
         <div
-          className="absolute -top-3 left-4 flex items-center gap-2 rounded-full px-3 py-1"
+          className="absolute -top-3 left-1/2 -translate-x-1/2 flex items-center gap-2 rounded-full px-3 py-1"
           style={{
             backgroundColor: '#1e293b',
             border: `2px solid ${baseColor}`,
             boxShadow: `0 0 10px ${baseColor}30`,
           }}
         >
-          <Folder size={16} style={{ color: baseColor }} />
+          <Folder size={26} style={{ color: baseColor }} />
           <span
-            className="font-medium text-sm"
+            className="font-medium text-3xl"
             style={{ color: baseColor }}
           >
             {data.label}
