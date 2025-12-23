@@ -365,8 +365,8 @@ function getNestedCategoryLayout(
   return { nodes: allNodes, edges, categorySections };
 }
 
-// File Hierarchy Layout - arranges files in a vertical tree structure with folder CategoryNodes
-// Top folder at top, subfolders below, each folder contains its files
+// File Hierarchy Layout - arranges folders in a centered tree structure
+// Root at top, children expand left and right below, with edges connecting folders
 function getFileHierarchyLayout(
   fileNodes: CustomNodeType[],
   edges: Edge[]
@@ -376,136 +376,190 @@ function getFileHierarchyLayout(
     name: string;
     path: string;
     depth: number;
-    children: Map<string, TreeNode>;
-    files: CustomNodeType[]; // Files directly in this folder
+    children: TreeNode[];
+    files: CustomNodeType[];
+    // Layout properties (calculated later)
+    width: number;
+    height: number;
+    subtreeWidth: number;
+    x: number;
+    y: number;
   }
 
-  const root: TreeNode = { name: 'root', path: '', depth: 0, children: new Map(), files: [] };
+  const root: TreeNode = {
+    name: 'root',
+    path: '',
+    depth: 0,
+    children: [],
+    files: [],
+    width: 0,
+    height: 0,
+    subtreeWidth: 0,
+    x: 0,
+    y: 0,
+  };
+
+  // Map to quickly find tree nodes by path
+  const nodesByPath: Map<string, TreeNode> = new Map();
+  nodesByPath.set('', root);
 
   // Insert each file into the tree, creating folder nodes along the way
   fileNodes.forEach((node) => {
     const pathParts = node.data.path.split('/').filter(Boolean);
-    let current = root;
+    let currentPath = '';
 
     // Navigate/create folder path (all but the last part which is the file)
     for (let i = 0; i < pathParts.length - 1; i++) {
       const part = pathParts[i];
-      if (!current.children.has(part)) {
-        current.children.set(part, {
+      const parentPath = currentPath;
+      currentPath = currentPath ? `${currentPath}/${part}` : part;
+
+      if (!nodesByPath.has(currentPath)) {
+        const newNode: TreeNode = {
           name: part,
-          path: pathParts.slice(0, i + 1).join('/'),
+          path: currentPath,
           depth: i + 1,
-          children: new Map(),
+          children: [],
           files: [],
-        });
+          width: 0,
+          height: 0,
+          subtreeWidth: 0,
+          x: 0,
+          y: 0,
+        };
+        nodesByPath.set(currentPath, newNode);
+
+        // Add to parent's children
+        const parent = nodesByPath.get(parentPath)!;
+        parent.children.push(newNode);
       }
-      current = current.children.get(part)!;
     }
 
-    // Add file to current folder
-    current.files.push(node);
+    // Add file to the appropriate folder
+    const folderPath = pathParts.slice(0, -1).join('/');
+    const folder = nodesByPath.get(folderPath) || root;
+    folder.files.push(node);
   });
 
-  // Calculate dimensions for a folder based on its files
-  const folderPadding = 20;
-  const folderHeaderHeight = 35;
-  const fileGapX = 15;
-  const fileGapY = 15;
-  const filesPerRow = 4;
+  // Layout constants
+  const folderPadding = 25;
+  const folderHeaderHeight = 40;
+  const fileGapX = 20;
+  const fileGapY = 20;
+  const filesPerRow = 3;
+  const folderGapX = 40; // Horizontal gap between sibling folders
+  const levelGapY = 120; // Vertical gap between depth levels
 
+  // Calculate dimensions for a folder based on its files
   function calculateFolderDimensions(fileCount: number): { width: number; height: number } {
     if (fileCount === 0) {
-      return { width: 150, height: 60 };
+      return { width: 120, height: 50 };
     }
     const rows = Math.ceil(fileCount / filesPerRow);
     const cols = Math.min(fileCount, filesPerRow);
     const width = folderPadding * 2 + cols * nodeWidth + (cols - 1) * fileGapX;
     const height = folderHeaderHeight + folderPadding + rows * nodeHeight + (rows - 1) * fileGapY + folderPadding;
-    return { width: Math.max(width, 200), height: Math.max(height, 80) };
+    return { width: Math.max(width, 180), height: Math.max(height, 70) };
   }
 
-  // Collect all folders by depth level
-  interface FolderInfo {
-    treeNode: TreeNode;
-    parentPath: string;
-  }
+  // First pass: calculate dimensions for each folder
+  function calculateDimensions(node: TreeNode) {
+    // Sort children alphabetically
+    node.children.sort((a, b) => a.name.localeCompare(b.name));
 
-  const foldersByDepth: Map<number, FolderInfo[]> = new Map();
+    // Recursively calculate children first
+    node.children.forEach(calculateDimensions);
 
-  function collectFolders(node: TreeNode, parentPath: string) {
-    // Only add if it has files or children (skip empty intermediate folders)
-    if (node.files.length > 0 || node.children.size > 0) {
-      const depth = node.depth;
-      if (!foldersByDepth.has(depth)) {
-        foldersByDepth.set(depth, []);
-      }
-      foldersByDepth.get(depth)!.push({ treeNode: node, parentPath });
+    // Calculate this node's dimensions
+    const dims = calculateFolderDimensions(node.files.length);
+    node.width = dims.width;
+    node.height = dims.height;
+
+    // Calculate subtree width (max of own width or sum of children's subtree widths)
+    if (node.children.length === 0) {
+      node.subtreeWidth = node.width;
+    } else {
+      const childrenTotalWidth = node.children.reduce(
+        (sum, child) => sum + child.subtreeWidth,
+        0
+      ) + (node.children.length - 1) * folderGapX;
+      node.subtreeWidth = Math.max(node.width, childrenTotalWidth);
     }
-
-    // Recurse to children
-    node.children.forEach((child) => {
-      collectFolders(child, node.path);
-    });
   }
 
-  // Start from root's children
-  root.children.forEach((child) => {
-    collectFolders(child, '');
-  });
+  calculateDimensions(root);
 
-  // Also handle files at root level
-  if (root.files.length > 0) {
-    if (!foldersByDepth.has(0)) {
-      foldersByDepth.set(0, []);
+  // Second pass: assign positions (centered tree layout)
+  function assignPositions(node: TreeNode, centerX: number, y: number) {
+    node.x = centerX - node.width / 2;
+    node.y = y;
+
+    if (node.children.length > 0) {
+      // Calculate starting X for children (centered under parent)
+      const childrenTotalWidth = node.children.reduce(
+        (sum, child) => sum + child.subtreeWidth,
+        0
+      ) + (node.children.length - 1) * folderGapX;
+
+      let childX = centerX - childrenTotalWidth / 2;
+      const childY = y + node.height + levelGapY;
+
+      node.children.forEach((child) => {
+        const childCenterX = childX + child.subtreeWidth / 2;
+        assignPositions(child, childCenterX, childY);
+        childX += child.subtreeWidth + folderGapX;
+      });
     }
-    foldersByDepth.get(0)!.push({ treeNode: root, parentPath: '' });
   }
 
-  // Position folders and files
+  // Start positioning from root
+  const startY = 50;
+  const canvasCenterX = root.subtreeWidth / 2 + 50;
+  assignPositions(root, canvasCenterX, startY);
+
+  // Build the result nodes and edges
   const allNodes: AllNodeTypes[] = [];
-  const depthGapY = 50; // Vertical gap between depth levels
-  const folderGapX = 30; // Horizontal gap between folders at same depth
+  const folderEdges: Edge[] = [];
 
-  let currentY = 50;
-  const depths = Array.from(foldersByDepth.keys()).sort((a, b) => a - b);
+  function buildNodesAndEdges(node: TreeNode, parentId: string | null) {
+    // Skip root if it has no files (just a container)
+    const folderId = `folder-${node.path || 'root'}`;
+    const showFolder = node.files.length > 0 || node.depth === 0 || node.children.length === 0;
 
-  depths.forEach((depth) => {
-    const folders = foldersByDepth.get(depth)!;
-
-    // Sort folders alphabetically
-    folders.sort((a, b) => a.treeNode.name.localeCompare(b.treeNode.name));
-
-    // Calculate total width needed for this row
-    let currentX = 50;
-    let maxHeightInRow = 0;
-
-    folders.forEach((folderInfo) => {
-      const folder = folderInfo.treeNode;
-      const dims = calculateFolderDimensions(folder.files.length);
-      maxHeightInRow = Math.max(maxHeightInRow, dims.height);
-
-      // Create folder CategoryNode
-      const folderId = `folder-${folder.path || 'root'}`;
+    if (showFolder || node.children.length > 0) {
+      // Create folder node
       const folderNode: CategoryNodeType = {
         id: folderId,
         type: 'category',
-        position: { x: currentX, y: currentY },
+        position: { x: node.x, y: node.y },
         data: {
-          label: folder.name === 'root' ? '/' : folder.name,
+          label: node.name === 'root' ? '/' : node.name,
           category: 'folder',
-          width: dims.width,
-          height: dims.height,
-          nodeCount: folder.files.length,
+          width: node.width,
+          height: node.height,
+          nodeCount: node.files.length,
           level: 'folder',
-          depth: folder.depth,
+          depth: node.depth,
         },
         draggable: true,
         selectable: true,
       };
       allNodes.push(folderNode);
 
+      // Create edge from parent to this folder
+      if (parentId) {
+        folderEdges.push({
+          id: `edge-${parentId}-${folderId}`,
+          source: parentId,
+          target: folderId,
+          type: 'smoothstep',
+          style: { stroke: '#64748b', strokeWidth: 2 },
+          animated: false,
+        });
+      }
+
       // Position files inside this folder
-      folder.files.forEach((fileNode, index) => {
+      node.files.forEach((fileNode, index) => {
         const row = Math.floor(index / filesPerRow);
         const col = index % filesPerRow;
         const fileX = folderPadding + col * (nodeWidth + fileGapX);
@@ -519,14 +573,28 @@ function getFileHierarchyLayout(
           expandParent: true,
         });
       });
+    }
 
-      currentX += dims.width + folderGapX;
+    // Process children
+    node.children.forEach((child) => {
+      buildNodesAndEdges(child, showFolder || node.children.length > 0 ? folderId : parentId);
     });
+  }
 
-    currentY += maxHeightInRow + depthGapY;
-  });
+  // Build from root's children (or root if it has files)
+  if (root.files.length > 0) {
+    buildNodesAndEdges(root, null);
+  } else {
+    // Start from children, creating a virtual root connection
+    root.children.forEach((child) => {
+      buildNodesAndEdges(child, null);
+    });
+  }
 
-  return { nodes: allNodes, edges, categorySections: [] };
+  // Combine folder edges with file dependency edges (keeping original edges for files)
+  const combinedEdges = [...folderEdges, ...edges];
+
+  return { nodes: allNodes, edges: combinedEdges, categorySections: [] };
 }
 
 // Dependency Hierarchy Layout - arranges files based on import frequency
