@@ -604,7 +604,7 @@ function getDependencyHierarchyLayout(
   fileNodes: CustomNodeType[],
   edges: Edge[]
 ): LayoutResult {
-  
+
   console.log("Files nodes: ", fileNodes);
 
   const importedByCount: Record<string, number> = {};
@@ -702,70 +702,97 @@ function testLayout(
   fileNodes: CustomNodeType[],
   edges: Edge[]
 ): LayoutResult {
-  
+
   console.log("Files nodes: ", fileNodes);
 
-  const columnWidth = 240;
-  const rowHeight = 100;
+
   const positionedNodes: CustomNodeType[] = [];
   const folderCategoryNodes: CategoryNodeType[] = [];
-  const folderNodes: Map<string, CustomNodeType[]> = new Map();
+  let folderNodes: Map<string, CustomNodeType[]> = new Map();
+
 
   let x = 0
   let y = 0
-  let ind = 0
-  let currentFolder = ''
+  let rowIndex = 0
+  let prevWidth = 1
 
-  fileNodes.forEach((node, index) =>{
-    x = x + columnWidth 
-    y = y 
-    ind = ind +1
 
-    if (!folderNodes.has(node.data.folder)){
+  fileNodes.forEach((node, index) => {
+
+    console.log("folder: ", node.data.folder)
+    console.log("path: ", node.data.path)
+
+    if (!folderNodes.has(node.data.folder)) {
       folderNodes.set(node.data.folder, [])
-      x = 20
-      y = 50
-      ind = 0
-      currentFolder = node.data.folder;
     }
-
     folderNodes.get(node.data.folder)?.push(node)
 
-    
-    positionedNodes.push({
-      ...node,
-      position: {x, y},
-      parentId: node.data.folder
-    });
   })
+
+  // Sort alphabetically by folder name
+  folderNodes = new Map([...folderNodes].sort((a, b) => 
+    a[0].localeCompare(b[0])
+  ))
 
   x = 0
   y = 0
-
+  let folderX = 0
+  let folderY = 0
+  let baseShift = 0
+  rowIndex = 0
+  let folderRowIndex = 0
+  prevWidth = 1
+  let currentBase = ''
+  let baseInit = false
 
   folderNodes.forEach((folder, key) => {
 
-    // position of folder nodes on graph
-    x = x + 400;
-    y = y + 350;
-    let height = 75;
-    let width = 100
+    if (!baseInit) {
+      currentBase = key.split('/')[0]
+      baseInit = true
+
+    }
+    const base = key.split('/')[0]
+    console.log("KEY == ", key)
+    console.log("BASE ==", base)
+    if (currentBase !== base) {
+      folderY = 0
+      baseShift = 2000
+      folderX = baseShift
+      folderRowIndex = 0
+      currentBase = base
+      prevWidth = 1
+    }
+
+    const folderHeight = 300;
+    const folderWidth = 300
+    const folderGapY = 400;
+    folderX = folderX + 500;
+
 
     const totalNodes = folder.length;
     const columns = 3;
-    const rows = Math.floor(totalNodes / columns);
+    const rows = Math.ceil(totalNodes / columns);
 
+    folderRowIndex = folderRowIndex + 1
+    if (folderRowIndex - 1 == prevWidth) {
+      prevWidth = prevWidth + 1
+      folderRowIndex = 0
+      folderY = folderY + folderGapY
+      folderX = baseShift
+      console.log("Reset the Row: ", folderRowIndex)
+    }
 
 
     const folderCategoryNode: CategoryNodeType = {
       id: key,
       type: 'category',
-      position: { x, y },
+      position: { x: folderX, y: folderY },
       data: {
         label: key,
         category: 'folder',
-        width: columns * width * totalNodes,
-        height: 300,
+        width: folderWidth * rows,
+        height: folderHeight * rows,
         nodeCount: folder.length,
         level: 'role',
       },
@@ -773,15 +800,42 @@ function testLayout(
       selectable: true,
     };
     folderCategoryNodes.push(folderCategoryNode);
+
+    rowIndex = 1
+    const columnWidth = 240;
+    const rowHeight = 140;
+    x = 20
+    y = 50
+
+    folder.forEach((node) => {
+      if (rowIndex - 1 == 3) {
+        rowIndex = 0
+        x = 0
+        y = y + rowHeight;
+      }
+      
+      positionedNodes.push({
+        ...node,
+        position: { x: x, y: y },
+        parentId: key,
+        extent: 'parent' as const,
+        expandParent: true,
+      });
+
+      rowIndex += 1;
+      x = x + columnWidth;
+
+    })
   })
+
 
   const allNode: AllNodeTypes[] = [
     ...folderCategoryNodes,
     ...positionedNodes,
   ]
 
-  return { nodes: allNode, edges: edges, categorySections: []}
-  
+  return { nodes: allNode, edges: edges, categorySections: [] }
+
 }
 
 // Inner component that uses useReactFlow
