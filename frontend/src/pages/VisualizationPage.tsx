@@ -50,6 +50,11 @@ const nodeTypes: NodeTypes = {
 // Combined node type for all nodes in the graph
 type AllNodeTypes = CustomNodeType | CategoryNodeType;
 
+interface stylesType  {
+  background: string
+  '--xy-node-color-default'?: string
+}
+
 const nodeWidth = 200;
 const nodeHeight = 90;
 const nodeGapX = 40;  // Horizontal space between file nodes
@@ -445,7 +450,7 @@ function getFileHierarchyLayout(
   // Layout constants
   const folderPadding = 25;
   const folderHeaderHeight = 40;
-  const fileGapX = 20;
+  const fileGapX = 50;
   const fileGapY = 20;
   const filesPerRow = 3;
   const folderGapX = 240; // Horizontal gap between sibling folders
@@ -536,8 +541,8 @@ function getFileHierarchyLayout(
         data: {
           label: node.name === 'root' ? '/' : node.name,
           category: 'folder',
-          width: node.width - 300,
-          height: node.height - 100,
+          width: node.width ,
+          height: node.height,
           nodeCount: node.files.length,
           level: 'folder',
           depth: node.depth,
@@ -722,6 +727,11 @@ function testLayout(
     console.log("folder: ", node.data.folder)
     console.log("path: ", node.data.path)
 
+    const base = node.data.path.split('/')[0]
+    if (!folderNodes.has(base)){
+      folderNodes.set(base, [])
+    }
+
     if (!folderNodes.has(node.data.folder)) {
       folderNodes.set(node.data.folder, [])
     }
@@ -794,7 +804,8 @@ function testLayout(
         width: folderWidth * rows,
         height: folderHeight * rows,
         nodeCount: folder.length,
-        level: 'role',
+        level: 'folder',
+        depth: prevWidth
       },
       draggable: true,
       selectable: true,
@@ -853,6 +864,7 @@ function VisualizationPageInner() {
   const [categorySections, setCategorySections] = useState<CategorySection[]>([]);
   const [viewport, setViewport] = useState<Viewport>({ x: 0, y: 0, zoom: 1 });
   const [expanded, setExpanded] = useState<boolean>(true);
+  const [styles, setStyles] = useState<stylesType>();
 
   // Load data from session storage
   useEffect(() => {
@@ -911,16 +923,23 @@ function VisualizationPageInner() {
 
     // Apply selected layout
     let layoutResult: LayoutResult;
+    
     switch (layoutType) {
       case 'file-hierarchy':
-        layoutResult = getFileHierarchyLayout(fileNodesForLayout, filteredEdges);
+        layoutResult = getFileHierarchyLayout(fileNodesForLayout, filteredEdges); 
         break;
       case 'dependency':
         layoutResult = testLayout(fileNodesForLayout, filteredEdges);
+        setStyles({
+          background: '#111a31',
+        })
         break;
       case 'role':
       default:
         layoutResult = getNestedCategoryLayout(fileNodesForLayout, filteredEdges);
+        setStyles({
+          background: '#111a31'
+        })
         break;
     }
 
@@ -983,6 +1002,7 @@ function VisualizationPageInner() {
   }
 
   const mainSectionGap = 'gap-[100px]';
+  
 
   return (
     <div className="min-h-screen max-h-screen w-screen bg-gray-100 flex flex-col overflow-hidden ">
@@ -1095,6 +1115,7 @@ function VisualizationPageInner() {
                 onMove={onMove}
                 nodeTypes={nodeTypes}
                 fitView
+                style={styles}
                 minZoom={0.1}
                 maxZoom={2}
                 defaultEdgeOptions={{

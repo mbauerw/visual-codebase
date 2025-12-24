@@ -64,13 +64,14 @@ html {
 
 .react-flow__node {
   border-radius: 8px;
-  background-color: #334155;
+  
   
 }
 
 .react-flow__edge-path {
   stroke-width: 1.5;
 }
+
 
 .react-flow__controls {
   background-color: #1e293b;
