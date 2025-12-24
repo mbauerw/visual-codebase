@@ -9,7 +9,7 @@ import tree_sitter_python as tspy
 import tree_sitter_typescript as tsts
 from tree_sitter import Language, Parser
 
-from ..config import get_settings
+from ..settings import get_settings
 from ..models.schemas import ImportInfo, ImportType, Language as LangEnum, ParsedFile
 
 

@@ -6,7 +6,7 @@ import os
 from dotenv import load_dotenv
 
 from .api.routes import router
-from .config import get_settings
+from .settings import get_settings
 
 load_dotenv()
 

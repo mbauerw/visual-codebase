@@ -11,6 +11,11 @@ class Settings(BaseSettings):
     # API Keys
     anthropic_api_key: str = ""
 
+    # Supabase settings
+    supabase_url: str = ""
+    supabase_anon_key: str = ""
+    supabase_service_role_key: str = ""
+
     # Application settings
     app_name: str = "Visual Codebase API"
     debug: bool = False

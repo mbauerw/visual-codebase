@@ -1,7 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FolderOpen, Play, Loader2, AlertCircle, Zap, GitBranch, Eye, ChevronDown, Menu, X } from 'lucide-react';
+import { FolderOpen, Play, Loader2, AlertCircle, Zap, GitBranch, Eye, ChevronDown, Menu, X, User } from 'lucide-react';
 import { useAnalysis } from '../hooks/useAnalysis';
+import { useAuth } from '../hooks/useAuth';
+import { AuthModal } from '../components/AuthModal';
 
 export default function UploadPage() {
   const [directoryPath, setDirectoryPath] = useState('');
@@ -9,9 +11,12 @@ export default function UploadPage() {
   const [maxDepth, setMaxDepth] = useState<number | null>(null);
   const [navVisible, setNavVisible] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [authModalTab, setAuthModalTab] = useState(0);
   const lastScrollY = useRef(0);
   const navigate = useNavigate();
   const { isLoading, status, result, error, analyze } = useAnalysis();
+  const { user, signOut } = useAuth();
 
   // Handle navbar visibility on scroll
   useEffect(() => {
@@ -50,6 +55,12 @@ export default function UploadPage() {
 
   const scrollToSection = (id: string) => {
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
+    setMobileMenuOpen(false);
+  };
+
+  const handleOpenAuthModal = (tab: number) => {
+    setAuthModalTab(tab);
+    setAuthModalOpen(true);
     setMobileMenuOpen(false);
   };
 
@@ -94,16 +105,41 @@ export default function UploadPage() {
           </div>
 
           <div className="hidden md:flex items-center gap-3">
-            {/* <div className="flex items-center gap-2 mr-4">
-              <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></div>
-              <span className="text-sm text-gray-500 font-medium">Ready</span>
-            </div> */}
-            <button
-              onClick={() => scrollToSection('analyze')}
-              className="bg-gray-900 hover:bg-gray-800 text-white px-6 py-2.5 rounded-full font-medium transition-colors"
-            >
-              Get Started
-            </button>
+            {user ? (
+              <>
+                <button
+                  onClick={() => navigate('/dashboard')}
+                  className="text-gray-600 hover:text-gray-900 font-medium transition-colors px-3 py-2 rounded-lg hover:bg-gray-50"
+                >
+                  My Analyses
+                </button>
+                <div className="flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-lg">
+                  <User size={16} className="text-gray-500" />
+                  <span className="text-sm text-gray-700 font-medium">{user.email?.split('@')[0]}</span>
+                </div>
+                <button
+                  onClick={signOut}
+                  className="text-gray-600 hover:text-gray-900 font-medium transition-colors px-4 py-2 rounded-lg hover:bg-gray-50"
+                >
+                  Sign Out
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  onClick={() => handleOpenAuthModal(0)}
+                  className="text-gray-700 hover:text-gray-900 font-medium transition-all px-5 py-2.5 rounded-full hover:bg-gray-50"
+                >
+                  Log In
+                </button>
+                <button
+                  onClick={() => handleOpenAuthModal(1)}
+                  className="bg-gray-900 hover:bg-gray-800 text-white px-6 py-2.5 rounded-full font-semibold transition-all hover:shadow-lg hover:scale-[1.02] shadow-md"
+                >
+                  Sign Up
+                </button>
+              </>
+            )}
           </div>
 
           {/* Mobile menu button */}
@@ -128,12 +164,50 @@ export default function UploadPage() {
               <button onClick={() => scrollToSection('analyze')} className="text-gray-600 hover:text-gray-900 font-medium text-left py-2">
                 Analyze
               </button>
-              <button
-                onClick={() => scrollToSection('analyze')}
-                className="bg-gray-900 text-white px-6 py-3 rounded-full font-medium mt-2"
-              >
-                Get Started
-              </button>
+
+              {user ? (
+                <>
+                  <div className="border-t border-gray-100 my-2"></div>
+                  <button
+                    onClick={() => {
+                      navigate('/dashboard');
+                      setMobileMenuOpen(false);
+                    }}
+                    className="text-gray-600 hover:text-gray-900 font-medium text-left py-2"
+                  >
+                    My Analyses
+                  </button>
+                  <div className="flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-lg">
+                    <User size={16} className="text-gray-500" />
+                    <span className="text-sm text-gray-700 font-medium">{user.email?.split('@')[0]}</span>
+                  </div>
+                  <button
+                    onClick={() => {
+                      signOut();
+                      setMobileMenuOpen(false);
+                    }}
+                    className="text-gray-600 hover:text-gray-900 font-medium text-left py-2"
+                  >
+                    Sign Out
+                  </button>
+                </>
+              ) : (
+                <>
+                  <div className="border-t border-gray-100 my-2"></div>
+                  <button
+                    onClick={() => handleOpenAuthModal(0)}
+                    className="text-gray-700 hover:text-gray-900 font-medium text-left py-2.5 px-4 rounded-lg hover:bg-gray-50 transition-colors"
+                  >
+                    Log In
+                  </button>
+                  <button
+                    onClick={() => handleOpenAuthModal(1)}
+                    className="bg-gray-900 text-white px-6 py-3 rounded-full font-semibold hover:bg-gray-800 transition-all shadow-md"
+                  >
+                    Sign Up
+                  </button>
+                </>
+              )}
             </div>
           </div>
         )}
@@ -440,6 +514,13 @@ export default function UploadPage() {
           </p>
         </div>
       </footer>
+
+      {/* Auth Modal */}
+      <AuthModal
+        open={authModalOpen}
+        onClose={() => setAuthModalOpen(false)}
+        initialTab={authModalTab}
+      />
 
       {/* Animation keyframes via style tag */}
       <style>{`

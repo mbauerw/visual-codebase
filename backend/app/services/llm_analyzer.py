@@ -5,7 +5,7 @@ from typing import Optional
 
 import anthropic
 
-from ..config import get_settings
+from ..settings import get_settings
 from ..models.schemas import (
     ArchitecturalRole,
     Category,

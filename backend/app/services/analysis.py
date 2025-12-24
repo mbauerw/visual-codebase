@@ -85,6 +85,7 @@ class AnalysisService:
         analysis_id: str,
         include_node_modules: bool = False,
         max_depth: Optional[int] = None,
+        user_id: Optional[str] = None,
     ) -> None:
         """Run the complete analysis pipeline."""
         job = self.get_job(analysis_id)
@@ -92,6 +93,12 @@ class AnalysisService:
             return
 
         start_time = time.time()
+        
+        # Get database service if user is authenticated
+        db_service = None
+        if user_id:
+            from .database import get_database_service
+            db_service = get_database_service()
 
         try:
             # Validate directory exists
@@ -103,12 +110,25 @@ class AnalysisService:
             job.current_step = "Scanning and parsing files"
             job.progress = 10.0
 
+            # Update database if user is authenticated
+            if db_service:
+                await db_service.update_analysis_progress(
+                    analysis_id, job.status, job.progress, job.current_step
+                )
+
             parsed_files = self._parser.parse_directory(
                 job.directory_path, include_node_modules, max_depth
             )
 
             job.total_files = len(parsed_files)
             job.progress = 30.0
+
+            # Update database
+            if db_service:
+                await db_service.update_analysis_progress(
+                    analysis_id, job.status, job.progress, job.current_step, 
+                    job.files_processed, job.total_files
+                )
 
             if not parsed_files:
                 raise ValueError("No supported files found in directory")
@@ -118,6 +138,13 @@ class AnalysisService:
             job.current_step = "Analyzing files with AI"
             job.progress = 40.0
 
+            # Update database
+            if db_service:
+                await db_service.update_analysis_progress(
+                    analysis_id, job.status, job.progress, job.current_step, 
+                    job.files_processed, job.total_files
+                )
+
             llm_analysis = await self._llm_analyzer.analyze_files(
                 parsed_files, job.directory_path
             )
@@ -125,10 +152,24 @@ class AnalysisService:
             job.progress = 70.0
             job.files_processed = len(parsed_files)
 
+            # Update database
+            if db_service:
+                await db_service.update_analysis_progress(
+                    analysis_id, job.status, job.progress, job.current_step, 
+                    job.files_processed, job.total_files
+                )
+
             # Step 3: Build Graph
             job.status = AnalysisStatus.BUILDING_GRAPH
             job.current_step = "Building dependency graph"
             job.progress = 80.0
+
+            # Update database
+            if db_service:
+                await db_service.update_analysis_progress(
+                    analysis_id, job.status, job.progress, job.current_step, 
+                    job.files_processed, job.total_files
+                )
 
             # Count languages
             language_counts: dict[str, int] = {}
@@ -168,10 +209,24 @@ class AnalysisService:
             job.progress = 100.0
             job.completed_at = datetime.utcnow()
 
+            # Store complete results in database if user is authenticated
+            if db_service:
+                await db_service.complete_analysis(
+                    analysis_id, metadata, nodes, edges
+                )
+
         except Exception as e:
             job.status = AnalysisStatus.FAILED
             job.error = str(e)
             job.current_step = "Analysis failed"
+            
+            # Update database with error if user is authenticated
+            if db_service:
+                await db_service.update_analysis_progress(
+                    analysis_id, job.status, job.progress, job.current_step,
+                    job.files_processed, job.total_files, str(e)
+                )
+            
             print(f"Analysis failed: {e}")
             raise
 
