@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { GitBranch, AlertCircle } from 'lucide-react';
+import { GitBranch, AlertCircle, Link2, List } from 'lucide-react';
 import { GitHubRepoInfo } from '../types';
 import { User } from '@supabase/supabase-js';
+import GitHubRepoSelector from './github/GitHubRepoSelector';
 
 interface GitHubRepoFormProps {
   onAnalyze: (repoData: GitHubRepoInfo & { include_node_modules?: boolean; max_depth?: number }) => Promise<void>;
@@ -52,8 +53,10 @@ export default function GitHubRepoForm({
   maxDepth,
   setMaxDepth,
 }: GitHubRepoFormProps) {
+  const [inputMode, setInputMode] = useState<'url' | 'browse'>('browse');
   const [repoUrl, setRepoUrl] = useState('');
   const [parsedRepo, setParsedRepo] = useState<GitHubRepoInfo | null>(null);
+  const [selectedRepo, setSelectedRepo] = useState<GitHubRepoInfo | null>(null);
   const [validationError, setValidationError] = useState<string | null>(null);
 
   // Parse URL when it changes
@@ -77,16 +80,27 @@ export default function GitHubRepoForm({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!parsedRepo) {
-      setValidationError('Please enter a valid repository URL');
+    const repoToAnalyze = inputMode === 'url' ? parsedRepo : selectedRepo;
+
+    if (!repoToAnalyze) {
+      setValidationError(
+        inputMode === 'url'
+          ? 'Please enter a valid repository URL'
+          : 'Please select a repository'
+      );
       return;
     }
 
     await onAnalyze({
-      ...parsedRepo,
+      ...repoToAnalyze,
       include_node_modules: includeNodeModules,
       max_depth: maxDepth ?? undefined,
     });
+  };
+
+  const handleRepoSelect = (repo: GitHubRepoInfo) => {
+    setSelectedRepo(repo);
+    setValidationError(null);
   };
 
   // Show auth gate if user is not logged in
@@ -112,36 +126,76 @@ export default function GitHubRepoForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      {/* Repository URL Input */}
-      <div>
-        <label htmlFor="repo-url" className="block text-sm font-medium text-gray-700 mb-2">
-          Repository URL
-        </label>
-        <input
-          id="repo-url"
-          type="text"
-          value={repoUrl}
-          onChange={(e) => setRepoUrl(e.target.value)}
-          placeholder="https://github.com/owner/repo or owner/repo"
-          className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all ${
-            validationError ? 'border-red-300' : 'border-gray-200'
+      {/* Input Mode Selector */}
+      <div className="flex gap-2 p-1 bg-gray-100 rounded-lg">
+        <button
+          type="button"
+          onClick={() => setInputMode('browse')}
+          className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-md font-medium transition-all ${
+            inputMode === 'browse'
+              ? 'bg-white text-gray-900 shadow-sm'
+              : 'text-gray-600 hover:text-gray-900'
           }`}
-          disabled={isLoading}
-        />
-        {validationError && (
-          <div className="mt-2 flex items-start gap-2 text-red-600 text-sm">
-            <AlertCircle size={16} className="mt-0.5 flex-shrink-0" />
-            <span>{validationError}</span>
-          </div>
-        )}
-        {parsedRepo && !validationError && (
-          <div className="mt-2 text-sm text-gray-600">
-            Will analyze: <span className="font-medium">{parsedRepo.owner}/{parsedRepo.repo}</span>
-            {parsedRepo.branch && <span className="text-gray-500"> (branch: {parsedRepo.branch})</span>}
-            {parsedRepo.path && <span className="text-gray-500"> (path: {parsedRepo.path})</span>}
-          </div>
-        )}
+        >
+          <List size={18} />
+          Browse Repositories
+        </button>
+        <button
+          type="button"
+          onClick={() => setInputMode('url')}
+          className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-md font-medium transition-all ${
+            inputMode === 'url'
+              ? 'bg-white text-gray-900 shadow-sm'
+              : 'text-gray-600 hover:text-gray-900'
+          }`}
+        >
+          <Link2 size={18} />
+          Enter URL
+        </button>
       </div>
+
+      {/* Browse Mode - Repository Selector */}
+      {inputMode === 'browse' && (
+        <div>
+          <GitHubRepoSelector
+            onSelect={handleRepoSelect}
+            selectedRepo={selectedRepo ?? undefined}
+          />
+        </div>
+      )}
+
+      {/* URL Mode - Repository URL Input */}
+      {inputMode === 'url' && (
+        <div>
+          <label htmlFor="repo-url" className="block text-sm font-medium text-gray-700 mb-2">
+            Repository URL
+          </label>
+          <input
+            id="repo-url"
+            type="text"
+            value={repoUrl}
+            onChange={(e) => setRepoUrl(e.target.value)}
+            placeholder="https://github.com/owner/repo or owner/repo"
+            className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all ${
+              validationError ? 'border-red-300' : 'border-gray-200'
+            }`}
+            disabled={isLoading}
+          />
+          {validationError && (
+            <div className="mt-2 flex items-start gap-2 text-red-600 text-sm">
+              <AlertCircle size={16} className="mt-0.5 flex-shrink-0" />
+              <span>{validationError}</span>
+            </div>
+          )}
+          {parsedRepo && !validationError && (
+            <div className="mt-2 text-sm text-gray-600">
+              Will analyze: <span className="font-medium">{parsedRepo.owner}/{parsedRepo.repo}</span>
+              {parsedRepo.branch && <span className="text-gray-500"> (branch: {parsedRepo.branch})</span>}
+              {parsedRepo.path && <span className="text-gray-500"> (path: {parsedRepo.path})</span>}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Options Row */}
       <div className="flex items-center gap-6">
@@ -176,7 +230,11 @@ export default function GitHubRepoForm({
       {/* Submit Button */}
       <button
         type="submit"
-        disabled={isLoading || !parsedRepo || !!validationError}
+        disabled={
+          isLoading ||
+          (inputMode === 'url' && (!parsedRepo || !!validationError)) ||
+          (inputMode === 'browse' && !selectedRepo)
+        }
         className="w-full bg-gray-900 hover:bg-gray-800 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-medium py-3 px-4 rounded-xl transition-colors"
       >
         {isLoading ? 'Analyzing...' : 'Start Analysis'}
