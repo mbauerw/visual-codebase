@@ -58,6 +58,7 @@ class AnalysisStatus(str, Enum):
     """Status of an analysis job."""
 
     PENDING = "pending"
+    CLONING = "cloning"
     PARSING = "parsing"
     ANALYZING = "analyzing"
     BUILDING_GRAPH = "building_graph"
@@ -65,17 +66,35 @@ class AnalysisStatus(str, Enum):
     FAILED = "failed"
 
 
+# GitHub schemas
+class GitHubRepoInfo(BaseModel):
+    """GitHub repository information."""
+
+    owner: str = Field(..., description="Repository owner")
+    repo: str = Field(..., description="Repository name")
+    branch: Optional[str] = Field(default=None, description="Branch to analyze")
+    path: Optional[str] = Field(default=None, description="Subdirectory path")
+
+
 # Request schemas
 class AnalyzeRequest(BaseModel):
     """Request to start a codebase analysis."""
 
-    directory_path: str = Field(..., description="Path to the directory to analyze")
+    directory_path: Optional[str] = Field(None, description="Path to the directory to analyze")
+    github_repo: Optional[GitHubRepoInfo] = Field(None, description="GitHub repository to analyze")
     include_node_modules: bool = Field(
         default=False, description="Whether to include node_modules"
     )
     max_depth: Optional[int] = Field(
         default=None, description="Maximum directory depth to traverse"
     )
+
+    def model_post_init(self, __context):
+        """Validate that exactly one source is provided."""
+        if not self.directory_path and not self.github_repo:
+            raise ValueError("Either directory_path or github_repo must be provided")
+        if self.directory_path and self.github_repo:
+            raise ValueError("Cannot provide both directory_path and github_repo")
 
 
 # Core data schemas
@@ -167,7 +186,8 @@ class AnalysisMetadata(BaseModel):
     """Metadata about the analysis."""
 
     analysis_id: str = Field(..., description="Unique analysis ID")
-    directory_path: str = Field(..., description="Analyzed directory path")
+    directory_path: Optional[str] = Field(None, description="Analyzed directory path")
+    github_repo: Optional[GitHubRepoInfo] = Field(None, description="GitHub repository analyzed")
     file_count: int = Field(..., description="Total files analyzed")
     edge_count: int = Field(..., description="Total dependencies found")
     analysis_time_seconds: float = Field(..., description="Time taken for analysis")

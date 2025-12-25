@@ -34,15 +34,56 @@ export type LayoutType = 'role' | 'file-hierarchy' | 'dependency';
 
 export type AnalysisStatus =
   | 'pending'
+  | 'cloning'
   | 'parsing'
   | 'analyzing'
   | 'building_graph'
   | 'completed'
   | 'failed';
 
+// GitHub types
+export interface GitHubRepoInfo {
+  owner: string;
+  repo: string;
+  branch?: string;
+  path?: string;
+}
+
+export interface GitHubRepository {
+  id: number;
+  name: string;
+  full_name: string;
+  description: string | null;
+  html_url: string;
+  clone_url: string;
+  ssh_url: string;
+  language: string | null;
+  stargazers_count: number;
+  forks_count: number;
+  open_issues_count: number;
+  default_branch: string;
+  private: boolean;
+  updated_at: string;
+  pushed_at: string;
+  size: number;
+  owner: {
+    login: string;
+    avatar_url: string;
+  };
+  topics?: string[];
+}
+
+export interface GitHubRepoListResponse {
+  repositories: GitHubRepository[];
+  total_count: number;
+  has_next_page: boolean;
+  next_page: number | null;
+}
+
 // Request types
 export interface AnalyzeRequest {
-  directory_path: string;
+  directory_path?: string;
+  github_repo?: GitHubRepoInfo;
   include_node_modules?: boolean;
   max_depth?: number;
 }
@@ -98,7 +139,8 @@ export interface ReactFlowEdge {
 
 export interface AnalysisMetadata {
   analysis_id: string;
-  directory_path: string;
+  directory_path?: string;
+  github_repo?: GitHubRepoInfo;
   file_count: number;
   edge_count: number;
   analysis_time_seconds: number;

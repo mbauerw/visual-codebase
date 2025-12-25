@@ -6,13 +6,15 @@ interface AuthState {
   user: User | null
   session: Session | null
   loading: boolean
+  githubToken: string | null
 }
 
 export function useAuth() {
   const [authState, setAuthState] = useState<AuthState>({
     user: null,
     session: null,
-    loading: true
+    loading: true,
+    githubToken: null
   })
 
   useEffect(() => {
@@ -25,7 +27,8 @@ export function useAuth() {
       setAuthState({
         user: session?.user || null,
         session: session,
-        loading: false
+        loading: false,
+        githubToken: session?.provider_token || null
       })
     }
 
@@ -37,7 +40,8 @@ export function useAuth() {
         setAuthState({
           user: session?.user || null,
           session: session,
-          loading: false
+          loading: false,
+          githubToken: session?.provider_token || null
         })
       }
     )
@@ -78,11 +82,23 @@ export function useAuth() {
     return { error }
   }
 
+  const signInWithGitHub = async () => {
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: 'github',
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback`,
+        scopes: 'repo read:user user:email',
+      },
+    })
+    return { data, error }
+  }
+
   return {
     ...authState,
     signUp,
     signIn,
     signOut,
-    resetPassword
+    resetPassword,
+    signInWithGitHub
   }
 }
