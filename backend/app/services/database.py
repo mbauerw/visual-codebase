@@ -12,6 +12,7 @@ from ..models.schemas import (
     AnalysisStatusResponse,
     FileNode,
     DependencyEdge,
+    GitHubRepoInfo,
 )
 
 
@@ -25,7 +26,8 @@ class DatabaseService:
         self,
         analysis_id: str,
         user_id: str,
-        directory_path: str,
+        directory_path: Optional[str] = None,
+        github_repo: Optional[GitHubRepoInfo] = None,
     ) -> Dict[str, Any]:
         """Create a new analysis record."""
         analysis_data = {
@@ -38,6 +40,15 @@ class DatabaseService:
             "files_processed": 0,
             "total_files": 0,
         }
+
+        # Add GitHub repository info if provided
+        if github_repo:
+            analysis_data["github_repo"] = {
+                "owner": github_repo.owner,
+                "repo": github_repo.repo,
+                "branch": github_repo.branch,
+                "path": github_repo.path,
+            }
 
         result = self.supabase.table("analyses").insert(analysis_data).execute()
         return result.data[0] if result.data else {}
@@ -211,9 +222,20 @@ class DatabaseService:
         graph_builder = get_graph_builder()
 
         # Create metadata
+        github_repo_data = analysis_data.get("github_repo")
+        github_repo = None
+        if github_repo_data:
+            github_repo = GitHubRepoInfo(
+                owner=github_repo_data["owner"],
+                repo=github_repo_data["repo"],
+                branch=github_repo_data.get("branch"),
+                path=github_repo_data.get("path"),
+            )
+
         metadata = AnalysisMetadata(
             analysis_id=analysis_data["analysis_id"],
             directory_path=analysis_data["directory_path"],
+            github_repo=github_repo,
             file_count=analysis_data["file_count"],
             edge_count=analysis_data["edge_count"],
             analysis_time_seconds=analysis_data["analysis_time_seconds"],
@@ -261,7 +283,7 @@ class DatabaseService:
         """Get all analyses for a user."""
         result = (
             self.supabase.table("analyses")
-            .select("analysis_id, directory_path, status, progress, file_count, edge_count, started_at, completed_at")
+            .select("analysis_id, directory_path, github_repo, status, progress, file_count, edge_count, started_at, completed_at")
             .eq("user_id", user_id)
             .order("started_at", desc=True)
             .execute()
