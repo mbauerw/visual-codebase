@@ -24,11 +24,28 @@ export function useAuth() {
       if (error) {
         console.error('Error getting session:', error)
       }
+
+      // Debug logging
+      console.log('Session:', session)
+      console.log('Provider token:', session?.provider_token)
+      console.log('Provider refresh token:', session?.provider_refresh_token)
+
+      // Get GitHub token from session or localStorage fallback
+      let githubToken = session?.provider_token || null
+      if (!githubToken && session?.user) {
+        // Fallback to localStorage if provider_token is not in session
+        const storedToken = localStorage.getItem('github_provider_token')
+        if (storedToken) {
+          console.log('Using stored GitHub token from localStorage')
+          githubToken = storedToken
+        }
+      }
+
       setAuthState({
         user: session?.user || null,
         session: session,
         loading: false,
-        githubToken: session?.provider_token || null
+        githubToken: githubToken
       })
     }
 
@@ -37,11 +54,30 @@ export function useAuth() {
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
+        console.log('Auth state change:', event)
+        console.log('Session:', session)
+        console.log('Provider token:', session?.provider_token)
+
+        // Get GitHub token from session or localStorage fallback
+        let githubToken = session?.provider_token || null
+        if (!githubToken && session?.user) {
+          const storedToken = localStorage.getItem('github_provider_token')
+          if (storedToken) {
+            console.log('Using stored GitHub token from localStorage')
+            githubToken = storedToken
+          }
+        }
+
+        // Clear stored token on sign out
+        if (event === 'SIGNED_OUT') {
+          localStorage.removeItem('github_provider_token')
+        }
+
         setAuthState({
           user: session?.user || null,
           session: session,
           loading: false,
-          githubToken: session?.provider_token || null
+          githubToken: githubToken
         })
       }
     )
@@ -73,6 +109,8 @@ export function useAuth() {
   }
 
   const signOut = async () => {
+    // Clear stored GitHub token
+    localStorage.removeItem('github_provider_token')
     const { error } = await supabase.auth.signOut()
     return { error }
   }

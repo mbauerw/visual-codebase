@@ -28,9 +28,16 @@ export function useGitHubRepos(options: UseGitHubReposOptions = {}) {
   return useQuery<GitHubRepoListResponse, Error>({
     queryKey: ['github-repos', page, perPage, sort, direction, type],
     queryFn: async () => {
+      console.log('Fetching GitHub repos...')
+      console.log('GitHub token available:', !!githubToken)
+      console.log('User:', user?.email)
+
       if (!githubToken) {
+        console.error('No GitHub token available')
         throw new Error('GitHub token not available');
       }
+
+      console.log('Sending request with token:', githubToken.substring(0, 10) + '...')
 
       const response = await axios.get<GitHubRepoListResponse>(
         `${API_URL}/api/github/repos`,

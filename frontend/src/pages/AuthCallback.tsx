@@ -34,6 +34,14 @@ export default function AuthCallback() {
         if (session) {
           setStatus('success');
 
+          // Debug: Log provider token
+          console.log('OAuth callback - Provider token:', session.provider_token);
+
+          // Store GitHub provider token in localStorage for persistence
+          if (session.provider_token) {
+            localStorage.setItem('github_provider_token', session.provider_token);
+          }
+
           // Get the intended redirect URL from sessionStorage or default to home
           const redirectTo = sessionStorage.getItem('auth_redirect') || '/';
           sessionStorage.removeItem('auth_redirect');
