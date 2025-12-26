@@ -56,7 +56,7 @@ async def start_analysis(
             await db_service.create_analysis(
                 analysis_id=analysis_id,
                 user_id=current_user.id,
-                directory_path=None,
+                directory_path=request.directory_path or '/',
                 github_repo=request.github_repo,
             )
 

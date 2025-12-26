@@ -31,6 +31,8 @@ class Settings(BaseSettings):
 
     # Github settings
     github_token: str = Field(..., description="GitHub API token")
+    github_secret: str = Field(..., description="GitHub Secret")
+
 
     class Config:
         env_file = ".env"
