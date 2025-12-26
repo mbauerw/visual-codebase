@@ -1,56 +1,15 @@
-import { memo } from 'react';
-import { type NodeProps, type Node } from '@xyflow/react';
-import {
-  Layers,
-  Cog,
-  Box,
-  Settings,
-  TestTube,
-  FileCode,
-  Folder,
-} from 'lucide-react';
-import { roleColors } from '../types';
+import { X, FileCode, Folder, ArrowRight, Hash, Code, Layers, ChevronsLeftRight } from 'lucide-react';
+import type { ReactFlowNodeData } from '../types';
+import { roleColors, languageColors, roleLabels, categoryColors } from '../types';
+import { CategoryRoleData } from './CategoryNode';
 import type { ArchitecturalRole } from '../types';
 
-export interface CategoryNodeData extends Record<string, unknown> {
-  label: string;
-  category: 'frontend' | 'backend' | 'folder';
-  role?: ArchitecturalRole;
-  width: number;
-  height: number;
-  nodeCount: number;
-  level: 'top' | 'role' | 'folder';
-  depth?: number; // For folder hierarchy depth coloring
+interface CategoryDetailPanelProps {
+  data: CategoryRoleData| null;
+  onClose: () => void;
+  setExpand: React.Dispatch<React.SetStateAction<boolean>>;
+  expanded?: boolean;
 }
-
-export interface CategoryRoleData extends Record<string, unknown> {
-  label: string;
-  role: ArchitecturalRole;
-  nodeCount: number;
-  description: string;
-}
-
-const iconSize = 20;
-
-export type CategoryNodeType = Node<CategoryNodeData, 'category'>;
-
-// Icons for each role
-const roleIcons: Record<ArchitecturalRole, React.ReactNode> = {
-  react_component: <Layers size={iconSize} />,
-  utility: <Cog size={iconSize} />,
-  api_service: <Box size={iconSize} />,
-  model: <Box size={iconSize} />,
-  config: <Settings size={iconSize} />,
-  test: <TestTube size={iconSize} />,
-  hook: <Layers size={iconSize} />,
-  context: <Layers size={iconSize} />,
-  store: <Box size={iconSize} />,
-  middleware: <Box size={iconSize} />,
-  controller: <Box size={iconSize} />,
-  router: <Box size={iconSize} />,
-  schema: <Box size={iconSize} />,
-  unknown: <FileCode size={iconSize} />,
-};
 
 const roleDescriptions: Record<ArchitecturalRole, string> = {
   react_component: "Files that define reusable UI building blocks in React applications, encapsulating the visual presentation and user interaction logic. These components typically render JSX and manage their own local state or receive data through props. They can range from simple presentational components (like buttons or cards) to complex container components that orchestrate multiple child components. Components promote code reusability, maintainability, and separation of concerns in the user interface layer.",
@@ -69,131 +28,143 @@ const roleDescriptions: Record<ArchitecturalRole, string> = {
   unknown: "Files that don't fit into any predefined architectural categories. These could be miscellaneous files, third-party integrations, or new types of files that haven't been classified yet. The 'unknown' category serves as a catch-all for files that require further analysis or categorization. It helps identify areas of the codebase that may need additional attention or restructuring to align with established architectural patterns.",
 };
 
-// Folder colors based on depth
-const folderColors = [
-  '#f59e0b', // amber - root
-  '#3b82f6', // blue
-  '#8b5cf6', // violet
-  '#10b981', // emerald
-  '#ec4899', // pink
-  '#14b8a6', // teal
-  '#f97316', // orange
-  '#6366f1', // indigo
-];
-
-
-
-function CategoryNode({ data, selected }: NodeProps<CategoryNodeType>) {
-  // Handle folder level differently
-  const handleHeaderClick = () => {
-    if (!data.role) return;
-    const roleData: CategoryRoleData = {
-      label: data.label,
-      role: data.role || 'unknown',
-      nodeCount: data.nodeCount,
-      description: roleDescriptions[data.role],
-    } 
+export default function CategoryDetailPanel({ data, onClose, setExpand, expanded }: CategoryDetailPanelProps) {
+  const handleExpandToggle = () => {
+    console.log("Toggling expand state");
+    setExpand(prev => !prev);
   }
 
-  if (data.level === 'folder') {
-    const depth = data.depth || 0;
-    const baseColor = folderColors[depth % folderColors.length];
+  //  ${expanded ? 'w-full' : 'w-[50px]'} transition-all duration-1000 
 
+  if (!data) {
     return (
-      <div
-        className={`
-          relative transition-all duration-200 group z-2
-          ${selected ? 'ring-2 ring-blue-500 ring-offset-2 ring-offset-slate-900' : ''}
-        `}
-        style={{
-          width: data.width ,
-          height: data.height,
-          backgroundColor: `${baseColor}15`,
-          border: `2px solid ${baseColor}60`,
-          borderRadius: '16px',
-          boxShadow: `0 0 20px 3px ${baseColor}10`,
-        }}
-      >
-        {/* Folder header label */}
-        <div
-          className="absolute -top-3 left-1/2 -translate-x-1/2 flex items-center gap-2 rounded-full px-3 py-1 hover:scale-[1.1] cursor-pointer"
-          style={{
-            backgroundColor: '#1e293b',
-            border: `2px solid ${baseColor}`,
-            boxShadow: `0 0 10px ${baseColor}30`,
-          }}
-        >
-          <Folder size={26} style={{ color: baseColor }} />
-          <span
-            className="font-medium text-3xl"
-            style={{ color: baseColor }}
-          >
-            {data.label}
-          </span>
-          {data.nodeCount > 0 && (
-            <span
-              className="px-1.5 py-0.5 rounded-full text-xs"
-              style={{
-                backgroundColor: `${baseColor}25`,
-                color: baseColor,
-              }}
-            >
-              {data.nodeCount}
-            </span>
-          )}
+      <div className={`h-screen w-full fixed relative flex flex-col items-center justify-center p-8 text-center`}>
+        <div className='absolute top-2 left-2 flex items-center cursor-pointer gap-2 text-slate-400 z-50 ' >
+          <ChevronsLeftRight size={26} onMouseDown={handleExpandToggle} className='z-50 pointer-events-all' />
+          {/* <span className="text-sm uppercase tracking-wider font-semibold">Node Details</span> */}
         </div>
+        {expanded &&
+          <div className='flex flex-col items-center justify-center'>
+            <div className="p-6 bg-slate-800/50 w-[96px] rounded-2xl border border-slate-700/50 mb-4">
+              <Layers size={48} className="text-slate-600" />
+            </div>
+            <h3 className="text-lg font-medium text-slate-400 mb-2">No File Selected</h3>
+            <p className="text-sm text-slate-500 max-w-[200px]">
+              Click on a file node in the visualization to view its details
+            </p>
+          </div>
+
+        }
+
       </div>
     );
   }
 
-  // Role-level categories (original behavior)
-  const baseColor = data.role ? roleColors[data.role] : '#6b7280';
+
+  const roleColor = roleColors[data.role] || roleColors.unknown;
+  // const langColor = languageColors[data.language] || languageColors.unknown;
+  // const categoryColor = categoryColors[data.category] || categoryColors.unknown;
+
+  const formatBytes = (bytes: number): string => {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  };
+
 
   return (
-    <div
-      className={`
-        relative transition-all duration-800 group
-        ${selected ? 'ring-2 ring-blue-500 ring-offset-2 ring-offset-slate-900' : ''}
-      `}
-      style={{
-        width: data.width ,
-        height: data.height,
-        backgroundColor: `${baseColor}40`,
-        border: `3px solid ${baseColor}`,
-        borderRadius: '24px',
-        boxShadow: `0 0 30px 5px ${baseColor}15`,
-      }}
-    >
-      {/* Header label */}
-      <div
-        className="absolute -top-3 left-8 flex items-center gap-2 rounded-full px-3 py-1.5  transition-all duration-800 hover:scale-[1.05]"
-        style={{
-          backgroundColor: '#0f172a',
-          border: `2px solid ${baseColor}`,
-          boxShadow: `0 0 15px ${baseColor}30`,
-        }}
-      >
-        <span style={{ color: baseColor }} className='text-7xl'>
-          {data.role && roleIcons[data.role]}
-        </span>
-        <span
-          className="font-semibold text-2xl group-hover:"
-          style={{ color: baseColor }}
-        >
-          {data.label}
-        </span>
-        <span
-          className="px-2 py-0.5 rounded-full ml-1 text-2xl"
-          style={{
-            backgroundColor: `${baseColor}25`,
-            color: baseColor,
-          }}
-        >
-          {data.nodeCount}
-        </span>
+    <div className="h-full w-full flex flex-col">
+      {/* Header with gradient accent */}
+      <div className="relative">
+        <div className='absolute top-2 left-2 flex items-center cursor-pointer gap-2 text-slate-400 z-50 ' >
+          <ChevronsLeftRight size={26} onMouseDown={handleExpandToggle} className='z-50 pointer-events-all' />
+          {/* <span className="text-sm uppercase tracking-wider font-semibold">Node Details</span> */}
+        </div>
+        <div className="p-6 mt-8 border-b border-slate-800 bg-slate-800/30">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex items-center gap-4 min-w-0">
+              <div className="p-3 bg-gradient-to-br from-indigo-500/20 to-purple-500/20 rounded-xl border border-indigo-500/30 flex-shrink-0">
+                <FileCode size={24} className="text-indigo-400" />
+              </div>
+              <div className="min-w-0">
+                <h2 className="text-xl font-bold text-white truncate" title={data.label}>
+                  {data.label}
+                </h2>
+                <p className="text-sm text-slate-500 mt-1">File Details</p>
+              </div>
+            </div>
+            <button
+              onClick={onClose}
+              className="p-2 hover:bg-slate-700 rounded-xl transition-all duration-200 hover:scale-105 flex-shrink-0"
+            >
+              <X size={18} className="text-slate-400" />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Content */}
+      <div className="flex-1 overflow-y-auto p-6 space-y-6 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+        {/* Badges Section */}
+        <div className="flex flex-wrap gap-2">
+          <span
+            className="text-xs px-3 py-1.5 rounded-full font-semibold border transition-transform hover:scale-105"
+            style={{
+              backgroundColor: `${roleColor}15`,
+              color: roleColor,
+              borderColor: `${roleColor}30`,
+            }}
+          >
+            {roleLabels[data.role]}
+          </span>
+         
+        </div>
+
+        {/* Path Section */}
+        <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700/50">
+          <div className="flex items-center gap-2 text-slate-400 mb-3">
+            <Folder size={16} />
+            <span className="text-xs uppercase tracking-wider font-semibold">File Path</span>
+          </div>
+          {/* <code className="text-sm text-slate-300 break-all leading-relaxed block">
+            {data.path}
+          </code> */}
+        </div>
+
+        {/* Description */}
+        {data.role && (
+          <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700/50">
+            <label className="text-xs text-slate-400 uppercase tracking-wider font-semibold mb-3 block">
+              Description
+            </label>
+            <p className="text-slate-300 text-sm leading-relaxed">{roleDescriptions[data.role]}</p>
+          </div>
+        )}
+
+        {/* Stats Grid */}
+        <div className="grid grid-cols-2 gap-4">
+          <div className="bg-gradient-to-br from-slate-800/80 to-slate-800/40 rounded-xl p-5 border border-slate-700/50 hover:border-indigo-500/30 transition-colors">
+            <div className="flex items-center gap-2 text-slate-400 mb-3">
+              <div className="p-1.5 bg-indigo-500/20 rounded-lg">
+                <Hash size={14} className="text-indigo-400" />
+              </div>
+              <span className="text-xs uppercase tracking-wider font-semibold">Lines</span>
+            </div>
+          </div>
+          <div className="bg-gradient-to-br from-slate-800/80 to-slate-800/40 rounded-xl p-5 border border-slate-700/50 hover:border-purple-500/30 transition-colors">
+            <div className="flex items-center gap-2 text-slate-400 mb-3">
+              <div className="p-1.5 bg-purple-500/20 rounded-lg">
+                <Code size={14} className="text-purple-400" />
+              </div>
+              <span className="text-xs uppercase tracking-wider font-semibold">Size</span>
+            </div>
+
+          </div>
+        </div>
+
+        {/* Imports Section */}
+        
       </div>
     </div>
   );
 }
-
-export default memo(CategoryNode);

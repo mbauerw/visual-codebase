@@ -27,9 +27,10 @@ import {
 } from 'lucide-react';
 
 import CustomNode, { type CustomNodeType } from '../components/CustomNode';
-import CategoryNode, { type CategoryNodeType, type CategoryNodeData } from '../components/CategoryNode';
+import CategoryNode, { type CategoryNodeType, type CategoryNodeData, CategoryRoleData } from '../components/CategoryNode';
 import CategoryBackground, { type CategorySection } from '../components/Categorybackground'
 import NodeDetailPanel from '../components/NodeDetailPanel';
+import CategoryRolePanel from '../components/CateogoryDetailPanel';
 import type {
   ReactFlowGraph,
   ReactFlowNodeData,
@@ -37,6 +38,7 @@ import type {
   ArchitecturalRole,
   Category,
   LayoutType,
+  AnalysisMetadata,
 } from '../types';
 import { roleColors, languageColors, categoryColors, roleLabels } from '../types';
 import GithubEmbed from '../components/GithubEmbed';
@@ -857,6 +859,7 @@ function VisualizationPageInner() {
   const [nodes, setNodes, onNodesChange] = useNodesState<AllNodeTypes>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const [selectedNode, setSelectedNode] = useState<ReactFlowNodeData | null>(null);
+  const [selectedCateogry, setSelectedCategory] = useState<CategoryRoleData | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [languageFilter, setLanguageFilter] = useState<Language | 'all'>('all');
   const [roleFilter, setRoleFilter] = useState<ArchitecturalRole | 'all'>('all');
@@ -952,11 +955,34 @@ function VisualizationPageInner() {
   const onNodeClick = useCallback(
     (_: React.MouseEvent, node: Node) => {
       if (node.type === 'custom') {
+        setSelectedCategory(null);
         setSelectedNode(node.data as ReactFlowNodeData);
+      }
+      if (node.type === 'category') {
+        setSelectedNode(null);      
+        setSelectedCategory({
+          label: node.data.label,
+          role: node.data.role,
+          nodeCount: node.data.nodeCount,
+          description: node.data.description,
+        } as CategoryRoleData);
       }
     },
     []
   );
+
+  // Handle category node selection
+  // const onCategoryNodeClick = useCallback(
+  //   (_: React.MouseEvent, node: Node) => {
+  //     if (node.type === 'category') {
+  //       setSelectedCategory(null);      
+  //       setSelectedCategory({
+  //         label: node.data.label,
+  //         role: node.data.role,
+  //         nodeCount: node.data.nodeCount,
+  //         description: 
+  //       });
+  //     }
 
   // Handle node double-click to expand the panel
   const onNodeDoubleClick = useCallback(
@@ -964,6 +990,15 @@ function VisualizationPageInner() {
       if (node.type === 'custom') {
         setExpanded(true);
       }
+      // if (node.type === 'category') {
+      //   setSelectedNode(null);      
+      //   setSelectedCategory({
+      //     label: node.data.label,
+      //     role: node.data.role,
+      //     nodeCount: node.data.nodeCount,
+      //     description: node.data.description,
+      //   } as CategoryRoleData);
+      // }
     },
     []
   );
@@ -1020,7 +1055,7 @@ function VisualizationPageInner() {
           <div className="h-6 w-px bg-slate-700" />
 
           <h1 className="text-white font-semibold">
-            {graphData.metadata.directory_path.split('/').pop()}
+            {getAnalysisDisplayName(graphData.metadata)}
           </h1>
         </div>
 
@@ -1061,7 +1096,8 @@ function VisualizationPageInner() {
                 </div>
                 <div className='flex-1 w-full items-center justify-between flex flex-col gap-5'>
                   <h2 className='text-7xl font-semibold text-black mb-3 tracking-tight'>
-                    {graphData.metadata.directory_path.split('/').pop()}
+                      {getAnalysisDisplayName(graphData.metadata)}
+
                   </h2>
                   <p className='text-slate-400 text-lg w-3/4 leading-relaxed mb-6'>
                     A comprehensive visualization of your codebase architecture. Explore {graphData.metadata.file_count} files
@@ -1280,12 +1316,37 @@ function VisualizationPageInner() {
 
         {/* Right Panel / NodeDetailPanel */}
         <div className="h-full bg-slate-900  overflow-hidden border-l border-slate-800 ">
+          {selectedNode && (
           <NodeDetailPanel data={selectedNode} onClose={() => setSelectedNode(null)} setExpand={setExpanded} expanded={expanded} />
+          )}
+          {selectedCateogry && (
+            <CategoryRolePanel data={selectedCateogry} onClose={() => setSelectedCategory(null)} setExpand={setExpanded} expanded={expanded} />
+          )}
         </div>
 
       </div>
     </div>
   );
+}
+
+// Helper function to get display name for the analysis
+function getAnalysisDisplayName(metadata: AnalysisMetadata): string {
+  if (metadata.github_repo) {
+    // For GitHub repos, show "owner/repo" or just "repo" if path is specified
+    const { owner, repo, path } = metadata.github_repo;
+    if (path) {
+      return `${owner}/${repo}/${path}`;
+    }
+    return `${owner}/${repo}`;
+  }
+
+  if (metadata.directory_path) {
+    // For local directories, show the last part of the path
+    return metadata.directory_path.split('/').pop() || metadata.directory_path;
+  }
+
+  // Fallback
+  return 'Unknown Project';
 }
 
 // Wrap with ReactFlowProvider to enable useReactFlow hook
