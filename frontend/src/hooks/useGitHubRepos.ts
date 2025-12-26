@@ -15,7 +15,7 @@ interface UseGitHubReposOptions {
 }
 
 export function useGitHubRepos(options: UseGitHubReposOptions = {}) {
-  const { githubToken, user } = useAuth();
+  const { githubToken, user, session } = useAuth();
   const {
     page = 1,
     perPage = 30,
@@ -30,6 +30,7 @@ export function useGitHubRepos(options: UseGitHubReposOptions = {}) {
     queryFn: async () => {
       console.log('Fetching GitHub repos...')
       console.log('GitHub token available:', !!githubToken)
+      console.log('Supabase access token available:', !!session?.access_token)
       console.log('User:', user?.email)
 
       if (!githubToken) {
@@ -37,7 +38,12 @@ export function useGitHubRepos(options: UseGitHubReposOptions = {}) {
         throw new Error('GitHub token not available');
       }
 
-      console.log('Sending request with token:', githubToken.substring(0, 10) + '...')
+      if (!session?.access_token) {
+        console.error('No Supabase access token available')
+        throw new Error('Not authenticated with Supabase');
+      }
+
+      console.log('Sending request with tokens')
 
       const response = await axios.get<GitHubRepoListResponse>(
         `${API_URL}/api/github/repos`,
@@ -50,6 +56,7 @@ export function useGitHubRepos(options: UseGitHubReposOptions = {}) {
             type,
           },
           headers: {
+            'Authorization': `Bearer ${session.access_token}`,
             'X-GitHub-Token': githubToken,
           },
         }
@@ -57,7 +64,7 @@ export function useGitHubRepos(options: UseGitHubReposOptions = {}) {
 
       return response.data;
     },
-    enabled: enabled && !!githubToken && !!user,
+    enabled: enabled && !!githubToken && !!user && !!session,
     staleTime: 1000 * 60 * 5, // 5 minutes
     retry: 1,
   });

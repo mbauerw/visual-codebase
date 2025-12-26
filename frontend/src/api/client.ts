@@ -30,7 +30,19 @@ client.interceptors.request.use(async (config) => {
 export async function startAnalysis(
   request: AnalyzeRequest
 ): Promise<AnalyzeResponse> {
-  const response = await client.post<AnalyzeResponse>('/analyze', request);
+  // Get GitHub token from localStorage if analyzing a GitHub repo
+  const headers: Record<string, string> = {};
+
+  if (request.github_repo) {
+    const githubToken = localStorage.getItem('github_provider_token');
+    if (githubToken) {
+      headers['X-GitHub-Token'] = githubToken;
+    }
+  }
+
+  const response = await client.post<AnalyzeResponse>('/analyze', request, {
+    headers,
+  });
   return response.data;
 }
 
