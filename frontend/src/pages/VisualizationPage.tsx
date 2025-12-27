@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   ReactFlow,
   Controls,
@@ -46,6 +46,7 @@ import { roleColors, languageColors, categoryColors, roleLabels } from '../types
 import GithubEmbed from '../components/GithubEmbed';
 import { useAuth } from '../hooks/useAuth';
 import { AuthModal } from '../components/AuthModal';
+import { getAnalysisResult } from '../api/client';
 
 // Define node types with proper typing for React Flow v12
 const nodeTypes: NodeTypes = {
@@ -91,6 +92,7 @@ function getTreePositions(nodeCount: number): { row: number; col: number; totalI
   let remaining = nodeCount;
   let row = 0;
 
+  console.log("Calculating tree positions for node count:", nodeCount);
   while (remaining > 0) {
     const nodesInRow = row + 1;
     const actualInRow = Math.min(nodesInRow, remaining);
@@ -112,6 +114,7 @@ function calculateTreeRoleDimensions(nodeCount: number): { width: number; height
     return { width: 250, height: 150, rows: 0, maxCols: 0 };
   }
 
+  console.log("Calculating tree role dimensions for node count:", nodeCount);
   let remaining = nodeCount;
   let rows = 0;
   let maxCols = 0;
@@ -237,9 +240,9 @@ function getNestedCategoryLayout(
 
     let circleRadius: number;
     if (numRoles <= 1) {
-      circleRadius = Math.max(maxRoleWidth, maxRoleHeight) / 2 + 100;
+      circleRadius = Math.max(maxRoleWidth, maxRoleHeight) / 2;
     } else if (numRoles <= 4) {
-      circleRadius = (maxRoleWidth + roleSpacing) + 100;
+      circleRadius = (maxRoleWidth + roleSpacing);
     } else if (numRoles <= 8) {
       circleRadius = (numRoles * (maxRoleWidth + roleSpacing)) / (2 * Math.PI) + maxRoleHeight;
     } else {
@@ -251,7 +254,7 @@ function getNestedCategoryLayout(
     // Calculate center position (with offset for this category section)
     const centerX = offsetX + circleRadius;
     const centerY = circleRadius; // Add some top padding
-    const placementRadius = circleRadius - maxRoleHeight / 2 - 100;
+    const placementRadius = circleRadius - maxRoleHeight / 2 - 200;
 
     roleGroups.forEach((roleGroup, index) => {
       const dims = roleDimensions[index];
@@ -858,6 +861,7 @@ function testLayout(
 // Inner component that uses useReactFlow
 function VisualizationPageInner() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { getViewport, fitView: reactFlowFitView } = useReactFlow();
   const { user, signOut } = useAuth();
   const [graphData, setGraphData] = useState<ReactFlowGraph | null>(null);
@@ -877,30 +881,50 @@ function VisualizationPageInner() {
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [authModalTab, setAuthModalTab] = useState(0);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
+  const [loading, setLoading] = useState(true);
 
   const handleOpenAuthModal = (tab: number) => {
     setAuthModalTab(tab);
     setAuthModalOpen(true);
   };
 
-  // Load data from session storage
+  // Load data from URL query parameter or session storage
   useEffect(() => {
-    const storedData = sessionStorage.getItem('analysisResult');
+    const analysisId = searchParams.get('analysis');
 
-    if (storedData) {
+    const loadData = async () => {
+      setLoading(true);
+
       try {
-        console.log("RAW STORED DATA: ", storedData)
-        const data: ReactFlowGraph = JSON.parse(storedData);
-        console.log("JSON parsed data: ", data);
-        setGraphData(data);
-      } catch (e) {
-        console.error('Failed to parse analysis result:', e);
+        // If analysis ID is provided in URL, fetch from API
+        if (analysisId) {
+          console.log('Loading analysis from API:', analysisId);
+          const data = await getAnalysisResult(analysisId);
+          console.log('Loaded analysis data:', data);
+          setGraphData(data);
+        } else {
+          // Otherwise, try to load from session storage (for new analyses)
+          const storedData = sessionStorage.getItem('analysisResult');
+
+          if (storedData) {
+            console.log('Loading analysis from sessionStorage');
+            const data: ReactFlowGraph = JSON.parse(storedData);
+            setGraphData(data);
+          } else {
+            console.error('No analysis ID in URL and no data in sessionStorage');
+            navigate('/');
+          }
+        }
+      } catch (error) {
+        console.error('Failed to load analysis:', error);
         navigate('/');
+      } finally {
+        setLoading(false);
       }
-    } else {
-      navigate('/');
-    }
-  }, [navigate]);
+    };
+
+    loadData();
+  }, [navigate, searchParams]);
 
   // Apply layout and filters
   useEffect(() => {
@@ -1064,10 +1088,10 @@ function VisualizationPageInner() {
     return nodes.filter(n => n.type === 'custom').length;
   }, [nodes]);
 
-  if (!graphData) {
+  if (loading || !graphData) {
     return (
       <div className="min-h-screen bg-slate-900 flex items-center justify-center">
-        <div className="text-slate-400">Loading...</div>
+        <div className="text-slate-400">Loading analysis...</div>
       </div>
     );
   }
