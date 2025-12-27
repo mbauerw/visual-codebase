@@ -1205,12 +1205,12 @@ function VisualizationPageInner() {
 
           {/* Overview Section */}
           <div className='max-w-[1000px] w-full py-12 px-8'>
-            <div className='rounded-2xl p-8 backdrop-blur-sm bg-white/80 shadow-lg'>
+            <div className='rounded-2xl p-8 '>
               <div className='flex flex-col gap-6'>
                 {/* Header */}
                 <div className='text-center'>
-                  <h2 className='text-2xl text-indigo-600 font-bold mb-4'>PROJECT OVERVIEW</h2>
-                  <h1 className='text-5xl font-bold text-slate-900 mb-3 tracking-tight'>
+                  <h2 className='text-2xl text-red-500 font-semibold mb-4'>PROJECT OVERVIEW</h2>
+                  <h1 className='text-7xl font-bold text-slate-900 mb-3 tracking-tight'>
                     {getAnalysisDisplayName(graphData.metadata)}
                   </h1>
                 </div>
