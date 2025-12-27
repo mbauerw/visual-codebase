@@ -124,8 +124,8 @@ function calculateTreeRoleDimensions(nodeCount: number): { width: number; height
     rows++;
   }
 
-  const width = maxCols * (nodeWidth + nodeGapX) + rolePadding * 2 + 50;
-  const height = roleHeaderHeight + rows * (nodeHeight + nodeGapY) + rolePadding + 100;
+  const width = maxCols * (nodeWidth + nodeGapX) + rolePadding * 2 ;
+  const height = roleHeaderHeight + rows * (nodeHeight + nodeGapY) + rolePadding ;
 
   return {
     width: Math.max(width, 300),
@@ -858,7 +858,7 @@ function testLayout(
 // Inner component that uses useReactFlow
 function VisualizationPageInner() {
   const navigate = useNavigate();
-  const { getViewport } = useReactFlow();
+  const { getViewport, fitView: reactFlowFitView } = useReactFlow();
   const { user, signOut } = useAuth();
   const [graphData, setGraphData] = useState<ReactFlowGraph | null>(null);
   const [nodes, setNodes, onNodesChange] = useNodesState<AllNodeTypes>([]);
@@ -876,6 +876,7 @@ function VisualizationPageInner() {
   const [dashboardOpen, setDashboardOpen] = useState(false);
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [authModalTab, setAuthModalTab] = useState(0);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
 
   const handleOpenAuthModal = (tab: number) => {
     setAuthModalTab(tab);
@@ -963,6 +964,28 @@ function VisualizationPageInner() {
     setEdges(layoutResult.edges);
     setCategorySections(layoutResult.categorySections);
   }, [graphData, searchQuery, languageFilter, roleFilter, layoutType, setNodes, setEdges]);
+
+  // Handle fitView - only call on initial load or when switching to non-role layouts
+  useEffect(() => {
+    if (nodes.length === 0) return;
+
+    // On initial load, always fit view
+    if (isInitialLoad) {
+      setTimeout(() => {
+        reactFlowFitView({ padding: 0.1, duration: 200 });
+        setIsInitialLoad(false);
+      }, 50);
+      return;
+    }
+
+    // For non-role layouts, fit view to see all nodes
+    if (layoutType !== 'role') {
+      setTimeout(() => {
+        reactFlowFitView({ padding: 0.1, duration: 200 });
+      }, 50);
+    }
+    // For role layout, do NOT call fitView to preserve alignment with CategoryBackground
+  }, [nodes, layoutType, isInitialLoad, reactFlowFitView]);
 
   // Handle node selection
   const onNodeClick = useCallback(
@@ -1216,7 +1239,6 @@ function VisualizationPageInner() {
                 onPaneClick={onPaneClick}
                 onMove={onMove}
                 nodeTypes={nodeTypes}
-                fitView
                 style={styles}
                 minZoom={0.1}
                 maxZoom={2}
