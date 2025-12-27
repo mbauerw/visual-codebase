@@ -38,6 +38,7 @@ export type AnalysisStatus =
   | 'parsing'
   | 'analyzing'
   | 'building_graph'
+  | 'generating_summary'
   | 'completed'
   | 'failed';
 
@@ -137,6 +138,33 @@ export interface ReactFlowEdge {
   style?: Record<string, unknown>;
 }
 
+// Codebase summary types
+export interface TechStackInfo {
+  languages: string[];
+  frameworks: string[];
+  key_patterns: string[];
+}
+
+export interface ModuleInfo {
+  name: string;
+  purpose: string;
+}
+
+export interface ComplexityInfo {
+  level: 'simple' | 'moderate' | 'complex';
+  reasoning: string;
+}
+
+export interface CodebaseSummary {
+  project_type: string;
+  primary_purpose: string;
+  tech_stack: TechStackInfo;
+  architecture_summary: string;
+  key_modules: ModuleInfo[];
+  complexity_assessment: ComplexityInfo;
+  notable_aspects: string[];
+}
+
 export interface AnalysisMetadata {
   analysis_id: string;
   directory_path?: string;
@@ -148,6 +176,8 @@ export interface AnalysisMetadata {
   completed_at?: string;
   languages: Record<string, number>;
   errors: string[];
+  summary?: CodebaseSummary;
+  readme_detected?: boolean;
 }
 
 export interface ReactFlowGraph {

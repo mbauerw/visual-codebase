@@ -33,6 +33,7 @@ import CategoryBackground, { type CategorySection } from '../components/Category
 import NodeDetailPanel from '../components/NodeDetailPanel';
 import CategoryRolePanel from '../components/CateogoryDetailPanel';
 import UserDashboardModal from '../components/UserDashboardModal';
+import SummaryDisplay from '../components/SummaryDisplay';
 import type {
   ReactFlowGraph,
   ReactFlowNodeData,
@@ -1202,40 +1203,43 @@ function VisualizationPageInner() {
         {/* Main content */}
         <div className={`min-h-full overflow-y-auto flex flex-col ${mainSectionGap} items-center [scrollbar-width:10]`}>
 
-          {/* Hero Section */}
-          <div className='max-w-[900px] h-[500px] w-full py-12 px-8 '>
-            <div className='rounded-2xl h-full p-8  backdrop-blur-sm bg-none'>
-              <div className='flex flex-col items-start gap-6 h-full'>
-                <div className='flex w-full items-center justify-center relative h-16'>
-                  {/* <div className='p-4 absolute left-0 top-0 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl shadow-lg'>
-                    <FileCode size={32} className='text-white' />
-                  </div> */}
-                  <h2 className='text-2xl text-red-500 text-center '>OVERVIEW</h2>
+          {/* Overview Section */}
+          <div className='max-w-[1000px] w-full py-12 px-8'>
+            <div className='rounded-2xl p-8 backdrop-blur-sm bg-white/80 shadow-lg'>
+              <div className='flex flex-col gap-6'>
+                {/* Header */}
+                <div className='text-center'>
+                  <h2 className='text-2xl text-indigo-600 font-bold mb-4'>PROJECT OVERVIEW</h2>
+                  <h1 className='text-5xl font-bold text-slate-900 mb-3 tracking-tight'>
+                    {getAnalysisDisplayName(graphData.metadata)}
+                  </h1>
                 </div>
-                <div className='flex-1 w-full items-center justify-between flex flex-col gap-5'>
-                  <h2 className='text-7xl font-semibold text-black mb-3 tracking-tight'>
-                      {getAnalysisDisplayName(graphData.metadata)}
 
-                  </h2>
-                  <p className='text-slate-400 text-lg w-3/4 leading-relaxed mb-6'>
-                    A comprehensive visualization of your codebase architecture. Explore {graphData.metadata.file_count} files
-                    with {graphData.metadata.edge_count} dependencies across your project structure.
-                  </p>
-                  <div className='flex flex-wrap gap-3'>
-                    <div className='flex items-center gap-2 bg-slate-700/50 px-4 py-2 rounded-full'>
-                      <FileCode size={16} className='text-indigo-400' />
-                      <span className='text-slate-300 text-sm font-medium'>{graphData.metadata.file_count} Files</span>
+                {/* Summary or Fallback */}
+                {graphData.metadata.summary ? (
+                  <SummaryDisplay summary={graphData.metadata.summary} />
+                ) : (
+                  <>
+                    <p className='text-slate-600 text-lg leading-relaxed text-center'>
+                      A comprehensive visualization of your codebase architecture. Explore {graphData.metadata.file_count} files
+                      with {graphData.metadata.edge_count} dependencies across your project structure.
+                    </p>
+                    <div className='flex flex-wrap justify-center gap-3'>
+                      <div className='flex items-center gap-2 bg-indigo-50 px-4 py-2 rounded-full border border-indigo-200'>
+                        <FileCode size={16} className='text-indigo-600' />
+                        <span className='text-indigo-900 text-sm font-medium'>{graphData.metadata.file_count} Files</span>
+                      </div>
+                      <div className='flex items-center gap-2 bg-emerald-50 px-4 py-2 rounded-full border border-emerald-200'>
+                        <GitBranch size={16} className='text-emerald-600' />
+                        <span className='text-emerald-900 text-sm font-medium'>{graphData.metadata.edge_count} Dependencies</span>
+                      </div>
+                      <div className='flex items-center gap-2 bg-amber-50 px-4 py-2 rounded-full border border-amber-200'>
+                        <Clock size={16} className='text-amber-600' />
+                        <span className='text-amber-900 text-sm font-medium'>Analyzed in {graphData.metadata.analysis_time_seconds.toFixed(1)}s</span>
+                      </div>
                     </div>
-                    <div className='flex items-center gap-2 bg-slate-700/50 px-4 py-2 rounded-full'>
-                      <GitBranch size={16} className='text-emerald-400' />
-                      <span className='text-slate-300 text-sm font-medium'>{graphData.metadata.edge_count} Dependencies</span>
-                    </div>
-                    <div className='flex items-center gap-2 bg-slate-700/50 px-4 py-2 rounded-full'>
-                      <Clock size={16} className='text-amber-400' />
-                      <span className='text-slate-300 text-sm font-medium'>Analyzed in {graphData.metadata.analysis_time_seconds.toFixed(1)}s</span>
-                    </div>
-                  </div>
-                </div>
+                  </>
+                )}
               </div>
             </div>
           </div>
