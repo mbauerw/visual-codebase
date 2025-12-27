@@ -1,0 +1,479 @@
+import { useState, useEffect } from 'react'
+import {
+  Box,
+  Typography,
+  Card,
+  CardContent,
+  CardActions,
+  Button,
+  Grid,
+  Chip,
+  IconButton,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Modal,
+  Fade,
+  Backdrop,
+} from '@mui/material'
+import {
+  Delete as DeleteIcon,
+  Visibility as ViewIcon,
+  Close as CloseIcon,
+} from '@mui/icons-material'
+import { useNavigate } from 'react-router-dom'
+import { getUserAnalyses, deleteAnalysis } from '../api/client'
+import { useAuth } from '../hooks/useAuth'
+
+interface Analysis {
+  analysis_id: string
+  directory_path: string
+  status: string
+  progress: number
+  file_count: number
+  edge_count: number
+  started_at: string
+  completed_at?: string
+}
+
+interface UserDashboardModalProps {
+  open: boolean
+  onClose: () => void
+}
+
+export default function UserDashboardModal({ open, onClose }: UserDashboardModalProps) {
+  const { user } = useAuth()
+  const navigate = useNavigate()
+  const [analyses, setAnalyses] = useState<Analysis[]>([])
+  const [loading, setLoading] = useState(true)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [analysisToDelete, setAnalysisToDelete] = useState<string | null>(null)
+
+  // Load analyses when modal opens
+  useEffect(() => {
+    if (open && user) {
+      loadAnalyses()
+    }
+  }, [open, user])
+
+  // Handle ESC key to close modal and prevent body scroll
+  useEffect(() => {
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && open && !deleteDialogOpen) {
+        onClose()
+      }
+    }
+
+    if (open) {
+      document.addEventListener('keydown', handleEscape)
+      // Prevent body scroll when modal is open
+      document.body.style.overflow = 'hidden'
+    }
+
+    return () => {
+      document.removeEventListener('keydown', handleEscape)
+      document.body.style.overflow = 'unset'
+    }
+  }, [open, onClose, deleteDialogOpen])
+
+  const loadAnalyses = async () => {
+    try {
+      setLoading(true)
+      const response = await getUserAnalyses()
+      setAnalyses(response.analyses)
+    } catch (error) {
+      console.error('Error loading analyses:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleDelete = async () => {
+    if (!analysisToDelete) return
+
+    try {
+      await deleteAnalysis(analysisToDelete)
+      setAnalyses((prev) => prev.filter((a) => a.analysis_id !== analysisToDelete))
+      setDeleteDialogOpen(false)
+      setAnalysisToDelete(null)
+    } catch (error) {
+      console.error('Error deleting analysis:', error)
+    }
+  }
+
+  const handleView = (analysisId: string) => {
+    navigate(`/visualize?analysis=${analysisId}`)
+    onClose()
+  }
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    })
+  }
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'completed': return 'success'
+      case 'failed': return 'error'
+      case 'pending':
+      case 'parsing':
+      case 'analyzing':
+      case 'building_graph': return 'warning'
+      default: return 'default'
+    }
+  }
+
+  // Modal content rendering
+  const renderContent = () => {
+    if (!user) {
+      return (
+        <Box sx={{ textAlign: 'center', py: { xs: 6, sm: 10 } }}>
+          <FolderOpenIcon sx={{ fontSize: 72, color: 'text.disabled', mb: 2.5, opacity: 0.5 }} />
+          <Typography variant="h5" gutterBottom fontWeight={600}>
+            Sign in to view your saved analyses
+          </Typography>
+          <Typography color="text.secondary" sx={{ mt: 1 }}>
+            Authentication required to access your dashboard
+          </Typography>
+        </Box>
+      )
+    }
+
+    if (loading) {
+      return (
+        <Grid container spacing={{ xs: 2.5, sm: 3 }}>
+          {[1, 2, 3, 4, 5, 6].map((i) => (
+            <Grid item xs={12} sm={6} md={4} key={i}>
+              <AnalysisCardSkeleton />
+            </Grid>
+          ))}
+        </Grid>
+      )
+    }
+
+    if (analyses.length === 0) {
+      return (
+        <Box
+          sx={{
+            textAlign: 'center',
+            py: { xs: 6, sm: 10 },
+            px: 2,
+          }}
+        >
+          <FolderOpenIcon sx={{ fontSize: 72, color: 'text.disabled', mb: 2.5, opacity: 0.5 }} />
+          <Typography variant="h6" gutterBottom fontWeight={600} color="text.primary">
+            No analyses found
+          </Typography>
+          <Typography color="text.secondary" sx={{ mb: 4, maxWidth: 420, mx: 'auto', fontSize: 15 }}>
+            Start by analyzing a codebase to see it here
+          </Typography>
+          <Button
+            variant="contained"
+            size="large"
+            onClick={() => {
+              navigate('/')
+              onClose()
+            }}
+            sx={{
+              px: 4,
+              py: 1.5,
+              borderRadius: 2,
+              textTransform: 'none',
+              fontSize: 16,
+              fontWeight: 500,
+              boxShadow: 2,
+              '&:hover': {
+                boxShadow: 4,
+              },
+            }}
+          >
+            Analyze Codebase
+          </Button>
+        </Box>
+      )
+    }
+
+    return (
+      <Grid container spacing={{ xs: 2.5, sm: 3 }}>
+        {analyses.map((analysis) => (
+          <Grid item xs={12} sm={6} md={4} key={analysis.analysis_id}>
+            <Card
+              sx={{
+                height: '100%',
+                display: 'flex',
+                flexDirection: 'column',
+                borderRadius: 2,
+                transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+                '&:hover': {
+                  transform: 'translateY(-4px)',
+                  boxShadow: 6,
+                },
+              }}
+            >
+              <CardContent sx={{ flexGrow: 1, pb: 1.5 }}>
+                <Box
+                  sx={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'flex-start',
+                    mb: 2,
+                    gap: 1.5,
+                  }}
+                >
+                  <Typography
+                    variant="h6"
+                    component="div"
+                    sx={{
+                      flexGrow: 1,
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      display: '-webkit-box',
+                      WebkitLineClamp: 2,
+                      WebkitBoxOrient: 'vertical',
+                      lineHeight: 1.3,
+                      fontWeight: 600,
+                      fontSize: { xs: '1rem', sm: '1.15rem' },
+                    }}
+                  >
+                    {analysis.directory_path.split('/').pop() || analysis.directory_path}
+                  </Typography>
+                  <Chip
+                    label={analysis.status}
+                    color={getStatusColor(analysis.status) as any}
+                    size="small"
+                    sx={{
+                      fontWeight: 500,
+                      fontSize: '0.75rem',
+                    }}
+                  />
+                </Box>
+
+                <Typography
+                  color="text.secondary"
+                  variant="body2"
+                  sx={{
+                    mb: 2.5,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                    fontSize: '0.875rem',
+                  }}
+                  title={analysis.directory_path}
+                >
+                  {analysis.directory_path}
+                </Typography>
+
+                {analysis.status === 'completed' && (
+                  <Box sx={{ mb: 2.5 }}>
+                    <Typography variant="body2" fontWeight={500} sx={{ fontSize: '0.875rem' }}>
+                      Files: {analysis.file_count} • Dependencies: {analysis.edge_count}
+                    </Typography>
+                  </Box>
+                )}
+
+                <Typography variant="caption" color="text.secondary" display="block" sx={{ fontSize: '0.8rem', mb: 0.5 }}>
+                  Started: {formatDate(analysis.started_at)}
+                </Typography>
+
+                {analysis.completed_at && (
+                  <Typography variant="caption" color="text.secondary" display="block" sx={{ fontSize: '0.8rem' }}>
+                    Completed: {formatDate(analysis.completed_at)}
+                  </Typography>
+                )}
+              </CardContent>
+
+              <CardActions sx={{ px: 2, pb: 2, pt: 0 }}>
+                <Button
+                  size="small"
+                  startIcon={<ViewIcon />}
+                  onClick={() => handleView(analysis.analysis_id)}
+                  disabled={analysis.status !== 'completed'}
+                  variant={analysis.status === 'completed' ? 'contained' : 'outlined'}
+                  sx={{
+                    textTransform: 'none',
+                    fontWeight: 500,
+                    fontSize: '0.875rem',
+                    px: 2.5,
+                  }}
+                >
+                  View
+                </Button>
+                <IconButton
+                  size="small"
+                  onClick={() => {
+                    setAnalysisToDelete(analysis.analysis_id)
+                    setDeleteDialogOpen(true)
+                  }}
+                  sx={{
+                    ml: 'auto',
+                    color: 'text.secondary',
+                    transition: 'all 0.2s',
+                    '&:hover': {
+                      color: 'error.main',
+                      backgroundColor: 'error.lighter',
+                    },
+                  }}
+                  aria-label="Delete analysis"
+                >
+                  <DeleteIcon fontSize="small" />
+                </IconButton>
+              </CardActions>
+            </Card>
+          </Grid>
+        ))}
+      </Grid>
+    )
+  }
+
+  return (
+    <>
+      <Modal
+        open={open}
+        onClose={onClose}
+        closeAfterTransition
+        slots={{ backdrop: Backdrop }}
+        slotProps={{
+          backdrop: {
+            timeout: 350,
+            sx: {
+              backgroundColor: 'rgba(0, 0, 0, 0.7)',
+              backdropFilter: 'blur(8px)',
+            },
+          },
+        }}
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <Fade in={open} timeout={350}>
+          <Box
+            sx={{
+              position: 'relative',
+              width: {
+                xs: 'calc(100% - 16px)',
+                sm: 'calc(100% - 32px)',
+                md: '90vw',
+                lg: '85vw',
+                xl: '1200px',
+              },
+              maxWidth: isMobile ? '100%' : '1400px',
+              height: {
+                xs: 'calc(100vh - 16px)',
+                sm: '90vh',
+                md: '85vh',
+              },
+              maxHeight: isMobile ? '100vh' : '900px',
+              bgcolor: 'background.paper',
+              boxShadow: isMobile ? 0 : '0 24px 48px rgba(0, 0, 0, 0.2)',
+              borderRadius: isMobile ? 1 : 3,
+              display: 'flex',
+              flexDirection: 'column',
+              overflow: 'hidden',
+              outline: 'none',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header with close button */}
+            <Box
+              sx={{
+                px: { xs: 2.5, sm: 3.5 },
+                py: { xs: 2, sm: 2.5 },
+                borderBottom: 1,
+                borderColor: 'divider',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                flexShrink: 0,
+                backgroundColor: 'background.paper',
+              }}
+            >
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 1.5, sm: 2 } }}>
+                <FolderOpenIcon
+                  sx={{
+                    color: 'primary.main',
+                    fontSize: { xs: 26, sm: 30 },
+                  }}
+                />
+                <Typography
+                  variant={isMobile ? 'h5' : 'h4'}
+                  component="h2"
+                  fontWeight={600}
+                  sx={{
+                    fontSize: { xs: '1.5rem', sm: '2rem' },
+                  }}
+                >
+                  Your Analyses
+                </Typography>
+              </Box>
+              <IconButton
+                onClick={onClose}
+                aria-label="Close dashboard"
+                size="large"
+                sx={{
+                  color: 'text.secondary',
+                  transition: 'all 0.2s',
+                  '&:hover': {
+                    color: 'text.primary',
+                    backgroundColor: 'action.hover',
+                    transform: 'rotate(90deg)',
+                  },
+                }}
+              >
+                <CloseIcon fontSize={isMobile ? 'medium' : 'large'} />
+              </IconButton>
+            </Box>
+
+            {/* Scrollable content area */}
+            <Box
+              sx={{
+                px: { xs: 2.5, sm: 3.5 },
+                py: { xs: 3, sm: 4 },
+                overflowY: 'auto',
+                overflowX: 'hidden',
+                flexGrow: 1,
+                // Custom scrollbar styling
+                '&::-webkit-scrollbar': {
+                  width: 10,
+                },
+                '&::-webkit-scrollbar-track': {
+                  backgroundColor: 'transparent',
+                  margin: 8,
+                },
+                '&::-webkit-scrollbar-thumb': {
+                  backgroundColor: 'rgba(0, 0, 0, 0.2)',
+                  borderRadius: 8,
+                  border: '2px solid transparent',
+                  backgroundClip: 'content-box',
+                  '&:hover': {
+                    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+                  },
+                },
+              }}
+            >
+              {renderContent()}
+            </Box>
+          </Box>
+        </Fade>
+      </Modal>
+
+      {/* Delete Confirmation Dialog */}
+      <DeleteConfirmDialog
+        open={deleteDialogOpen}
+        onClose={() => {
+          setDeleteDialogOpen(false)
+          setAnalysisToDelete(null)
+        }}
+        onConfirm={handleDelete}
+        loading={deleting}
+      />
+    </>
+  )
+}

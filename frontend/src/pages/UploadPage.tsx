@@ -5,6 +5,7 @@ import { useAnalysis } from '../hooks/useAnalysis';
 import { useAuth } from '../hooks/useAuth';
 import { AuthModal } from '../components/AuthModal';
 import GitHubRepoForm from '../components/GitHubRepoForm';
+import UserDashboard from './UserDashboard';
 import { GitHubRepoInfo } from '../types';
 
 export default function UploadPage() {
@@ -16,6 +17,7 @@ export default function UploadPage() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [authModalTab, setAuthModalTab] = useState(0);
+  const [dashboardOpen, setDashboardOpen] = useState(false);
   const lastScrollY = useRef(0);
   const navigate = useNavigate();
   const { isLoading, status, result, error, analyze } = useAnalysis();
@@ -120,7 +122,7 @@ export default function UploadPage() {
             {user ? (
               <>
                 <button
-                  onClick={() => navigate('/dashboard')}
+                  onClick={() => setDashboardOpen(true)}
                   className="text-gray-600 hover:text-gray-900 font-medium transition-colors px-3 py-2 rounded-lg hover:bg-gray-50"
                 >
                   My Analyses
@@ -182,7 +184,7 @@ export default function UploadPage() {
                   <div className="border-t border-gray-100 my-2"></div>
                   <button
                     onClick={() => {
-                      navigate('/dashboard');
+                      setDashboardOpen(true);
                       setMobileMenuOpen(false);
                     }}
                     className="text-gray-600 hover:text-gray-900 font-medium text-left py-2"
@@ -574,6 +576,12 @@ export default function UploadPage() {
         open={authModalOpen}
         onClose={() => setAuthModalOpen(false)}
         initialTab={authModalTab}
+      />
+
+      {/* User Dashboard Modal */}
+      <UserDashboard
+        open={dashboardOpen}
+        onClose={() => setDashboardOpen(false)}
       />
 
       {/* Animation keyframes via style tag */}

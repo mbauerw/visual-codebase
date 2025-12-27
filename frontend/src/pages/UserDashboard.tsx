@@ -1,20 +1,5 @@
-import React, { useState, useEffect } from 'react'
-import { 
-  Box, 
-  Typography, 
-  Card, 
-  CardContent, 
-  CardActions, 
-  Button, 
-  Grid, 
-  Chip,
-  IconButton,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions
-} from '@mui/material'
-import { Delete as DeleteIcon, Visibility as ViewIcon } from '@mui/icons-material'
+import { useState, useEffect } from 'react'
+import { X, Trash2, Eye, Calendar, FileCode, GitBranch, Loader2, AlertCircle } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { getUserAnalyses, deleteAnalysis } from '../api/client'
 import { useAuth } from '../hooks/useAuth'
@@ -30,7 +15,12 @@ interface Analysis {
   completed_at?: string
 }
 
-export default function UserDashboard() {
+interface UserDashboardProps {
+  open: boolean
+  onClose: () => void
+}
+
+export default function UserDashboard({ open, onClose }: UserDashboardProps) {
   const { user } = useAuth()
   const navigate = useNavigate()
   const [analyses, setAnalyses] = useState<Analysis[]>([])
@@ -39,10 +29,10 @@ export default function UserDashboard() {
   const [analysisToDelete, setAnalysisToDelete] = useState<string | null>(null)
 
   useEffect(() => {
-    if (user) {
+    if (user && open) {
       loadAnalyses()
     }
-  }, [user])
+  }, [user, open])
 
   const loadAnalyses = async () => {
     try {
@@ -71,6 +61,7 @@ export default function UserDashboard() {
 
   const handleView = (analysisId: string) => {
     navigate(`/visualize?analysis=${analysisId}`)
+    onClose()
   }
 
   const formatDate = (dateString: string) => {
@@ -83,134 +74,218 @@ export default function UserDashboard() {
     })
   }
 
-  const getStatusColor = (status: string) => {
+  const getStatusStyles = (status: string) => {
     switch (status) {
-      case 'completed': return 'success'
-      case 'failed': return 'error'
+      case 'completed':
+        return 'bg-green-50 text-green-700 border-green-200'
+      case 'failed':
+        return 'bg-red-50 text-red-700 border-red-200'
       case 'pending':
       case 'parsing':
       case 'analyzing':
-      case 'building_graph': return 'warning'
-      default: return 'default'
+      case 'building_graph':
+        return 'bg-yellow-50 text-yellow-700 border-yellow-200'
+      default:
+        return 'bg-gray-50 text-gray-700 border-gray-200'
     }
   }
 
-  if (!user) {
-    return (
-      <Box sx={{ p: 4, textAlign: 'center' }}>
-        <Typography variant="h5" gutterBottom>
-          Sign in to view your saved analyses
-        </Typography>
-      </Box>
-    )
-  }
-
-  if (loading) {
-    return (
-      <Box sx={{ p: 4, textAlign: 'center' }}>
-        <Typography>Loading your analyses...</Typography>
-      </Box>
-    )
-  }
+  if (!open) return null
 
   return (
-    <Box sx={{ p: 4 }}>
-      <Typography variant="h4" gutterBottom>
-        Your Analyses
-      </Typography>
-      
-      {analyses.length === 0 ? (
-        <Box sx={{ textAlign: 'center', py: 8 }}>
-          <Typography variant="h6" color="text.secondary">
-            No analyses found
-          </Typography>
-          <Typography color="text.secondary" sx={{ mb: 3 }}>
-            Start by analyzing a codebase to see it here
-          </Typography>
-          <Button 
-            variant="contained" 
-            onClick={() => navigate('/')}
-          >
-            Analyze Codebase
-          </Button>
-        </Box>
-      ) : (
-        <Grid container spacing={3}>
-          {analyses.map((analysis) => (
-            <Grid item xs={12} md={6} lg={4} key={analysis.analysis_id}>
-              <Card>
-                <CardContent>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
-                    <Typography variant="h6" component="div" sx={{ flexGrow: 1, pr: 1 }}>
-                      {analysis.directory_path.split('/').pop() || analysis.directory_path}
-                    </Typography>
-                    <Chip 
-                      label={analysis.status} 
-                      color={getStatusColor(analysis.status) as any}
-                      size="small"
-                    />
-                  </Box>
-                  
-                  <Typography color="text.secondary" variant="body2" sx={{ mb: 1 }}>
-                    {analysis.directory_path}
-                  </Typography>
-                  
-                  {analysis.status === 'completed' && (
-                    <Box sx={{ mb: 2 }}>
-                      <Typography variant="body2">
-                        Files: {analysis.file_count} • Dependencies: {analysis.edge_count}
-                      </Typography>
-                    </Box>
-                  )}
-                  
-                  <Typography variant="body2" color="text.secondary">
-                    Started: {formatDate(analysis.started_at)}
-                  </Typography>
-                  
-                  {analysis.completed_at && (
-                    <Typography variant="body2" color="text.secondary">
-                      Completed: {formatDate(analysis.completed_at)}
-                    </Typography>
-                  )}
-                </CardContent>
-                
-                <CardActions>
-                  <Button 
-                    size="small" 
-                    startIcon={<ViewIcon />}
-                    onClick={() => handleView(analysis.analysis_id)}
-                    disabled={analysis.status !== 'completed'}
-                  >
-                    View
-                  </Button>
-                  <IconButton 
-                    size="small" 
-                    onClick={() => {
-                      setAnalysisToDelete(analysis.analysis_id)
-                      setDeleteDialogOpen(true)
-                    }}
-                  >
-                    <DeleteIcon />
-                  </IconButton>
-                </CardActions>
-              </Card>
-            </Grid>
-          ))}
-        </Grid>
-      )}
+    <>
+      {/* Backdrop */}
+      <div
+        className="fixed inset-0 bg-gray-900/80 backdrop-blur-sm z-50 transition-opacity"
+        onClick={onClose}
+      />
 
-      <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)}>
-        <DialogTitle>Delete Analysis</DialogTitle>
-        <DialogContent>
-          <Typography>
-            Are you sure you want to delete this analysis? This action cannot be undone.
-          </Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setDeleteDialogOpen(false)}>Cancel</Button>
-          <Button onClick={handleDelete} color="error">Delete</Button>
-        </DialogActions>
-      </Dialog>
-    </Box>
+      {/* Modal */}
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div
+          className="bg-white rounded-3xl max-w-6xl w-full max-h-[90vh] overflow-hidden shadow-2xl border border-gray-100 flex flex-col"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Header */}
+          <div className="px-8 py-6 border-b border-gray-100 flex items-center justify-between">
+            <div>
+              <h2 className="text-3xl font-bold text-gray-900">Your Analyses</h2>
+              <p className="text-gray-600 mt-1">View and manage your codebase analyses</p>
+            </div>
+            <button
+              onClick={onClose}
+              className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+              aria-label="Close"
+            >
+              <X size={24} className="text-gray-500" />
+            </button>
+          </div>
+
+          {/* Content */}
+          <div className="flex-1 overflow-y-auto p-8">
+            {!user ? (
+              <div className="text-center py-16">
+                <div className="w-16 h-16 rounded-2xl bg-gray-100 flex items-center justify-center mx-auto mb-6">
+                  <AlertCircle size={32} className="text-gray-400" />
+                </div>
+                <h3 className="text-2xl font-semibold text-gray-900 mb-3">Sign in required</h3>
+                <p className="text-gray-600">Sign in to view your saved analyses</p>
+              </div>
+            ) : loading ? (
+              <div className="text-center py-16">
+                <Loader2 size={48} className="text-gray-400 animate-spin mx-auto mb-4" />
+                <p className="text-gray-600">Loading your analyses...</p>
+              </div>
+            ) : analyses.length === 0 ? (
+              <div className="text-center py-16">
+                <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-[#8FBCFA]/20 to-[#FF9A9D]/20 flex items-center justify-center mx-auto mb-6">
+                  <GitBranch size={40} className="text-gray-400" />
+                </div>
+                <h3 className="text-2xl font-semibold text-gray-900 mb-3">No analyses yet</h3>
+                <p className="text-gray-600 mb-8">Start by analyzing a codebase to see it here</p>
+                <button
+                  onClick={() => {
+                    onClose()
+                    navigate('/')
+                  }}
+                  className="bg-gray-900 hover:bg-gray-800 text-white px-8 py-4 rounded-full font-semibold transition-all hover:scale-[1.02] shadow-lg shadow-gray-900/20"
+                >
+                  Analyze Codebase
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {analyses.map((analysis) => (
+                  <div
+                    key={analysis.analysis_id}
+                    className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 hover:shadow-lg transition-all hover:scale-[1.01] flex flex-col"
+                  >
+                    {/* Card Header */}
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex-1 min-w-0 pr-3">
+                        <h3 className="text-lg font-semibold text-gray-900 truncate mb-1">
+                          {analysis.directory_path.split('/').pop() || analysis.directory_path}
+                        </h3>
+                        <p className="text-sm text-gray-500 truncate">
+                          {analysis.directory_path}
+                        </p>
+                      </div>
+                      <span className={`px-3 py-1 rounded-full text-xs font-medium border ${getStatusStyles(analysis.status)}`}>
+                        {analysis.status}
+                      </span>
+                    </div>
+
+                    {/* Stats */}
+                    {analysis.status === 'completed' && (
+                      <div className="flex gap-4 mb-4 pb-4 border-b border-gray-100">
+                        <div className="flex items-center gap-2">
+                          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#8FBCFA]/20 to-[#8FBCFA]/10 flex items-center justify-center">
+                            <FileCode size={16} className="text-[#8FBCFA]" />
+                          </div>
+                          <div>
+                            <p className="text-xs text-gray-500">Files</p>
+                            <p className="text-sm font-semibold text-gray-900">{analysis.file_count}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#FF9A9D]/20 to-[#FF9A9D]/10 flex items-center justify-center">
+                            <GitBranch size={16} className="text-[#FF9A9D]" />
+                          </div>
+                          <div>
+                            <p className="text-xs text-gray-500">Links</p>
+                            <p className="text-sm font-semibold text-gray-900">{analysis.edge_count}</p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Dates */}
+                    <div className="space-y-2 mb-6 flex-1">
+                      <div className="flex items-center gap-2 text-sm">
+                        <Calendar size={14} className="text-gray-400" />
+                        <span className="text-gray-500">Started:</span>
+                        <span className="text-gray-700 font-medium">{formatDate(analysis.started_at)}</span>
+                      </div>
+                      {analysis.completed_at && (
+                        <div className="flex items-center gap-2 text-sm">
+                          <Calendar size={14} className="text-gray-400" />
+                          <span className="text-gray-500">Completed:</span>
+                          <span className="text-gray-700 font-medium">{formatDate(analysis.completed_at)}</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Actions */}
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => handleView(analysis.analysis_id)}
+                        disabled={analysis.status !== 'completed'}
+                        className="flex-1 flex items-center justify-center gap-2 bg-gray-900 hover:bg-gray-800 disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed text-white px-4 py-2.5 rounded-full font-medium transition-all hover:scale-[1.02] shadow-sm"
+                      >
+                        <Eye size={16} />
+                        View
+                      </button>
+                      <button
+                        onClick={() => {
+                          setAnalysisToDelete(analysis.analysis_id)
+                          setDeleteDialogOpen(true)
+                        }}
+                        className="p-2.5 bg-red-50 hover:bg-red-100 text-red-600 rounded-full transition-all border border-red-200 hover:scale-[1.05]"
+                        aria-label="Delete analysis"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Delete Confirmation Dialog */}
+      {deleteDialogOpen && (
+        <>
+          <div
+            className="fixed inset-0 bg-gray-900/50 backdrop-blur-sm z-[60]"
+            onClick={() => setDeleteDialogOpen(false)}
+          />
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+            <div
+              className="bg-white rounded-3xl max-w-md w-full p-8 shadow-2xl border border-gray-100"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="w-14 h-14 rounded-2xl bg-red-50 border border-red-200 flex items-center justify-center mx-auto mb-6">
+                <Trash2 size={24} className="text-red-600" />
+              </div>
+
+              <h3 className="text-2xl font-bold text-gray-900 text-center mb-3">
+                Delete Analysis
+              </h3>
+
+              <p className="text-gray-600 text-center mb-8">
+                Are you sure you want to delete this analysis? This action cannot be undone.
+              </p>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setDeleteDialogOpen(false)}
+                  className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 px-6 py-3 rounded-full font-medium transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleDelete}
+                  className="flex-1 bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-full font-semibold transition-all hover:scale-[1.02] shadow-lg shadow-red-600/20"
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+    </>
   )
 }

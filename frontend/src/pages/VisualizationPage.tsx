@@ -24,6 +24,7 @@ import {
   LayoutGrid,
   FolderTree,
   Network,
+  User,
 } from 'lucide-react';
 
 import CustomNode, { type CustomNodeType } from '../components/CustomNode';
@@ -31,6 +32,7 @@ import CategoryNode, { type CategoryNodeType, type CategoryNodeData, CategoryRol
 import CategoryBackground, { type CategorySection } from '../components/Categorybackground'
 import NodeDetailPanel from '../components/NodeDetailPanel';
 import CategoryRolePanel from '../components/CateogoryDetailPanel';
+import UserDashboardModal from '../components/UserDashboardModal';
 import type {
   ReactFlowGraph,
   ReactFlowNodeData,
@@ -42,6 +44,8 @@ import type {
 } from '../types';
 import { roleColors, languageColors, categoryColors, roleLabels } from '../types';
 import GithubEmbed from '../components/GithubEmbed';
+import { useAuth } from '../hooks/useAuth';
+import { AuthModal } from '../components/AuthModal';
 
 // Define node types with proper typing for React Flow v12
 const nodeTypes: NodeTypes = {
@@ -855,6 +859,7 @@ function testLayout(
 function VisualizationPageInner() {
   const navigate = useNavigate();
   const { getViewport } = useReactFlow();
+  const { user, signOut } = useAuth();
   const [graphData, setGraphData] = useState<ReactFlowGraph | null>(null);
   const [nodes, setNodes, onNodesChange] = useNodesState<AllNodeTypes>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
@@ -868,6 +873,14 @@ function VisualizationPageInner() {
   const [viewport, setViewport] = useState<Viewport>({ x: 0, y: 0, zoom: 1 });
   const [expanded, setExpanded] = useState<boolean>(true);
   const [styles, setStyles] = useState<stylesType>();
+  const [dashboardOpen, setDashboardOpen] = useState(false);
+  const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [authModalTab, setAuthModalTab] = useState(0);
+
+  const handleOpenAuthModal = (tab: number) => {
+    setAuthModalTab(tab);
+    setAuthModalOpen(true);
+  };
 
   // Load data from session storage
   useEffect(() => {
@@ -1059,18 +1072,71 @@ function VisualizationPageInner() {
           </h1>
         </div>
 
-        <div className="flex items-center gap-4 text-sm text-slate-400">
-          <div className="flex items-center gap-2">
-            <FileCode size={16} />
-            <span>{graphData.metadata.file_count} files</span>
+        {/* Desktop Stats and Auth */}
+        <div className="hidden md:flex items-center gap-4">
+          <div className="flex items-center gap-4 text-sm text-slate-400">
+            <div className="flex items-center gap-2">
+              <FileCode size={16} />
+              <span>{graphData.metadata.file_count} files</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <GitBranch size={16} />
+              <span>{graphData.metadata.edge_count} dependencies</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Clock size={16} />
+              <span>{graphData.metadata.analysis_time_seconds.toFixed(1)}s</span>
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            <GitBranch size={16} />
-            <span>{graphData.metadata.edge_count} dependencies</span>
+
+          <div className="h-6 w-px bg-slate-700" />
+
+          {user ? (
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setDashboardOpen(true)}
+                className="text-slate-400 hover:text-white transition-colors text-sm font-medium px-3 py-1.5 rounded hover:bg-slate-700"
+              >
+                My Analyses
+              </button>
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-700 rounded">
+                <User size={14} className="text-slate-400" />
+                <span className="text-sm text-slate-300">{user.email?.split('@')[0]}</span>
+              </div>
+              <button
+                onClick={signOut}
+                className="text-slate-400 hover:text-white transition-colors text-sm font-medium px-3 py-1.5 rounded hover:bg-slate-700"
+              >
+                Sign Out
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => handleOpenAuthModal(0)}
+                className="text-slate-400 hover:text-white transition-colors text-sm font-medium px-3 py-1.5 rounded hover:bg-slate-700"
+              >
+                Log In
+              </button>
+              <button
+                onClick={() => handleOpenAuthModal(1)}
+                className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-1.5 rounded transition-colors"
+              >
+                Sign Up
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Mobile Stats Only */}
+        <div className="flex md:hidden items-center gap-3 text-xs text-slate-400">
+          <div className="flex items-center gap-1">
+            <FileCode size={14} />
+            <span>{graphData.metadata.file_count}</span>
           </div>
-          <div className="flex items-center gap-2">
-            <Clock size={16} />
-            <span>{graphData.metadata.analysis_time_seconds.toFixed(1)}s</span>
+          <div className="flex items-center gap-1">
+            <GitBranch size={14} />
+            <span>{graphData.metadata.edge_count}</span>
           </div>
         </div>
       </div>
@@ -1322,9 +1388,25 @@ function VisualizationPageInner() {
           {selectedCateogry && (
             <CategoryRolePanel data={selectedCateogry} onClose={() => setSelectedCategory(null)} setExpand={setExpanded} expanded={expanded} />
           )}
+          {!selectedNode && !selectedCateogry && (
+                      <NodeDetailPanel data={null} onClose={() => setSelectedNode(null)} setExpand={setExpanded} expanded={expanded} />
+                   ) }
         </div>
 
       </div>
+
+      {/* Auth Modal */}
+      <AuthModal
+        open={authModalOpen}
+        onClose={() => setAuthModalOpen(false)}
+        initialTab={authModalTab}
+      />
+
+      {/* User Dashboard Modal */}
+      <UserDashboardModal
+        open={dashboardOpen}
+        onClose={() => setDashboardOpen(false)}
+      />
     </div>
   );
 }

@@ -1,40 +1,30 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
-import { useState } from 'react';
-import { Box, Typography } from '@mui/material';
 import UploadPage from './pages/UploadPage';
 import VisualizationPage from './pages/VisualizationPage';
-import UserDashboard from './pages/UserDashboard';
 import AuthCallback from './pages/AuthCallback';
-import { AuthModal } from './components/AuthModal';
 import { useAuth } from './hooks/useAuth';
+import { Loader2 } from 'lucide-react';
 
 export default function App() {
   const { loading } = useAuth();
-  const [authModalOpen, setAuthModalOpen] = useState(false);
 
   if (loading) {
     return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="100vh">
-        <Typography>Loading...</Typography>
-      </Box>
+      <div className="flex justify-center items-center min-h-screen bg-[#FAFAFA]">
+        <div className="text-center">
+          <Loader2 size={48} className="text-gray-400 animate-spin mx-auto mb-4" />
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
     );
   }
 
   return (
-    <Box>
-      <Routes>
-        <Route path="/" element={<UploadPage />} />
-        <Route path="/visualize" element={<VisualizationPage />} />
-        <Route path="/dashboard" element={<UserDashboard />} />
-        <Route path="/auth/callback" element={<AuthCallback />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-
-      <AuthModal
-        open={authModalOpen}
-        onClose={() => setAuthModalOpen(false)}
-        initialTab={0}
-      />
-    </Box>
+    <Routes>
+      <Route path="/" element={<UploadPage />} />
+      <Route path="/visualize" element={<VisualizationPage />} />
+      <Route path="/auth/callback" element={<AuthCallback />} />
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
   );
 }
