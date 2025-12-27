@@ -233,6 +233,8 @@ function getNestedCategoryLayout(
     const roleDimensions = roleGroups.map((rg) => calculateTreeRoleDimensions(rg.nodes.length));
     const maxRoleWidth = Math.max(...roleDimensions.map((d) => d.width));
     const maxRoleHeight = Math.max(...roleDimensions.map((d) => d.height));
+    const averageRoleWidth = roleDimensions.reduce((sum, d) => sum + d.width, 0) / roleDimensions.length;
+    const averageRoleHeight = roleDimensions.reduce((sum, d) => sum + d.height, 0) / roleDimensions.length;
 
     // Calculate the circle radius needed
     const numRoles = roleGroups.length;
@@ -253,8 +255,11 @@ function getNestedCategoryLayout(
 
     // Calculate center position (with offset for this category section)
     const centerX = offsetX + circleRadius;
+    console.log("Center X:", centerX);
     const centerY = circleRadius; // Add some top padding
+    console.log("Center Y:", centerY);
     const placementRadius = circleRadius - maxRoleHeight / 2 - 200;
+    console.log("Placement Radius:", placementRadius);
 
     roleGroups.forEach((roleGroup, index) => {
       const dims = roleDimensions[index];
