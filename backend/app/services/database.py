@@ -98,6 +98,9 @@ class DatabaseService:
             "analysis_time_seconds": metadata.analysis_time_seconds,
             "languages": metadata.languages,
             "errors": metadata.errors,
+            "summary": metadata.summary.model_dump() if metadata.summary else None,
+            "readme_detected": metadata.readme_detected,
+            "summary_generated_at": datetime.utcnow().isoformat() if metadata.summary else None,
             "completed_at": metadata.completed_at.isoformat() if metadata.completed_at else None,
             "updated_at": datetime.utcnow().isoformat(),
         }
@@ -232,6 +235,12 @@ class DatabaseService:
                 path=github_repo_data.get("path"),
             )
 
+        # Parse summary if present
+        summary = None
+        if analysis_data.get("summary"):
+            from ..models.schemas import CodebaseSummary
+            summary = CodebaseSummary(**analysis_data["summary"])
+
         metadata = AnalysisMetadata(
             analysis_id=analysis_data["analysis_id"],
             directory_path=analysis_data["directory_path"],
@@ -243,6 +252,8 @@ class DatabaseService:
             completed_at=datetime.fromisoformat(analysis_data["completed_at"].replace("Z", "+00:00")) if analysis_data["completed_at"] else None,
             languages=analysis_data["languages"] or {},
             errors=analysis_data["errors"] or [],
+            summary=summary,
+            readme_detected=analysis_data.get("readme_detected", False),
         )
 
         # Convert database records back to domain objects

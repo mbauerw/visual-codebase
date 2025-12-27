@@ -62,6 +62,7 @@ class AnalysisStatus(str, Enum):
     PARSING = "parsing"
     ANALYZING = "analyzing"
     BUILDING_GRAPH = "building_graph"
+    GENERATING_SUMMARY = "generating_summary"
     COMPLETED = "completed"
     FAILED = "failed"
 
@@ -182,6 +183,62 @@ class DependencyEdge(BaseModel):
     label: Optional[str] = Field(default=None, description="Edge label")
 
 
+# Codebase summary schemas
+class TechStackInfo(BaseModel):
+    """Technology stack information."""
+
+    languages: list[str] = Field(default_factory=list, description="Programming languages used")
+    frameworks: list[str] = Field(default_factory=list, description="Detected frameworks")
+    key_patterns: list[str] = Field(default_factory=list, description="Architectural patterns")
+
+
+class ModuleInfo(BaseModel):
+    """Information about a key module or folder."""
+
+    name: str = Field(..., description="Module/folder name")
+    purpose: str = Field(..., description="Brief description of the module's purpose")
+
+
+class ComplexityInfo(BaseModel):
+    """Codebase complexity assessment."""
+
+    level: str = Field(..., description="Complexity level: simple, moderate, or complex")
+    reasoning: str = Field(..., description="Explanation for the complexity assessment")
+
+
+class CodebaseSummary(BaseModel):
+    """AI-generated codebase summary."""
+
+    project_type: str = Field(
+        ...,
+        description="Type of project: web_app, api, library, cli, monorepo, mobile_app, or unknown"
+    )
+    primary_purpose: str = Field(
+        ...,
+        description="1-2 sentence description of what the project does"
+    )
+    tech_stack: TechStackInfo = Field(
+        ...,
+        description="Detected technologies and patterns"
+    )
+    architecture_summary: str = Field(
+        ...,
+        description="2-3 sentence overview of the architecture"
+    )
+    key_modules: list[ModuleInfo] = Field(
+        default_factory=list,
+        description="Important modules or folders in the codebase"
+    )
+    complexity_assessment: ComplexityInfo = Field(
+        ...,
+        description="Assessment of codebase complexity"
+    )
+    notable_aspects: list[str] = Field(
+        default_factory=list,
+        description="Interesting or notable findings about the codebase"
+    )
+
+
 class AnalysisMetadata(BaseModel):
     """Metadata about the analysis."""
 
@@ -200,6 +257,12 @@ class AnalysisMetadata(BaseModel):
     )
     errors: list[str] = Field(
         default_factory=list, description="Any errors encountered"
+    )
+    summary: Optional[CodebaseSummary] = Field(
+        default=None, description="AI-generated codebase summary"
+    )
+    readme_detected: bool = Field(
+        default=False, description="Whether a README file was found and analyzed"
     )
 
 

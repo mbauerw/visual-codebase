@@ -184,6 +184,28 @@ class AnalysisService:
                 None,  # metadata will be created below
             )
 
+            # Step 4: Generate codebase summary
+            job.status = AnalysisStatus.GENERATING_SUMMARY
+            job.current_step = "Generating codebase summary"
+            job.progress = 90.0
+
+            # Update database
+            if db_service:
+                await db_service.update_analysis_progress(
+                    analysis_id, job.status, job.progress, job.current_step,
+                    job.files_processed, job.total_files
+                )
+
+            # Generate summary
+            from .summary_generator import get_summary_generator
+            summary_generator = get_summary_generator()
+            summary, readme_detected = await summary_generator.generate_summary(
+                directory_path=job.directory_path,
+                nodes=nodes,
+                edges=edges,
+                language_distribution=language_counts,
+            )
+
             # Create metadata
             analysis_time = time.time() - start_time
             metadata = AnalysisMetadata(
@@ -196,6 +218,8 @@ class AnalysisService:
                 completed_at=datetime.utcnow(),
                 languages=language_counts,
                 errors=[],
+                summary=summary,
+                readme_detected=readme_detected,
             )
 
             # Convert to React Flow format
