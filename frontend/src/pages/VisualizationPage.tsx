@@ -874,6 +874,7 @@ function VisualizationPageInner() {
   const [nodes, setNodes, onNodesChange] = useNodesState<AllNodeTypes>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const [selectedNode, setSelectedNode] = useState<ReactFlowNodeData | null>(null);
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [selectedCateogry, setSelectedCategory] = useState<CategoryRoleData | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [languageFilter, setLanguageFilter] = useState<Language | 'all'>('all');
@@ -1017,15 +1018,54 @@ function VisualizationPageInner() {
     // For role layout, do NOT call fitView to preserve alignment with CategoryBackground
   }, [nodes, layoutType, isInitialLoad, reactFlowFitView]);
 
+  // Highlight edges connected to selected node
+  useEffect(() => {
+    if (!selectedNodeId) {
+      // Reset all edges to default style
+      setEdges((edges) =>
+        edges.map((edge) => ({
+          ...edge,
+          style: { stroke: '#475569', strokeWidth: 1.5 },
+          animated: false,
+        }))
+      );
+      return;
+    }
+
+    // Highlight edges connected to the selected node
+    setEdges((edges) =>
+      edges.map((edge) => {
+        const isConnected =
+          edge.source === selectedNodeId || edge.target === selectedNodeId;
+
+        if (isConnected) {
+          return {
+            ...edge,
+            style: { stroke: '#fbbf24', strokeWidth: 3 },
+            animated: true,
+          };
+        }
+
+        return {
+          ...edge,
+          style: { stroke: '#475569', strokeWidth: 1.5, opacity: 0.3 },
+          animated: false,
+        };
+      })
+    );
+  }, [selectedNodeId, setEdges]);
+
   // Handle node selection
   const onNodeClick = useCallback(
     (_: React.MouseEvent, node: Node) => {
       if (node.type === 'custom') {
         setSelectedCategory(null);
         setSelectedNode(node.data as ReactFlowNodeData);
+        setSelectedNodeId(node.id);
       }
       if (node.type === 'category') {
-        setSelectedNode(null);      
+        setSelectedNode(null);
+        setSelectedNodeId(null);
         setSelectedCategory({
           label: node.data.label,
           role: node.data.role,
@@ -1071,6 +1111,7 @@ function VisualizationPageInner() {
 
   const onPaneClick = useCallback(() => {
     setSelectedNode(null);
+    setSelectedNodeId(null);
   }, []);
 
   // Track viewport changes for background sync
