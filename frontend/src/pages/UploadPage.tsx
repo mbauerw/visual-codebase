@@ -7,6 +7,9 @@ import { AuthModal } from '../components/AuthModal';
 import GitHubRepoForm from '../components/GitHubRepoForm';
 import UserDashboard from './UserDashboard';
 import { GitHubRepoInfo } from '../types';
+import { motion } from "motion/react"
+
+
 
 export default function UploadPage() {
   const [directoryPath, setDirectoryPath] = useState('');
@@ -231,25 +234,25 @@ export default function UploadPage() {
       <section className="relative min-h-screen flex items-center justify-center pt-32 pb-20 px-4 overflow-hidden">
         {/* Background Pattern */}
         <div className="absolute inset-0 overflow-hidden">
-          {/* Grid pattern */}
+          {/* Background Image */}
           <img
             className="absolute inset-0 opacity-[0.4] w-full h-full object-cover"
             src='public/spiral-grid-blue.jpeg'
           />
 
           {/* Diagonal lines */}
-          <svg className="absolute inset-0 w-full h-full opacity-20" xmlns="http://www.w3.org/2000/svg">
+          {/* <svg className="absolute inset-0 w-full h-full opacity-20" xmlns="http://www.w3.org/2000/svg">
             <defs>
               <pattern id="diagonal" width="40" height="40" patternUnits="userSpaceOnUse">
                 <path d="M-10,10 l20,-20 M0,40 l40,-40 M30,50 l20,-20" stroke="#FF9A9D" strokeWidth="0.5" />
               </pattern>
             </defs>
             <rect width="100%" height="100%" fill="url(#diagonal)" />
-          </svg>
+          </svg> */}
 
-          
 
-         
+
+
 
           {/* Gradient orbs */}
           <div className="absolute -top-40 -left-40 w-96 h-96 bg-gradient-to-br from-[#8FBCFA]/20 to-transparent rounded-full blur-3xl" />
@@ -308,22 +311,20 @@ export default function UploadPage() {
             <div className="flex gap-3 mb-8">
               <button
                 onClick={() => setAnalyzeMode('local')}
-                className={`flex-1 px-6 py-3 rounded-xl font-medium transition-all ${
-                  analyzeMode === 'local'
+                className={`flex-1 px-6 py-3 rounded-xl font-medium transition-all ${analyzeMode === 'local'
                     ? 'bg-gray-900 text-white shadow-md'
                     : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                }`}
+                  }`}
               >
                 <FolderOpen size={18} className="inline mr-2" />
                 Local Directory
               </button>
               <button
                 onClick={() => setAnalyzeMode('github')}
-                className={`flex-1 px-6 py-3 rounded-xl font-medium transition-all ${
-                  analyzeMode === 'github'
+                className={`flex-1 px-6 py-3 rounded-xl font-medium transition-all ${analyzeMode === 'github'
                     ? 'bg-gray-900 text-white shadow-md'
                     : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                }`}
+                  }`}
               >
                 <GitBranch size={18} className="inline mr-2" />
                 GitHub Repository
@@ -458,16 +459,31 @@ export default function UploadPage() {
       </section>
 
       {/* Features Section */}
-      <section id="features" className="py-20 md:py-32 px-4">
-        <div className="max-w-6xl mx-auto">
+      <section id="features" className="py-20 md:py-12 min-h-[80vh] flex flex-col justify-end px-4 relative">
+        <img className="absolute top-0 left-0 w-full h-full opacity-100 z-0" src="/hill-trees.jpeg" />
+        {/* Radial fade overlay for top 1/4 of image */}
+        <div
+          className="absolute top-0 left-0 w-full h-1/4 z-[1]"
+          style={{
+            background: 'radial-gradient(ellipse at center top, rgba(250, 250, 250, 0.9) 0%, rgba(250, 250, 250, 0.6) 40%, transparent 100%)'
+          }}
+        />
+        <div className="max-w-6xl mx-auto z-10 relative">
           <div className="text-center mb-16">
             <span className="text-[#FF9A9D] font-semibold text-sm uppercase tracking-wider">Features</span>
-            <h2 className="text-3xl md:text-5xl font-bold text-gray-900 mt-4 mb-6">
-              Everything you need to understand your code
-            </h2>
-            <p className="text-gray-600 text-lg max-w-2xl mx-auto">
-              Powerful tools to analyze, visualize, and comprehend complex codebases
-            </p>
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.1 }}
+              viewport={{ once: false, amount: 0.3 }}
+            >
+              <h2 className="text-3xl md:text-5xl font-bold text-gray-900 mt-4 mb-6">
+                Everything you need to understand your code
+              </h2>
+              <p className="text-gray-600 text-lg max-w-2xl mx-auto">
+                Powerful tools to analyze, visualize, and comprehend complex codebases
+              </p>
+            </motion.div>
           </div>
 
           <div className="grid md:grid-cols-3 gap-6 md:gap-8">
