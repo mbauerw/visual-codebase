@@ -1067,15 +1067,14 @@ function VisualizationPageInner() {
             ...edge,
             style: {
               stroke: '#fbbf24',
-              strokeWidth: 3,
-              strokeDasharray: '10, 10', // Doubled spacing for dots
+              strokeWidth: 8,
+              strokeDasharray: '20, 20', // Doubled spacing for dots
             },
-            animated: true,
             markerEnd: {
               type: 'arrowclosed',
               color: '#fbbf24',
-              width: 20,
-              height: 20,
+              width: 14,
+              height: 14,
             },
           };
         }
@@ -1086,7 +1085,7 @@ function VisualizationPageInner() {
             stroke: '#475569',
             strokeWidth: 1.5,
             opacity: 0.3,
-            strokeDasharray: '5, 5',
+            strokeDasharray: '20, 20',
           },
           animated: false,
           markerEnd: {
