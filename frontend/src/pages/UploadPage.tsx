@@ -459,17 +459,17 @@ export default function UploadPage() {
       </section>
 
       {/* Features Section */}
-      <section id="features" className="py-20 md:py-12 min-h-[80vh] flex flex-col justify-end px-4 relative">
-        <img className="absolute top-0 left-0 w-full h-full opacity-100 z-0" src="/hill-trees.jpeg" />
+      <section id="features" className="py-20 md:py-14 min-h-[80vh] flex flex-col justify-end px-4 relative overflow-hidden">
+        <img className="absolute top-0 left-0 w-full h-full opacity-100 z-0 blur-sm scale-110 pointer-events-none" src="/hill-trees.jpeg" />
         {/* Dome-shaped fade overlay - fades top corners, reveals image in dome shape */}
         <div
-          className="absolute top-0 left-0 w-full h-[50%] z-[1] pointer-events-none"
+          className="absolute top-0 left-0 w-full h-[100%] z-[1] pointer-events-none"
           style={{
-            background: 'radial-gradient(ellipse 120% 100% at 50% 100%, transparent 0%, transparent 40%, rgba(250, 250, 250, 0.1) 55%, rgba(250, 250, 250, 0.3) 65%, rgba(250, 250, 250, 0.5) 75%, rgba(250, 250, 250, 0.75) 85%, rgba(250, 250, 250, 0.9) 93%, rgba(250, 250, 250, 1) 100%)'
+            background: 'radial-gradient(ellipse 80% 100% at 50% 100%, transparent 55%, transparent 50%, rgba(250, 250, 250, 0.1) 60%, rgba(250, 250, 250, 0.3) 65%, rgba(250, 250, 250, 0.5) 75%, rgba(250, 250, 250, 0.75) 85%, rgba(250, 250, 250, 0.9) 95%, rgba(250, 250, 250, 1) 100%)'
           }}
         />
         <div className="max-w-6xl mx-auto z-10 relative">
-          <div className="text-center mb-16">
+          <div className="text-center mb-28">
             <span className="text-[#FF9A9D] font-semibold text-sm uppercase tracking-wider">Features</span>
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -480,7 +480,7 @@ export default function UploadPage() {
               <h2 className="text-3xl md:text-5xl font-bold text-gray-900 mt-4 mb-6">
                 Everything you need to understand your code
               </h2>
-              <p className="text-gray-600 text-lg max-w-2xl mx-auto">
+              <p className="text-gray-700 text-lg max-w-2xl mx-auto">
                 Powerful tools to analyze, visualize, and comprehend complex codebases
               </p>
             </motion.div>
@@ -488,7 +488,7 @@ export default function UploadPage() {
 
           <div className="grid md:grid-cols-3 gap-6 md:gap-8">
             {/* Feature 1 */}
-            <div className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100 hover:shadow-lg transition-shadow">
+            <div className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100 hover:shadow-xl hover:ring-2 hover:ring-[#6BA3F5] transition-all duration-500">
               <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#8FBCFA] to-[#6BA3F5] flex items-center justify-center mb-6">
                 <GitBranch size={28} className="text-white" />
               </div>
@@ -499,7 +499,7 @@ export default function UploadPage() {
             </div>
 
             {/* Feature 2 */}
-            <div className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100 hover:shadow-lg transition-shadow">
+            <div className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100 hover:shadow-xl hover:ring-2 hover:ring-[#FF7A7D] transition-all duration-500">
               <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#FF9A9D] to-[#FF7A7D] flex items-center justify-center mb-6">
                 <Zap size={28} className="text-white" />
               </div>
@@ -510,7 +510,7 @@ export default function UploadPage() {
             </div>
 
             {/* Feature 3 */}
-            <div className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100 hover:shadow-lg transition-shadow">
+            <div className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100 hover:shadow-xl hover:ring-2 hover:ring-[#F0C560] transition-all duration-500">
               <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#F6D785] to-[#F0C560] flex items-center justify-center mb-6">
                 <Eye size={28} className="text-white" />
               </div>
@@ -524,7 +524,7 @@ export default function UploadPage() {
       </section>
 
       {/* How It Works Section */}
-      <section id="how-it-works" className="py-20 md:py-32 px-4 bg-white">
+      <section id="how-it-works" className="py-20 md:py-32 px-4 min-h-[80vh] flex flex-col justify-center bg-white">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-16">
             <span className="text-[#8FBCFA] font-semibold text-sm uppercase tracking-wider">How It Works</span>
