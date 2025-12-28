@@ -461,11 +461,11 @@ export default function UploadPage() {
       {/* Features Section */}
       <section id="features" className="py-20 md:py-12 min-h-[80vh] flex flex-col justify-end px-4 relative">
         <img className="absolute top-0 left-0 w-full h-full opacity-100 z-0" src="/hill-trees.jpeg" />
-        {/* Radial fade overlay for top 1/4 of image */}
+        {/* Semi-circular radial fade overlay for top of image */}
         <div
-          className="absolute top-0 left-0 w-full h-1/4 z-[1]"
+          className="absolute top-0 left-0 w-full h-[50%] z-[1] pointer-events-none"
           style={{
-            background: 'radial-gradient(ellipse at center top, rgba(250, 250, 250, 0.9) 0%, rgba(250, 250, 250, 0.6) 40%, transparent 100%)'
+            background: 'radial-gradient(ellipse 150% 100% at 50% 0%, rgba(250, 250, 250, 1) 0%, rgba(250, 250, 250, 0.92) 15%, rgba(250, 250, 250, 0.8) 30%, rgba(250, 250, 250, 0.6) 45%, rgba(250, 250, 250, 0.4) 60%, rgba(250, 250, 250, 0.2) 75%, rgba(250, 250, 250, 0.08) 88%, transparent 100%)'
           }}
         />
         <div className="max-w-6xl mx-auto z-10 relative">
