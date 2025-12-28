@@ -1018,7 +1018,7 @@ function VisualizationPageInner() {
     // For role layout, do NOT call fitView to preserve alignment with CategoryBackground
   }, [nodes, layoutType, isInitialLoad, reactFlowFitView]);
 
-  // Highlight edges connected to selected node
+  // Highlight edges and connected nodes when a node is selected
   useEffect(() => {
     if (!selectedNodeId) {
       // Reset all edges to default style
@@ -1027,10 +1027,34 @@ function VisualizationPageInner() {
           ...edge,
           style: { stroke: '#475569', strokeWidth: 1.5 },
           animated: false,
+          markerEnd: {
+            type: 'arrowclosed',
+            color: '#475569',
+            width: 20,
+            height: 20,
+          },
+        }))
+      );
+      // Reset all nodes to default style
+      setNodes((nodes) =>
+        nodes.map((node) => ({
+          ...node,
+          className: '',
         }))
       );
       return;
     }
+
+    // Find all connected node IDs
+    const connectedNodeIds = new Set<string>();
+    edges.forEach((edge) => {
+      if (edge.source === selectedNodeId) {
+        connectedNodeIds.add(edge.target);
+      }
+      if (edge.target === selectedNodeId) {
+        connectedNodeIds.add(edge.source);
+      }
+    });
 
     // Highlight edges connected to the selected node
     setEdges((edges) =>
@@ -1041,19 +1065,56 @@ function VisualizationPageInner() {
         if (isConnected) {
           return {
             ...edge,
-            style: { stroke: '#fbbf24', strokeWidth: 3 },
+            style: {
+              stroke: '#fbbf24',
+              strokeWidth: 3,
+              strokeDasharray: '10, 10', // Doubled spacing for dots
+            },
             animated: true,
+            markerEnd: {
+              type: 'arrowclosed',
+              color: '#fbbf24',
+              width: 20,
+              height: 20,
+            },
           };
         }
 
         return {
           ...edge,
-          style: { stroke: '#475569', strokeWidth: 1.5, opacity: 0.3 },
+          style: {
+            stroke: '#475569',
+            strokeWidth: 1.5,
+            opacity: 0.3,
+            strokeDasharray: '5, 5',
+          },
           animated: false,
+          markerEnd: {
+            type: 'arrowclosed',
+            color: '#475569',
+            width: 20,
+            height: 20,
+          },
         };
       })
     );
-  }, [selectedNodeId, setEdges]);
+
+    // Highlight connected nodes with ring
+    setNodes((nodes) =>
+      nodes.map((node) => {
+        if (connectedNodeIds.has(node.id)) {
+          return {
+            ...node,
+            className: 'ring-2 ring-amber-400',
+          };
+        }
+        return {
+          ...node,
+          className: '',
+        };
+      })
+    );
+  }, [selectedNodeId, edges, setEdges, setNodes]);
 
   // Handle node selection
   const onNodeClick = useCallback(
