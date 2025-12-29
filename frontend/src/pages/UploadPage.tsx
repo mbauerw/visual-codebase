@@ -460,12 +460,15 @@ export default function UploadPage() {
 
       {/* Features Section */}
       <section id="features" className="py-20 md:py-14 min-h-[80vh] flex flex-col justify-end px-4 relative overflow-hidden">
-        <img className="absolute top-0 left-0 w-full h-full opacity-100 z-0 blur-sm scale-110 pointer-events-none" src="/hill-trees.jpeg" />
+        <img className="absolute top-0 left-0 w-full h-full opacity-100 z-0 blur-sm scale-110 pointer-events-none" src="/hills-grey.jpeg" />
         {/* Dome-shaped fade overlay - fades top corners, reveals image in dome shape */}
         <div
-          className="absolute top-0 left-0 w-full h-[100%] z-[1] pointer-events-none"
+          className="absolute top-0 left-0 w-full h-[110%] z-[1] pointer-events-none"
           style={{
-            background: 'radial-gradient(ellipse 80% 100% at 50% 100%, transparent 55%, transparent 50%, rgba(250, 250, 250, 0.1) 60%, rgba(250, 250, 250, 0.3) 65%, rgba(250, 250, 250, 0.5) 75%, rgba(250, 250, 250, 0.75) 85%, rgba(250, 250, 250, 0.9) 95%, rgba(250, 250, 250, 1) 100%)'
+            background: `
+              radial-gradient(ellipse 60% 50% at 50% 0%, rgba(250, 250, 250, 0.9) 0%, rgba(250, 250, 250, 0.6) 30%, rgba(250, 250, 250, 0.3) 50%, transparent 70%),
+              radial-gradient(ellipse 80% 100% at 50% 100%, transparent 20%, transparent 50%, rgba(250, 250, 250, 0.1) 60%, rgba(250, 250, 250, 0.3) 65%, rgba(250, 250, 250, 0.5) 75%, rgba(250, 250, 250, 0.75) 85%, rgba(250, 250, 250, 0.9) 95%, rgba(250, 250, 250, 1) 100%)
+            `
           }}
         />
         <div className="max-w-6xl mx-auto z-10 relative">
