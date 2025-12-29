@@ -459,15 +459,14 @@ export default function UploadPage() {
       </section>
 
       {/* Features Section */}
-      <section id="features" className="py-20 md:py-14 min-h-[80vh] flex flex-col justify-end px-4 relative overflow-hidden">
-        <img className="absolute top-0 left-0 w-full h-full opacity-100 z-0 blur-sm scale-110 pointer-events-none" src="/hills-grey.jpeg" />
+      <section id="features" className="py-20 md:py-14 min-h-[95vh] flex flex-col justify-end px-4 relative overflow-hidden">
+        <img className="absolute top-0 left-0 w-full h-full opacity-[0.6] z-0 blur-sm scale-108 pointer-events-none" src="/hills-grey.jpeg" />
         {/* Dome-shaped fade overlay - fades top corners, reveals image in dome shape */}
         <div
-          className="absolute top-0 left-0 w-full h-[110%] z-[1] pointer-events-none"
+          className="absolute top-0 left-0 w-full h-[100%] z-[1] pointer-events-none"
           style={{
             background: `
-              radial-gradient(ellipse 60% 50% at 50% 0%, rgba(250, 250, 250, 0.9) 0%, rgba(250, 250, 250, 0.6) 30%, rgba(250, 250, 250, 0.3) 50%, transparent 70%),
-              radial-gradient(ellipse 80% 100% at 50% 100%, transparent 20%, transparent 50%, rgba(250, 250, 250, 0.1) 60%, rgba(250, 250, 250, 0.3) 65%, rgba(250, 250, 250, 0.5) 75%, rgba(250, 250, 250, 0.75) 85%, rgba(250, 250, 250, 0.9) 95%, rgba(250, 250, 250, 1) 100%)
+              radial-gradient(ellipse 80% 100% at 50% 95%, transparent 20%, transparent 50%, rgba(250, 250, 250, 0.1) 60%, rgba(250, 250, 250, 0.3) 65%, rgba(250, 250, 250, 0.5) 75%, rgba(250, 250, 250, 0.75) 80%, rgba(250, 250, 250, 0.9) 90%, rgba(250, 250, 250, 1) 100%)
             `
           }}
         />
@@ -491,7 +490,7 @@ export default function UploadPage() {
 
           <div className="grid md:grid-cols-3 gap-6 md:gap-8">
             {/* Feature 1 */}
-            <div className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100 hover:shadow-xl hover:ring-2 hover:ring-[#6BA3F5] transition-all duration-500">
+            <div className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100 hover:shadow-xl hover:ring-2 hover:ring-[#6BA3F5] transition-all duration-300">
               <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#8FBCFA] to-[#6BA3F5] flex items-center justify-center mb-6">
                 <GitBranch size={28} className="text-white" />
               </div>
@@ -502,7 +501,7 @@ export default function UploadPage() {
             </div>
 
             {/* Feature 2 */}
-            <div className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100 hover:shadow-xl hover:ring-2 hover:ring-[#FF7A7D] transition-all duration-500">
+            <div className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100 hover:shadow-xl hover:ring-2 hover:ring-[#FF7A7D] transition-all duration-300">
               <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#FF9A9D] to-[#FF7A7D] flex items-center justify-center mb-6">
                 <Zap size={28} className="text-white" />
               </div>
@@ -513,7 +512,7 @@ export default function UploadPage() {
             </div>
 
             {/* Feature 3 */}
-            <div className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100 hover:shadow-xl hover:ring-2 hover:ring-[#F0C560] transition-all duration-500">
+            <div className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100 hover:shadow-xl hover:ring-2 hover:ring-[#F0C560] transition-all duration-300">
               <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#F6D785] to-[#F0C560] flex items-center justify-center mb-6">
                 <Eye size={28} className="text-white" />
               </div>

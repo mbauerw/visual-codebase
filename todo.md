@@ -1,6 +1,12 @@
-- Add onClick listener to category nodes. Include descriptions for each role
-- clean up category node width changing when cycling layouts
+-~~ Add onClick listener to category nodes. Include descriptions for each role~~
+-~~ clean up category node width changing when cycling layouts~~
 - add drag and slide for NodeDetailPanel
-- Change summary for project overview
-- Change visualize page header to include nav bar info
+- ~~Change summary for project overview~~
+- ~~Change visualize page header to include nav bar info~~
 - implement further-analysis button for files
+- add title change for stored analysis
+- do testing
+- add payment options for users
+- adjust file layout
+- change vis page github stuff
+- add layout saving for users who want to adjust layout and store it.
