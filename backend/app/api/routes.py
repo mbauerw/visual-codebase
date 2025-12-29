@@ -132,13 +132,16 @@ async def _run_github_analysis(
 
         logger.info(f"Repository cloned to {temp_dir}")
 
+        # Update job's directory_path to the cloned location
+        if job:
+            job.directory_path = str(temp_dir)
+
         # Run analysis on the cloned directory
         await service.run_analysis(
             analysis_id,
             include_node_modules,
             max_depth,
             user_id,
-            directory_path=str(temp_dir),
         )
 
     except Exception as e:
