@@ -7,6 +7,12 @@ import { useAuth } from '../hooks/useAuth'
 interface Analysis {
   analysis_id: string
   directory_path: string
+  github_repo?: {
+    owner: string
+    repo: string
+    branch?: string
+    path?: string
+  }
   status: string
   progress: number
   file_count: number
@@ -164,10 +170,14 @@ export default function UserDashboard({ open, onClose }: UserDashboardProps) {
                     <div className="flex items-start justify-between mb-4">
                       <div className="flex-1 min-w-0 pr-3">
                         <h3 className="text-lg font-semibold text-gray-900 truncate mb-1">
-                          {analysis.directory_path.split('/').pop() || analysis.directory_path}
+                          {analysis.github_repo
+                            ? `${analysis.github_repo.owner}/${analysis.github_repo.repo}`
+                            : (analysis.directory_path.split('/').pop() || analysis.directory_path)}
                         </h3>
                         <p className="text-sm text-gray-500 truncate">
-                          {analysis.directory_path}
+                          {analysis.github_repo
+                            ? `github.com/${analysis.github_repo.owner}/${analysis.github_repo.repo}`
+                            : analysis.directory_path}
                         </p>
                       </div>
                       <span className={`px-3 py-1 rounded-full text-xs font-medium border ${getStatusStyles(analysis.status)}`}>
