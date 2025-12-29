@@ -120,12 +120,11 @@ async def _run_github_analysis(
     temp_dir = None
     try:
         # Update status to cloning
-        service.update_status(
-            analysis_id,
-            AnalysisStatus.CLONING,
-            progress=5.0,
-            current_step="Cloning repository from GitHub...",
-        )
+        job = service.get_job(analysis_id)
+        if job:
+            job.status = AnalysisStatus.CLONING
+            job.progress = 5.0
+            job.current_step = "Cloning repository from GitHub..."
 
         # Clone the repository
         github_service = GitHubService(access_token=github_token)
@@ -144,12 +143,11 @@ async def _run_github_analysis(
 
     except Exception as e:
         logger.error(f"GitHub analysis failed: {str(e)}")
-        service.update_status(
-            analysis_id,
-            AnalysisStatus.FAILED,
-            progress=0.0,
-            error=str(e),
-        )
+        job = service.get_job(analysis_id)
+        if job:
+            job.status = AnalysisStatus.FAILED
+            job.progress = 0.0
+            job.error = str(e)
     finally:
         # Clean up temporary directory
         if temp_dir:
