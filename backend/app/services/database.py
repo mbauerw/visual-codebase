@@ -1,4 +1,5 @@
 """Database service for storing analysis data in Supabase."""
+import json
 from datetime import datetime
 from typing import Optional, List, Dict, Any
 from uuid import UUID
@@ -226,6 +227,9 @@ class DatabaseService:
 
         # Create metadata
         github_repo_data = analysis_data.get("github_repo")
+        # Parse JSON string if needed (Supabase may return as string)
+        if github_repo_data and isinstance(github_repo_data, str):
+            github_repo_data = json.loads(github_repo_data)
         github_repo = None
         if github_repo_data:
             github_repo = GitHubRepoInfo(
@@ -237,9 +241,13 @@ class DatabaseService:
 
         # Parse summary if present
         summary = None
-        if analysis_data.get("summary"):
+        summary_data = analysis_data.get("summary")
+        if summary_data:
+            # Parse JSON string if needed
+            if isinstance(summary_data, str):
+                summary_data = json.loads(summary_data)
             from ..models.schemas import CodebaseSummary
-            summary = CodebaseSummary(**analysis_data["summary"])
+            summary = CodebaseSummary(**summary_data)
 
         metadata = AnalysisMetadata(
             analysis_id=analysis_data["analysis_id"],
