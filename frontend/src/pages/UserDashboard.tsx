@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react'
-import { X, Trash2, Eye, Calendar, FileCode, GitBranch, Loader2, AlertCircle } from 'lucide-react'
+import { useState, useEffect, useRef } from 'react'
+import { X, Trash2, Eye, Calendar, FileCode, GitBranch, Loader2, AlertCircle, Pencil } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
-import { getUserAnalyses, deleteAnalysis } from '../api/client'
+import { getUserAnalyses, deleteAnalysis, updateAnalysisTitle } from '../api/client'
 import { useAuth } from '../hooks/useAuth'
 
 interface Analysis {
@@ -13,6 +13,7 @@ interface Analysis {
     branch?: string
     path?: string
   }
+  user_title?: string
   status: string
   progress: number
   file_count: number
@@ -33,6 +34,10 @@ export default function UserDashboard({ open, onClose }: UserDashboardProps) {
   const [loading, setLoading] = useState(true)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [analysisToDelete, setAnalysisToDelete] = useState<string | null>(null)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editTitle, setEditTitle] = useState('')
+  const [savingTitle, setSavingTitle] = useState(false)
+  const editInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (user && open) {
@@ -68,6 +73,54 @@ export default function UserDashboard({ open, onClose }: UserDashboardProps) {
   const handleView = (analysisId: string) => {
     navigate(`/visualize?analysis=${analysisId}`)
     onClose()
+  }
+
+  const getDisplayTitle = (analysis: Analysis) => {
+    return analysis.user_title
+      || (analysis.github_repo
+          ? `${analysis.github_repo.owner}/${analysis.github_repo.repo}`
+          : (analysis.directory_path.split('/').pop() || analysis.directory_path))
+  }
+
+  const handleStartEdit = (analysis: Analysis) => {
+    setEditingId(analysis.analysis_id)
+    setEditTitle(analysis.user_title || '')
+    setTimeout(() => editInputRef.current?.focus(), 0)
+  }
+
+  const handleCancelEdit = () => {
+    setEditingId(null)
+    setEditTitle('')
+  }
+
+  const handleSaveTitle = async (analysisId: string) => {
+    try {
+      setSavingTitle(true)
+      const trimmedTitle = editTitle.trim()
+      await updateAnalysisTitle(analysisId, trimmedTitle || null)
+      setAnalyses(prev =>
+        prev.map(a =>
+          a.analysis_id === analysisId
+            ? { ...a, user_title: trimmedTitle || undefined }
+            : a
+        )
+      )
+      setEditingId(null)
+      setEditTitle('')
+    } catch (error) {
+      console.error('Error updating title:', error)
+    } finally {
+      setSavingTitle(false)
+    }
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent, analysisId: string) => {
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      handleSaveTitle(analysisId)
+    } else if (e.key === 'Escape') {
+      handleCancelEdit()
+    }
   }
 
   const formatDate = (dateString: string) => {
@@ -169,11 +222,32 @@ export default function UserDashboard({ open, onClose }: UserDashboardProps) {
                     {/* Card Header */}
                     <div className="flex items-start justify-between mb-4">
                       <div className="flex-1 min-w-0 pr-3">
-                        <h3 className="text-lg font-semibold text-gray-900 truncate mb-1">
-                          {analysis.github_repo
-                            ? `${analysis.github_repo.owner}/${analysis.github_repo.repo}`
-                            : (analysis.directory_path.split('/').pop() || analysis.directory_path)}
-                        </h3>
+                        {editingId === analysis.analysis_id ? (
+                          <div className="flex items-center gap-2 mb-1">
+                            <input
+                              ref={editInputRef}
+                              type="text"
+                              value={editTitle}
+                              onChange={(e) => setEditTitle(e.target.value)}
+                              onKeyDown={(e) => handleKeyDown(e, analysis.analysis_id)}
+                              onBlur={() => handleSaveTitle(analysis.analysis_id)}
+                              placeholder={getDisplayTitle(analysis)}
+                              disabled={savingTitle}
+                              className="flex-1 text-lg font-semibold text-gray-900 bg-gray-50 border border-gray-300 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            />
+                            {savingTitle && <Loader2 size={16} className="text-gray-400 animate-spin" />}
+                          </div>
+                        ) : (
+                          <div
+                            className="group flex items-center gap-2 cursor-pointer mb-1"
+                            onClick={() => handleStartEdit(analysis)}
+                          >
+                            <h3 className="text-lg font-semibold text-gray-900 truncate">
+                              {getDisplayTitle(analysis)}
+                            </h3>
+                            <Pencil size={14} className="text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
+                          </div>
+                        )}
                         <p className="text-sm text-gray-500 truncate">
                           {analysis.github_repo
                             ? `github.com/${analysis.github_repo.owner}/${analysis.github_repo.repo}`

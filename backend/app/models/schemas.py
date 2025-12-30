@@ -136,6 +136,9 @@ class ParsedFile(BaseModel):
         default_factory=list, description="Class names defined in file"
     )
     size_bytes: int = Field(..., description="File size in bytes")
+    content: Optional[str] = Field(
+        default=None, description="Raw file content (populated for storage)"
+    )
     line_count: int = Field(..., description="Number of lines in file")
 
 
@@ -245,6 +248,7 @@ class AnalysisMetadata(BaseModel):
     analysis_id: str = Field(..., description="Unique analysis ID")
     directory_path: Optional[str] = Field(None, description="Analyzed directory path")
     github_repo: Optional[GitHubRepoInfo] = Field(None, description="GitHub repository analyzed")
+    user_title: Optional[str] = Field(None, description="User-customizable display title")
     file_count: int = Field(..., description="Total files analyzed")
     edge_count: int = Field(..., description="Total dependencies found")
     analysis_time_seconds: float = Field(..., description="Time taken for analysis")
@@ -295,6 +299,12 @@ class AnalyzeResponse(BaseModel):
     analysis_id: str = Field(..., description="ID to track the analysis")
     status: AnalysisStatus = Field(..., description="Initial status")
     message: str = Field(..., description="Status message")
+
+
+class UpdateAnalysisRequest(BaseModel):
+    """Request to update analysis metadata."""
+
+    user_title: Optional[str] = Field(None, description="Custom display title for the analysis")
 
 
 # React Flow compatible schemas

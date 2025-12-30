@@ -3,10 +3,11 @@
 - add drag and slide for NodeDetailPanel
 - ~~Change summary for project overview~~
 - ~~Change visualize page header to include nav bar info~~
-- implement further-analysis button for files
 - add title change for stored analysis
+- implement further-analysis button for files
+- adjust file layout
+- add function relations
 - do testing
 - add payment options for users
-- adjust file layout
 - change vis page github stuff
 - add layout saving for users who want to adjust layout and store it.

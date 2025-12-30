@@ -76,3 +76,30 @@ export async function deleteAnalysis(analysisId: string): Promise<{ message: str
   const response = await client.delete<{ message: string }>(`/analysis/${analysisId}`);
   return response.data;
 }
+
+export async function updateAnalysisTitle(
+  analysisId: string,
+  userTitle: string | null
+): Promise<{ message: string }> {
+  const response = await client.patch<{ message: string }>(`/analysis/${analysisId}`, {
+    user_title: userTitle,
+  });
+  return response.data;
+}
+
+export interface FileContentResponse {
+  content: string | null;
+  source: 'database' | 'filesystem';
+  available: boolean;
+  error?: string;
+}
+
+export async function getFileContent(
+  analysisId: string,
+  nodeId: string
+): Promise<FileContentResponse> {
+  const response = await client.get<FileContentResponse>(
+    `/analysis/${analysisId}/file/${encodeURIComponent(nodeId)}/content`
+  );
+  return response.data;
+}

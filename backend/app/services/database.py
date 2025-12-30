@@ -14,6 +14,7 @@ from ..models.schemas import (
     FileNode,
     DependencyEdge,
     GitHubRepoInfo,
+    ParsedFile,
 )
 
 
@@ -87,8 +88,17 @@ class DatabaseService:
         metadata: AnalysisMetadata,
         nodes: List[FileNode],
         edges: List[DependencyEdge],
+        parsed_files: Optional[List[ParsedFile]] = None,
     ) -> None:
-        """Complete an analysis and store all results."""
+        """Complete an analysis and store all results.
+
+        Args:
+            analysis_id: The analysis identifier
+            metadata: Analysis metadata
+            nodes: Graph nodes (files)
+            edges: Graph edges (dependencies)
+            parsed_files: Optional parsed files with content (for GitHub analyses)
+        """
         # Update analysis metadata
         analysis_update = {
             "status": AnalysisStatus.COMPLETED.value,
@@ -161,6 +171,34 @@ class DatabaseService:
 
         if edge_data:
             self.supabase.table("analysis_edges").insert(edge_data).execute()
+
+        # Store file contents for GitHub analyses (source code viewer)
+        if parsed_files:
+            # Create a map of relative_path to content for quick lookup
+            content_map = {
+                pf.relative_path: pf.content
+                for pf in parsed_files
+                if pf.content is not None
+            }
+
+            # Store contents linked to nodes
+            content_data = []
+            for node in nodes:
+                # Look up content by relative path (node.path), but store with node.id (hash)
+                content = content_map.get(node.path)
+                if content:
+                    content_data.append({
+                        "analysis_id": db_analysis_id,
+                        "node_id": node.id,
+                        "content": content,
+                    })
+
+            if content_data:
+                # Insert in batches to avoid hitting request size limits
+                batch_size = 50
+                for i in range(0, len(content_data), batch_size):
+                    batch = content_data[i:i + batch_size]
+                    self.supabase.table("analysis_file_contents").insert(batch).execute()
 
     async def get_analysis_status(self, analysis_id: str) -> Optional[AnalysisStatusResponse]:
         """Get analysis status from database."""
@@ -302,13 +340,120 @@ class DatabaseService:
         """Get all analyses for a user."""
         result = (
             self.supabase.table("analyses")
-            .select("analysis_id, directory_path, github_repo, status, progress, file_count, edge_count, started_at, completed_at")
+            .select("analysis_id, directory_path, github_repo, status, progress, file_count, edge_count, started_at, completed_at, user_title")
             .eq("user_id", user_id)
             .order("started_at", desc=True)
             .execute()
         )
 
         return result.data or []
+
+    async def update_analysis_title(
+        self,
+        analysis_id: str,
+        user_id: str,
+        user_title: Optional[str],
+    ) -> bool:
+        """Update the user-defined title for an analysis."""
+        # Verify ownership first
+        analysis_result = (
+            self.supabase.table("analyses")
+            .select("id")
+            .eq("analysis_id", analysis_id)
+            .eq("user_id", user_id)
+            .execute()
+        )
+
+        if not analysis_result.data:
+            return False
+
+        # Update the title
+        self.supabase.table("analyses").update({
+            "user_title": user_title,
+            "updated_at": datetime.utcnow().isoformat(),
+        }).eq("analysis_id", analysis_id).execute()
+
+        return True
+
+    async def get_file_content(
+        self,
+        analysis_id: str,
+        node_id: str,
+        user_id: str,
+    ) -> Optional[Dict[str, Any]]:
+        """Get file content for a specific node in an analysis.
+
+        Args:
+            analysis_id: The analysis identifier
+            node_id: The node identifier (relative file path)
+            user_id: The user ID (for ownership verification)
+
+        Returns:
+            Dict with 'content' and 'source' keys, or None if not found
+        """
+        # First verify the user owns this analysis and get the DB analysis ID
+        analysis_result = (
+            self.supabase.table("analyses")
+            .select("id, github_repo, directory_path")
+            .eq("analysis_id", analysis_id)
+            .eq("user_id", user_id)
+            .execute()
+        )
+
+        if not analysis_result.data:
+            return None
+
+        analysis_data = analysis_result.data[0]
+        db_analysis_id = analysis_data["id"]
+        is_github = analysis_data.get("github_repo") is not None
+
+        # Try to get content from database (stored for GitHub analyses)
+        content_result = (
+            self.supabase.table("analysis_file_contents")
+            .select("content")
+            .eq("analysis_id", db_analysis_id)
+            .eq("node_id", node_id)
+            .execute()
+        )
+
+        if content_result.data:
+            return {
+                "content": content_result.data[0]["content"],
+                "source": "database",
+                "available": True,
+            }
+
+        # For local analyses, content is not stored - need to get the actual file path
+        if not is_github:
+            # Look up the node's actual path from analysis_nodes table
+            # node_id is a hash, we need the relative path
+            node_result = (
+                self.supabase.table("analysis_nodes")
+                .select("path")
+                .eq("analysis_id", db_analysis_id)
+                .eq("node_id", node_id)
+                .execute()
+            )
+
+            file_path = None
+            if node_result.data:
+                file_path = node_result.data[0]["path"]
+
+            return {
+                "content": None,
+                "source": "filesystem",
+                "available": False,
+                "directory_path": analysis_data.get("directory_path"),
+                "file_path": file_path,  # The actual relative path, not the hash
+            }
+
+        # GitHub analysis but content not found (shouldn't happen normally)
+        return {
+            "content": None,
+            "source": "database",
+            "available": False,
+            "error": "Content not available",
+        }
 
     async def delete_analysis(self, analysis_id: str, user_id: str) -> bool:
         """Delete an analysis and all related data."""

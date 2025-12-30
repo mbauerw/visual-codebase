@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import {
   Box,
   Typography,
@@ -16,19 +16,29 @@ import {
   Modal,
   Fade,
   Backdrop,
+  TextField,
+  CircularProgress,
 } from '@mui/material'
 import {
   Delete as DeleteIcon,
   Visibility as ViewIcon,
   Close as CloseIcon,
+  Edit as EditIcon,
 } from '@mui/icons-material'
 import { useNavigate } from 'react-router-dom'
-import { getUserAnalyses, deleteAnalysis } from '../api/client'
+import { getUserAnalyses, deleteAnalysis, updateAnalysisTitle } from '../api/client'
 import { useAuth } from '../hooks/useAuth'
 
 interface Analysis {
   analysis_id: string
   directory_path: string
+  github_repo?: {
+    owner: string
+    repo: string
+    branch?: string
+    path?: string
+  }
+  user_title?: string
   status: string
   progress: number
   file_count: number
@@ -49,6 +59,10 @@ export default function UserDashboardModal({ open, onClose }: UserDashboardModal
   const [loading, setLoading] = useState(true)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [analysisToDelete, setAnalysisToDelete] = useState<string | null>(null)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editTitle, setEditTitle] = useState('')
+  const [savingTitle, setSavingTitle] = useState(false)
+  const editInputRef = useRef<HTMLInputElement>(null)
 
   // Load analyses when modal opens
   useEffect(() => {
@@ -110,6 +124,54 @@ export default function UserDashboardModal({ open, onClose }: UserDashboardModal
   const handleView = (analysisId: string) => {
     onClose() // Close modal before navigating
     navigate(`/visualize?analysis=${analysisId}`)
+  }
+
+  const getDisplayTitle = (analysis: Analysis) => {
+    return analysis.user_title
+      || (analysis.github_repo
+          ? `${analysis.github_repo.owner}/${analysis.github_repo.repo}`
+          : (analysis.directory_path.split('/').pop() || analysis.directory_path))
+  }
+
+  const handleStartEdit = (analysis: Analysis) => {
+    setEditingId(analysis.analysis_id)
+    setEditTitle(analysis.user_title || '')
+    setTimeout(() => editInputRef.current?.focus(), 0)
+  }
+
+  const handleCancelEdit = () => {
+    setEditingId(null)
+    setEditTitle('')
+  }
+
+  const handleSaveTitle = async (analysisId: string) => {
+    try {
+      setSavingTitle(true)
+      const trimmedTitle = editTitle.trim()
+      await updateAnalysisTitle(analysisId, trimmedTitle || null)
+      setAnalyses(prev =>
+        prev.map(a =>
+          a.analysis_id === analysisId
+            ? { ...a, user_title: trimmedTitle || undefined }
+            : a
+        )
+      )
+      setEditingId(null)
+      setEditTitle('')
+    } catch (error) {
+      console.error('Error updating title:', error)
+    } finally {
+      setSavingTitle(false)
+    }
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent, analysisId: string) => {
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      handleSaveTitle(analysisId)
+    } else if (e.key === 'Escape') {
+      handleCancelEdit()
+    }
   }
 
   const formatDate = (dateString: string) => {
@@ -183,9 +245,44 @@ export default function UserDashboardModal({ open, onClose }: UserDashboardModal
             <Card>
               <CardContent>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
-                  <Typography variant="h6" component="div" sx={{ flexGrow: 1, pr: 1 }}>
-                    {analysis.directory_path.split('/').pop() || analysis.directory_path}
-                  </Typography>
+                  {editingId === analysis.analysis_id ? (
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexGrow: 1, pr: 1 }}>
+                      <TextField
+                        inputRef={editInputRef}
+                        value={editTitle}
+                        onChange={(e) => setEditTitle(e.target.value)}
+                        onKeyDown={(e) => handleKeyDown(e, analysis.analysis_id)}
+                        onBlur={() => handleSaveTitle(analysis.analysis_id)}
+                        placeholder={getDisplayTitle(analysis)}
+                        disabled={savingTitle}
+                        size="small"
+                        fullWidth
+                        autoFocus
+                      />
+                      {savingTitle && <CircularProgress size={16} />}
+                    </Box>
+                  ) : (
+                    <Box
+                      sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 1,
+                        flexGrow: 1,
+                        pr: 1,
+                        cursor: 'pointer',
+                        '&:hover .edit-icon': { opacity: 1 },
+                      }}
+                      onClick={() => handleStartEdit(analysis)}
+                    >
+                      <Typography variant="h6" component="div">
+                        {getDisplayTitle(analysis)}
+                      </Typography>
+                      <EditIcon
+                        className="edit-icon"
+                        sx={{ fontSize: 16, color: 'text.secondary', opacity: 0, transition: 'opacity 0.2s' }}
+                      />
+                    </Box>
+                  )}
                   <Chip
                     label={analysis.status}
                     color={getStatusColor(analysis.status) as any}
@@ -194,7 +291,9 @@ export default function UserDashboardModal({ open, onClose }: UserDashboardModal
                 </Box>
 
                 <Typography color="text.secondary" variant="body2" sx={{ mb: 1 }}>
-                  {analysis.directory_path}
+                  {analysis.github_repo
+                    ? `github.com/${analysis.github_repo.owner}/${analysis.github_repo.repo}`
+                    : analysis.directory_path}
                 </Typography>
 
                 {analysis.status === 'completed' && (

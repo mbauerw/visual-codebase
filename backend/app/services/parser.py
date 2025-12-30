@@ -56,8 +56,16 @@ class FileParser:
             return self.extension_map[ext][1]
         return None
 
-    def parse_file(self, file_path: str, base_path: str) -> Optional[ParsedFile]:
-        """Parse a single file and extract import information."""
+    def parse_file(
+        self, file_path: str, base_path: str, include_content: bool = False
+    ) -> Optional[ParsedFile]:
+        """Parse a single file and extract import information.
+
+        Args:
+            file_path: Absolute path to the file
+            base_path: Base directory for calculating relative paths
+            include_content: If True, include raw file content in result (for storage)
+        """
         try:
             # Read file content
             with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
@@ -108,6 +116,7 @@ class FileParser:
                 classes=classes,
                 size_bytes=size_bytes,
                 line_count=content.count("\n") + 1,
+                content=content if include_content else None,
             )
 
         except Exception as e:
@@ -499,13 +508,21 @@ class FileParser:
         directory: str,
         include_node_modules: bool = False,
         max_depth: Optional[int] = None,
+        include_content: bool = False,
     ) -> list[ParsedFile]:
-        """Parse all supported files in a directory."""
+        """Parse all supported files in a directory.
+
+        Args:
+            directory: Directory to parse
+            include_node_modules: Whether to include node_modules
+            max_depth: Maximum directory depth to traverse
+            include_content: If True, include raw file content (for storage)
+        """
         files = self.walk_directory(directory, include_node_modules, max_depth)
         parsed_files = []
 
         for file_path in files:
-            parsed = self.parse_file(file_path, directory)
+            parsed = self.parse_file(file_path, directory, include_content)
             if parsed:
                 parsed_files.append(parsed)
 

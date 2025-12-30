@@ -44,10 +44,11 @@ import type {
   AnalysisMetadata,
 } from '../types';
 import { roleColors, languageColors, categoryColors, roleLabels } from '../types';
-import GithubEmbed from '../components/GithubEmbed';
 import { useAuth } from '../hooks/useAuth';
 import { AuthModal } from '../components/AuthModal';
 import { getAnalysisResult } from '../api/client';
+import SourceCodePanel from '../components/SourceCodePanel';
+import { useSourceCode } from '../hooks/useSourceCode';
 
 // Define node types with proper typing for React Flow v12
 const nodeTypes: NodeTypes = {
@@ -890,6 +891,30 @@ function VisualizationPageInner() {
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [loading, setLoading] = useState(true);
 
+  // Source code panel state
+  const [isSourcePanelOpen, setIsSourcePanelOpen] = useState(false);
+  const [sourceCodeFile, setSourceCodeFile] = useState<{
+    nodeId: string;
+    fileName: string;
+    language: Language;
+    lineCount: number;
+  } | null>(null);
+
+  // Get analysis ID from URL or from loaded graph data
+  const analysisIdFromUrl = searchParams.get('analysis');
+  const analysisId = analysisIdFromUrl || graphData?.metadata?.analysis_id || null;
+
+  // Fetch source code using the hook
+  const {
+    sourceCode,
+    isLoading: isSourceCodeLoading,
+    error: sourceCodeError,
+  } = useSourceCode({
+    analysisId,
+    nodeId: sourceCodeFile?.nodeId || null,
+    enabled: isSourcePanelOpen && !!sourceCodeFile,
+  });
+
   const handleOpenAuthModal = (tab: number) => {
     setAuthModalTab(tab);
     setAuthModalOpen(true);
@@ -1119,9 +1144,19 @@ function VisualizationPageInner() {
   const onNodeClick = useCallback(
     (_: React.MouseEvent, node: Node) => {
       if (node.type === 'custom') {
+        const nodeData = node.data as ReactFlowNodeData;
         setSelectedCategory(null);
-        setSelectedNode(node.data as ReactFlowNodeData);
+        setSelectedNode(nodeData);
         setSelectedNodeId(node.id);
+
+        // Also open source code panel with this file
+        setSourceCodeFile({
+          nodeId: node.id,
+          fileName: nodeData.label,
+          language: nodeData.language,
+          lineCount: nodeData.line_count,
+        });
+        setIsSourcePanelOpen(true);
       }
       if (node.type === 'category') {
         setSelectedNode(null);
@@ -1132,6 +1167,8 @@ function VisualizationPageInner() {
           nodeCount: node.data.nodeCount,
           description: node.data.description,
         } as CategoryRoleData);
+        // Close source panel when selecting a category
+        setIsSourcePanelOpen(false);
       }
     },
     []
@@ -1526,13 +1563,25 @@ function VisualizationPageInner() {
               </ReactFlow>
             </div>
           </div>
-          <div className="h-[900px] min-h-[800px] w-[80%] bg-none py-10 ">
-            <GithubEmbed
-              owner="facebook"
-              repo="react"
-              initialPath="packages" />
 
-          </div>
+          {/* Source Code Panel - appears below React Flow when a file is selected */}
+          {isSourcePanelOpen && sourceCodeFile && (
+            <div className="w-full max-w-[1400px] h-[900px] min-h-[800px] pb-2  rounded-md ">
+              <SourceCodePanel
+                sourceCode={sourceCode}
+                fileName={sourceCodeFile.fileName}
+                language={sourceCodeFile.language}
+                lineCount={sourceCodeFile.lineCount}
+                isLoading={isSourceCodeLoading}
+                error={sourceCodeError}
+                isOpen={isSourcePanelOpen}
+                onClose={() => {
+                  setIsSourcePanelOpen(false);
+                  setSourceCodeFile(null);
+                }}
+              />
+            </div>
+          )}
 
         </div>
 

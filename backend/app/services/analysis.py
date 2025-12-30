@@ -86,14 +86,23 @@ class AnalysisService:
         include_node_modules: bool = False,
         max_depth: Optional[int] = None,
         user_id: Optional[str] = None,
+        is_github_analysis: bool = False,
     ) -> None:
-        """Run the complete analysis pipeline."""
+        """Run the complete analysis pipeline.
+
+        Args:
+            analysis_id: Unique analysis identifier
+            include_node_modules: Whether to include node_modules in analysis
+            max_depth: Maximum directory depth to traverse
+            user_id: User ID for authenticated users (enables persistence)
+            is_github_analysis: If True, store file contents (GitHub repos are deleted after analysis)
+        """
         job = self.get_job(analysis_id)
         if not job:
             return
 
         start_time = time.time()
-        
+
         # Get database service if user is authenticated
         db_service = None
         if user_id:
@@ -116,8 +125,12 @@ class AnalysisService:
                     analysis_id, job.status, job.progress, job.current_step
                 )
 
+            # For GitHub analyses, include file content for storage (repo is deleted after)
             parsed_files = self._parser.parse_directory(
-                job.directory_path, include_node_modules, max_depth
+                job.directory_path,
+                include_node_modules,
+                max_depth,
+                include_content=is_github_analysis,
             )
 
             job.total_files = len(parsed_files)
@@ -236,7 +249,11 @@ class AnalysisService:
             # Store complete results in database if user is authenticated
             if db_service:
                 await db_service.complete_analysis(
-                    analysis_id, metadata, nodes, edges
+                    analysis_id,
+                    metadata,
+                    nodes,
+                    edges,
+                    parsed_files if is_github_analysis else None,
                 )
 
         except Exception as e:

@@ -472,7 +472,7 @@ export default function UploadPage() {
         />
         <div className="max-w-6xl mx-auto z-10 relative">
           <div className="text-center mb-28">
-            <span className="text-[#FF9A9D] font-semibold text-sm uppercase tracking-wider">Features</span>
+            <span className="text-red-500 font-semibold text-lg uppercase tracking-wider">Features</span>
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
@@ -482,7 +482,7 @@ export default function UploadPage() {
               <h2 className="text-3xl md:text-5xl font-bold text-gray-900 mt-4 mb-6">
                 Everything you need to understand your code
               </h2>
-              <p className="text-gray-700 text-lg max-w-2xl mx-auto">
+              <p className="text-gray-800 text-lg max-w-2xl mx-auto">
                 Powerful tools to analyze, visualize, and comprehend complex codebases
               </p>
             </motion.div>

@@ -11,6 +11,7 @@ from ..models.schemas import (
     AnalysisStatusResponse,
     ReactFlowGraph,
     GitHubRepoInfo,
+    UpdateAnalysisRequest,
 )
 from ..services.analysis import get_analysis_service
 from ..services.database import get_database_service
@@ -137,11 +138,13 @@ async def _run_github_analysis(
             job.directory_path = str(temp_dir)
 
         # Run analysis on the cloned directory
+        # is_github_analysis=True ensures file contents are stored (repo is deleted after)
         await service.run_analysis(
             analysis_id,
             include_node_modules,
             max_depth,
             user_id,
+            is_github_analysis=True,
         )
 
     except Exception as e:
@@ -240,17 +243,97 @@ async def get_user_analyses(current_user = Depends(get_current_user)):
 
 @router.delete("/analysis/{analysis_id}")
 async def delete_analysis(
-    analysis_id: str, 
+    analysis_id: str,
     current_user = Depends(get_current_user)
 ):
     """Delete an analysis (authenticated users only)."""
     db_service = get_database_service()
     success = await db_service.delete_analysis(analysis_id, current_user.id)
-    
+
     if not success:
         raise HTTPException(status_code=404, detail="Analysis not found or not owned by user")
-    
+
     return {"message": "Analysis deleted successfully"}
+
+
+@router.patch("/analysis/{analysis_id}")
+async def update_analysis(
+    analysis_id: str,
+    request: UpdateAnalysisRequest,
+    current_user = Depends(get_current_user)
+):
+    """Update analysis metadata (authenticated users only)."""
+    db_service = get_database_service()
+    success = await db_service.update_analysis_title(
+        analysis_id=analysis_id,
+        user_id=current_user.id,
+        user_title=request.user_title,
+    )
+
+    if not success:
+        raise HTTPException(status_code=404, detail="Analysis not found or not owned by user")
+
+    return {"message": "Analysis updated successfully"}
+
+
+@router.get("/analysis/{analysis_id}/file/{node_id:path}/content")
+async def get_file_content(
+    analysis_id: str,
+    node_id: str,
+    current_user = Depends(get_current_user),
+):
+    """
+    Get file content for a specific node in an analysis.
+
+    For GitHub analyses: Returns stored content from database.
+    For local analyses: Returns info about filesystem path (content not stored).
+    """
+    db_service = get_database_service()
+    result = await db_service.get_file_content(
+        analysis_id=analysis_id,
+        node_id=node_id,
+        user_id=current_user.id,
+    )
+
+    if result is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Analysis not found or not owned by user"
+        )
+
+    if not result.get("available"):
+        if result.get("source") == "filesystem":
+            # For local analyses, try to read from filesystem
+            import os
+            directory_path = result.get("directory_path")
+            relative_path = result.get("file_path")  # The actual relative path from the node
+            if directory_path and relative_path:
+                file_path = os.path.join(directory_path, relative_path)
+                if os.path.exists(file_path):
+                    try:
+                        with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
+                            content = f.read()
+                        return {
+                            "content": content,
+                            "source": "filesystem",
+                            "available": True,
+                        }
+                    except Exception as e:
+                        raise HTTPException(
+                            status_code=500,
+                            detail=f"Failed to read file: {str(e)}"
+                        )
+            raise HTTPException(
+                status_code=404,
+                detail="File not found on filesystem. The original directory may have been moved or deleted."
+            )
+        else:
+            raise HTTPException(
+                status_code=404,
+                detail=result.get("error", "Content not available")
+            )
+
+    return result
 
 
 @router.get("/github/repos")
