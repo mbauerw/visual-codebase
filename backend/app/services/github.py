@@ -193,3 +193,72 @@ class GitHubService:
             except httpx.HTTPError as e:
                 logger.error(f"Failed to list repositories: {e}")
                 raise RuntimeError(f"Failed to fetch repositories: {str(e)}")
+
+    async def list_owner_repos(
+        self,
+        owner: str,
+        page: int = 1,
+        per_page: int = 30,
+        sort: str = "updated",
+        direction: str = "desc",
+    ) -> dict:
+        """List public repositories for a specific GitHub user or organization.
+
+        Args:
+            owner: GitHub username or organization name
+            page: Page number
+            per_page: Results per page (max 100)
+            sort: Sort by created, updated, pushed, full_name
+            direction: Sort direction (asc or desc)
+
+        Returns:
+            Dictionary with repositories and pagination info
+
+        Raises:
+            RuntimeError: If API request fails or user not found
+        """
+        url = f"https://api.github.com/users/{owner}/repos"
+        params = {
+            "page": page,
+            "per_page": min(per_page, 100),
+            "sort": sort,
+            "direction": direction,
+            "type": "all",  # For other users, this returns only public repos
+        }
+
+        # Use authenticated headers if token available (for rate limits),
+        # but this endpoint works without authentication
+        headers = self.headers if self.access_token else {
+            "Accept": "application/vnd.github.v3+json",
+            "X-GitHub-Api-Version": "2022-11-28"
+        }
+
+        async with httpx.AsyncClient() as client:
+            try:
+                response = await client.get(url, headers=headers, params=params)
+                response.raise_for_status()
+
+                repositories = response.json()
+
+                # Check for next page
+                link_header = response.headers.get("Link", "")
+                has_next = 'rel="next"' in link_header
+
+                return {
+                    "repositories": repositories,
+                    "total_count": len(repositories),
+                    "has_next_page": has_next,
+                    "next_page": page + 1 if has_next else None,
+                    "owner": owner,
+                    "is_own_repos": False,
+                }
+
+            except httpx.HTTPStatusError as e:
+                if e.response.status_code == 404:
+                    logger.error(f"GitHub user '{owner}' not found")
+                    raise RuntimeError(f"GitHub user '{owner}' not found")
+                logger.error(f"Failed to list repositories for {owner}: {e}")
+                raise RuntimeError(f"Failed to fetch repositories: {str(e)}")
+            except httpx.HTTPError as e:
+                logger.error(f"Failed to list repositories for {owner}: {e}")
+                raise RuntimeError(f"Failed to fetch repositories: {str(e)}")

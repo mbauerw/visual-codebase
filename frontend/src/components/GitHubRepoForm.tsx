@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { GitBranch, AlertCircle, Link2, List } from 'lucide-react';
+import { GitBranch, AlertCircle, Link2, List, Users, Search, X } from 'lucide-react';
 import { GitHubRepoInfo } from '../types';
 import { User } from '@supabase/supabase-js';
 import GitHubRepoSelector from './github/GitHubRepoSelector';
@@ -15,29 +15,74 @@ interface GitHubRepoFormProps {
   setMaxDepth: (value: number | null) => void;
 }
 
-const GITHUB_URL_REGEX = /^(?:https?:\/\/)?(?:www\.)?github\.com\/([a-zA-Z0-9_-]+)\/([a-zA-Z0-9_.-]+)(?:\.git)?(?:\/tree\/([^\/]+)(?:\/(.*))?)?$/;
+// Regex patterns for URL mode (repo URLs only)
+const GITHUB_REPO_URL_REGEX = /^(?:https?:\/\/)?(?:www\.)?github\.com\/([a-zA-Z0-9_-]+)\/([a-zA-Z0-9_.-]+)(?:\.git)?(?:\/tree\/([^\/]+)(?:\/(.*))?)?$/;
+const SIMPLE_OWNER_REPO_REGEX = /^([a-zA-Z0-9_-]+)\/([a-zA-Z0-9_.-]+)$/;
 
-function parseGitHubUrl(url: string): GitHubRepoInfo | null {
+// Username validation for browse mode
+const SIMPLE_OWNER_REGEX = /^[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,37}[a-zA-Z0-9])?$/;
+
+function isValidGitHubUsername(username: string): boolean {
+  if (!username || username.length > 39) return false;
+  if (username.includes('--')) return false;
+  return SIMPLE_OWNER_REGEX.test(username);
+}
+
+// Parse repo URL only (for URL mode)
+function parseRepoUrl(url: string): GitHubRepoInfo | null {
   const trimmedUrl = url.trim();
+  if (!trimmedUrl) return null;
 
-  // Try full URL pattern first
-  const match = trimmedUrl.match(GITHUB_URL_REGEX);
-  if (match) {
+  // Try full URL pattern (github.com/owner/repo)
+  const repoUrlMatch = trimmedUrl.match(GITHUB_REPO_URL_REGEX);
+  if (repoUrlMatch) {
     return {
-      owner: match[1],
-      repo: match[2].replace(/\.git$/, ''),
-      branch: match[3] || undefined,
-      path: match[4] || undefined,
+      owner: repoUrlMatch[1],
+      repo: repoUrlMatch[2].replace(/\.git$/, ''),
+      branch: repoUrlMatch[3] || undefined,
+      path: repoUrlMatch[4] || undefined,
     };
   }
 
   // Try simple owner/repo format
-  const simpleMatch = trimmedUrl.match(/^([a-zA-Z0-9_-]+)\/([a-zA-Z0-9_.-]+)$/);
-  if (simpleMatch) {
+  const simpleRepoMatch = trimmedUrl.match(SIMPLE_OWNER_REPO_REGEX);
+  if (simpleRepoMatch) {
     return {
-      owner: simpleMatch[1],
-      repo: simpleMatch[2],
+      owner: simpleRepoMatch[1],
+      repo: simpleRepoMatch[2],
     };
+  }
+
+  return null;
+}
+
+// Extract owner from various input formats (for browse mode)
+function parseOwnerInput(input: string): string | null {
+  const trimmedInput = input.trim();
+  if (!trimmedInput) return null;
+
+  // Try github.com/owner or github.com/owner/ URL format
+  const ownerUrlRegex = /^(?:https?:\/\/)?(?:www\.)?github\.com\/([a-zA-Z0-9](?:[a-zA-Z0-9-]{0,37}[a-zA-Z0-9])?)\/?$/;
+  const ownerUrlMatch = trimmedInput.match(ownerUrlRegex);
+  if (ownerUrlMatch) {
+    return ownerUrlMatch[1];
+  }
+
+  // Try github.com/owner/repo format - extract just the owner
+  const repoUrlMatch = trimmedInput.match(GITHUB_REPO_URL_REGEX);
+  if (repoUrlMatch) {
+    return repoUrlMatch[1];
+  }
+
+  // Try owner/repo format - extract just the owner
+  const simpleRepoMatch = trimmedInput.match(SIMPLE_OWNER_REPO_REGEX);
+  if (simpleRepoMatch) {
+    return simpleRepoMatch[1];
+  }
+
+  // Try simple username
+  if (isValidGitHubUsername(trimmedInput)) {
+    return trimmedInput;
   }
 
   return null;
@@ -59,7 +104,12 @@ export default function GitHubRepoForm({
   const [selectedRepo, setSelectedRepo] = useState<GitHubRepoInfo | null>(null);
   const [validationError, setValidationError] = useState<string | null>(null);
 
-  // Parse URL when it changes
+  // Browse mode state
+  const [ownerSearchInput, setOwnerSearchInput] = useState('');
+  const [browseOwner, setBrowseOwner] = useState<string | null>(null);
+  const [ownerSearchError, setOwnerSearchError] = useState<string | null>(null);
+
+  // Parse repo URL when it changes (URL mode only)
   useEffect(() => {
     if (!repoUrl.trim()) {
       setParsedRepo(null);
@@ -67,7 +117,7 @@ export default function GitHubRepoForm({
       return;
     }
 
-    const parsed = parseGitHubUrl(repoUrl);
+    const parsed = parseRepoUrl(repoUrl);
     if (parsed) {
       setParsedRepo(parsed);
       setValidationError(null);
@@ -76,6 +126,42 @@ export default function GitHubRepoForm({
       setValidationError('Please enter a valid GitHub repository URL or owner/repo format');
     }
   }, [repoUrl]);
+
+  // Handle owner search in browse mode
+  const handleOwnerSearch = () => {
+    const owner = parseOwnerInput(ownerSearchInput);
+    if (owner) {
+      setBrowseOwner(owner);
+      setOwnerSearchError(null);
+      setSelectedRepo(null);
+    } else if (ownerSearchInput.trim()) {
+      setOwnerSearchError('Please enter a valid GitHub username or URL');
+    }
+  };
+
+  // Handle Enter key in owner search
+  const handleOwnerSearchKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleOwnerSearch();
+    }
+  };
+
+  // Clear owner search and return to own repos
+  const handleClearOwnerSearch = () => {
+    setBrowseOwner(null);
+    setOwnerSearchInput('');
+    setOwnerSearchError(null);
+    setSelectedRepo(null);
+  };
+
+  // Handle mode change
+  const handleModeChange = (mode: 'url' | 'browse') => {
+    setInputMode(mode);
+    setSelectedRepo(null);
+    setValidationError(null);
+    // Don't clear browse owner when switching modes - preserve state
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -130,7 +216,7 @@ export default function GitHubRepoForm({
       <div className="flex gap-2 p-1 bg-gray-100 rounded-lg">
         <button
           type="button"
-          onClick={() => setInputMode('browse')}
+          onClick={() => handleModeChange('browse')}
           className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-md font-medium transition-all ${
             inputMode === 'browse'
               ? 'bg-white text-gray-900 shadow-sm'
@@ -142,7 +228,7 @@ export default function GitHubRepoForm({
         </button>
         <button
           type="button"
-          onClick={() => setInputMode('url')}
+          onClick={() => handleModeChange('url')}
           className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-md font-medium transition-all ${
             inputMode === 'url'
               ? 'bg-white text-gray-900 shadow-sm'
@@ -156,10 +242,76 @@ export default function GitHubRepoForm({
 
       {/* Browse Mode - Repository Selector */}
       {inputMode === 'browse' && (
-        <div>
+        <div className="space-y-4">
+          {/* Owner Search Input */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Browse repositories by owner
+            </label>
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <Users size={18} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                <input
+                  type="text"
+                  value={ownerSearchInput}
+                  onChange={(e) => {
+                    setOwnerSearchInput(e.target.value);
+                    setOwnerSearchError(null);
+                  }}
+                  onKeyDown={handleOwnerSearchKeyDown}
+                  placeholder="Enter username or GitHub URL (leave empty for your repos)"
+                  className={`w-full pl-10 pr-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-gray-900 focus:border-transparent ${
+                    ownerSearchError ? 'border-red-300' : 'border-gray-300'
+                  }`}
+                />
+              </div>
+              <button
+                type="button"
+                onClick={handleOwnerSearch}
+                disabled={!ownerSearchInput.trim()}
+                className="px-4 py-2.5 bg-gray-900 hover:bg-gray-800 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
+              >
+                <Search size={18} />
+              </button>
+            </div>
+            {ownerSearchError && (
+              <div className="mt-2 flex items-start gap-2 text-red-600 text-sm">
+                <AlertCircle size={16} className="mt-0.5 flex-shrink-0" />
+                <span>{ownerSearchError}</span>
+              </div>
+            )}
+          </div>
+
+          {/* Current browsing context indicator */}
+          {browseOwner ? (
+            <div className="flex items-center justify-between p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="flex items-center gap-2 text-blue-800">
+                <Users size={18} />
+                <span>
+                  Browsing <span className="font-semibold">{browseOwner}</span>'s public repositories
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={handleClearOwnerSearch}
+                className="flex items-center gap-1 text-blue-600 hover:text-blue-800 text-sm font-medium"
+              >
+                <X size={16} />
+                Back to my repos
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 p-3 bg-gray-50 border border-gray-200 rounded-lg text-gray-600">
+              <Users size={18} />
+              <span>Showing your repositories</span>
+            </div>
+          )}
+
+          {/* Repository Selector */}
           <GitHubRepoSelector
             onSelect={handleRepoSelect}
             selectedRepo={selectedRepo ?? undefined}
+            externalOwner={browseOwner ?? undefined}
           />
         </div>
       )}

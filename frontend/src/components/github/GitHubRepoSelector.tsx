@@ -1,26 +1,53 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Search, Star, GitFork, Lock, Globe, Loader2, AlertCircle, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useGitHubRepos } from '../../hooks/useGitHubRepos';
+import { useOwnerRepos, OwnerRepoError } from '../../hooks/useOwnerRepos';
 import type { GitHubRepository, GitHubRepoInfo } from '../../types';
 
 interface GitHubRepoSelectorProps {
   onSelect: (repo: GitHubRepoInfo) => void;
   selectedRepo?: GitHubRepoInfo;
+  externalOwner?: string;
 }
 
-export default function GitHubRepoSelector({ onSelect, selectedRepo }: GitHubRepoSelectorProps) {
+export default function GitHubRepoSelector({ onSelect, selectedRepo, externalOwner }: GitHubRepoSelectorProps) {
   const [page, setPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState<'all' | 'public' | 'private'>('all');
   const [sortBy, setSortBy] = useState<'updated' | 'created' | 'pushed' | 'full_name'>('updated');
 
-  const { data, isLoading, error, isFetching } = useGitHubRepos({
+  // Reset page when external owner changes
+  useEffect(() => {
+    setPage(1);
+  }, [externalOwner]);
+
+  // Use different hooks based on whether we're browsing external owner
+  const ownReposQuery = useGitHubRepos({
     page,
     perPage: 10,
     sort: sortBy,
     direction: 'desc',
     type: typeFilter,
+    enabled: !externalOwner,
   });
+
+  const externalReposQuery = useOwnerRepos({
+    owner: externalOwner || '',
+    page,
+    perPage: 10,
+    sort: sortBy,
+    direction: 'desc',
+    enabled: !!externalOwner,
+  });
+
+  // Select active query based on mode
+  const activeQuery = externalOwner ? externalReposQuery : ownReposQuery;
+  const { data, isLoading, isFetching } = activeQuery;
+
+  // Handle errors from both query types
+  const error = externalOwner
+    ? (externalReposQuery.error as OwnerRepoError | null)
+    : (ownReposQuery.error as Error | null);
 
   // Filter repositories based on search query
   const filteredRepos = useMemo(() => {
@@ -66,17 +93,41 @@ export default function GitHubRepoSelector({ onSelect, selectedRepo }: GitHubRep
   };
 
   if (error) {
+    const errorMessage = externalOwner && 'type' in error
+      ? (error as OwnerRepoError).message
+      : (error as Error).message;
+
+    const errorType = externalOwner && 'type' in error ? (error as OwnerRepoError).type : 'unknown';
+    const isNotFound = errorType === 'not_found';
+    const isRateLimited = errorType === 'rate_limited';
+
+    // Determine styling based on error type
+    const bgColor = isNotFound ? 'bg-yellow-50 border-yellow-200' : 'bg-red-50 border-red-200';
+    const iconColor = isNotFound ? 'text-yellow-500' : 'text-red-500';
+    const titleColor = isNotFound ? 'text-yellow-900' : 'text-red-900';
+    const textColor = isNotFound ? 'text-yellow-700' : 'text-red-700';
+
+    const getTitle = () => {
+      if (isNotFound) return 'User not found';
+      if (isRateLimited) return 'Rate limit exceeded';
+      return 'Failed to load repositories';
+    };
+
     return (
-      <div className="bg-red-50 border border-red-200 rounded-xl p-6 text-center">
-        <AlertCircle size={48} className="mx-auto text-red-500 mb-3" />
-        <h3 className="text-lg font-semibold text-red-900 mb-2">Failed to load repositories</h3>
-        <p className="text-red-700 text-sm">{error.message}</p>
-        <button
-          onClick={() => window.location.reload()}
-          className="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-        >
-          Retry
-        </button>
+      <div className={`border rounded-xl p-6 text-center ${bgColor}`}>
+        <AlertCircle size={48} className={`mx-auto mb-3 ${iconColor}`} />
+        <h3 className={`text-lg font-semibold mb-2 ${titleColor}`}>
+          {getTitle()}
+        </h3>
+        <p className={`text-sm ${textColor}`}>{errorMessage}</p>
+        {!isNotFound && (
+          <button
+            onClick={() => activeQuery.refetch()}
+            className="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+          >
+            {isRateLimited ? 'Try Again' : 'Retry'}
+          </button>
+        )}
       </div>
     );
   }
@@ -97,19 +148,29 @@ export default function GitHubRepoSelector({ onSelect, selectedRepo }: GitHubRep
         </div>
 
         <div className="flex gap-3 flex-wrap">
-          {/* Type Filter */}
-          <select
-            value={typeFilter}
-            onChange={(e) => {
-              setTypeFilter(e.target.value as 'all' | 'public' | 'private');
-              setPage(1);
-            }}
-            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-900 focus:border-transparent text-sm"
-          >
-            <option value="all">All repositories</option>
-            <option value="public">Public only</option>
-            <option value="private">Private only</option>
-          </select>
+          {/* Type Filter - Only show when browsing own repos */}
+          {!externalOwner && (
+            <select
+              value={typeFilter}
+              onChange={(e) => {
+                setTypeFilter(e.target.value as 'all' | 'public' | 'private');
+                setPage(1);
+              }}
+              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-900 focus:border-transparent text-sm"
+            >
+              <option value="all">All repositories</option>
+              <option value="public">Public only</option>
+              <option value="private">Private only</option>
+            </select>
+          )}
+
+          {/* Public repos indicator for external owner */}
+          {externalOwner && (
+            <div className="px-3 py-2 bg-gray-100 text-gray-600 rounded-lg text-sm flex items-center gap-1">
+              <Globe size={14} />
+              Public repos only
+            </div>
+          )}
 
           {/* Sort Filter */}
           <select
@@ -133,11 +194,21 @@ export default function GitHubRepoSelector({ onSelect, selectedRepo }: GitHubRep
         {isLoading ? (
           <div className="flex flex-col items-center justify-center py-12">
             <Loader2 size={48} className="text-gray-400 animate-spin mb-3" />
-            <p className="text-gray-600">Loading repositories...</p>
+            <p className="text-gray-600">
+              {externalOwner
+                ? `Loading ${externalOwner}'s repositories...`
+                : 'Loading your repositories...'}
+            </p>
           </div>
         ) : filteredRepos.length === 0 ? (
           <div className="text-center py-12">
-            <p className="text-gray-600">No repositories found</p>
+            <p className="text-gray-600">
+              {searchQuery.trim()
+                ? 'No repositories match your search'
+                : externalOwner
+                  ? `${externalOwner} has no public repositories`
+                  : 'No repositories found'}
+            </p>
           </div>
         ) : (
           <>

@@ -1,4 +1,5 @@
 import asyncio
+import re
 from fastapi import FastAPI, APIRouter, BackgroundTasks, HTTPException, Depends, Header
 from pathlib import Path
 from typing import Optional
@@ -336,6 +337,26 @@ async def get_file_content(
     return result
 
 
+# GitHub username validation: alphanumeric and hyphens, 1-39 chars, cannot start/end with hyphen
+GITHUB_USERNAME_PATTERN = re.compile(r'^[a-zA-Z0-9]([a-zA-Z0-9-]{0,37}[a-zA-Z0-9])?$|^[a-zA-Z0-9]$')
+
+
+def validate_github_username(username: str) -> bool:
+    """Validate GitHub username format.
+
+    GitHub username rules:
+    - 1-39 characters
+    - Alphanumeric characters or hyphens
+    - Cannot start or end with a hyphen
+    - Cannot have consecutive hyphens
+    """
+    if not username or len(username) > 39:
+        return False
+    if '--' in username:
+        return False
+    return bool(GITHUB_USERNAME_PATTERN.match(username))
+
+
 @router.get("/github/repos")
 async def get_github_repositories(
     page: int = 1,
@@ -369,6 +390,65 @@ async def get_github_repositories(
         return result
     except Exception as e:
         logger.error(f"Failed to fetch GitHub repositories: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to fetch repositories: {str(e)}",
+        )
+
+
+@router.get("/github/users/{owner}/repos")
+async def get_owner_repositories(
+    owner: str,
+    page: int = 1,
+    per_page: int = 30,
+    sort: str = "updated",
+    direction: str = "desc",
+    current_user = Depends(get_current_user),
+    x_github_token: Optional[str] = Header(None, alias="X-GitHub-Token"),
+):
+    """
+    Get public repositories for a specific GitHub user or organization.
+
+    This endpoint returns only public repositories. Private repositories
+    are not accessible via this endpoint.
+
+    Args:
+        owner: GitHub username or organization name
+        page: Page number (default: 1)
+        per_page: Results per page (default: 30, max: 100)
+        sort: Sort field - created, updated, pushed, full_name (default: updated)
+        direction: Sort direction - asc or desc (default: desc)
+    """
+    # Validate owner username format
+    if not validate_github_username(owner):
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid GitHub username format. Usernames must be 1-39 characters, "
+                   "alphanumeric or hyphens, and cannot start/end with a hyphen.",
+        )
+
+    try:
+        # Use GitHub token if available (for rate limits), but not required
+        github_service = GitHubService(access_token=x_github_token)
+        result = await github_service.list_owner_repos(
+            owner=owner,
+            page=page,
+            per_page=per_page,
+            sort=sort,
+            direction=direction,
+        )
+        return result
+    except RuntimeError as e:
+        error_msg = str(e)
+        if "not found" in error_msg.lower():
+            raise HTTPException(status_code=404, detail=error_msg)
+        logger.error(f"Failed to fetch repositories for {owner}: {error_msg}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to fetch repositories: {error_msg}",
+        )
+    except Exception as e:
+        logger.error(f"Failed to fetch repositories for {owner}: {str(e)}")
         raise HTTPException(
             status_code=500,
             detail=f"Failed to fetch repositories: {str(e)}",

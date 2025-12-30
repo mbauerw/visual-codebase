@@ -81,6 +81,11 @@ export interface GitHubRepoListResponse {
   next_page: number | null;
 }
 
+export interface GitHubOwnerRepoListResponse extends GitHubRepoListResponse {
+  owner: string;
+  is_own_repos: boolean;
+}
+
 // Request types
 export interface AnalyzeRequest {
   directory_path?: string;
