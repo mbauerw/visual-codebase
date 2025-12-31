@@ -1,17 +1,53 @@
 """GitHub service for cloning and managing repositories."""
 import asyncio
 import logging
+import os
+import re
 import shutil
+import stat
 import tempfile
 from pathlib import Path
 from typing import Optional
 import httpx
 
 from app.models.schemas import GitHubRepoInfo
+from app.security import validate_path_within_base, PathTraversalError
 from app.settings import get_settings
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
+
+
+def _sanitize_git_error(error_message: str) -> str:
+    """Remove any potential secrets from git error messages.
+
+    Git error messages may contain URLs with embedded tokens.
+    This function sanitizes such messages to prevent token leakage.
+
+    Args:
+        error_message: The raw error message from git
+
+    Returns:
+        Sanitized error message with tokens redacted
+    """
+    # Pattern to match URLs with embedded credentials
+    # Matches: https://TOKEN@github.com or https://username:TOKEN@github.com
+    url_pattern = r'https://[^@\s]+@github\.com'
+    sanitized = re.sub(url_pattern, 'https://[REDACTED]@github.com', error_message)
+
+    # Also redact any raw token-like strings (40 char hex for classic tokens,
+    # or ghp_/gho_/ghs_/ghu_ prefixed tokens)
+    token_patterns = [
+        r'ghp_[a-zA-Z0-9]{36,}',  # Personal access tokens
+        r'gho_[a-zA-Z0-9]{36,}',  # OAuth tokens
+        r'ghs_[a-zA-Z0-9]{36,}',  # Server-to-server tokens
+        r'ghu_[a-zA-Z0-9]{36,}',  # User-to-server tokens
+        r'github_pat_[a-zA-Z0-9_]{22,}',  # Fine-grained PATs
+    ]
+    for pattern in token_patterns:
+        sanitized = re.sub(pattern, '[REDACTED]', sanitized)
+
+    return sanitized
 
 
 class GitHubService:
@@ -37,6 +73,9 @@ class GitHubService:
     ) -> Path:
         """Clone a GitHub repository to a temporary directory.
 
+        Uses secure credential passing via GIT_ASKPASS to avoid exposing
+        tokens in command line arguments or process listings.
+
         Args:
             repo_info: Repository information
             temp_dir: Optional temporary directory to use
@@ -51,12 +90,8 @@ class GitHubService:
         if temp_dir is None:
             temp_dir = Path(tempfile.mkdtemp(prefix="github_repo_"))
 
-        # Build clone URL
+        # Build clone URL (never embed credentials in URL)
         clone_url = f"https://github.com/{repo_info.owner}/{repo_info.repo}.git"
-
-        # Use authenticated URL if token is available
-        if self.access_token and self.access_token != "":
-            clone_url = f"https://{self.access_token}@github.com/{repo_info.owner}/{repo_info.repo}.git"
 
         # Build git clone command
         branch = repo_info.branch or "main"
@@ -72,26 +107,50 @@ class GitHubService:
 
         logger.info(f"Cloning repository {repo_info.owner}/{repo_info.repo} (branch: {branch})")
 
+        askpass_script_path = None
         try:
-            # Run git clone
+            # Set up environment for credential passing
+            env = os.environ.copy()
+
+            if self.access_token and self.access_token != "":
+                # Create a temporary GIT_ASKPASS script that outputs the token
+                # This avoids exposing the token in command line arguments
+                askpass_script_path = self._create_askpass_script(self.access_token)
+                env["GIT_ASKPASS"] = str(askpass_script_path)
+                # Disable terminal prompts to ensure GIT_ASKPASS is used
+                env["GIT_TERMINAL_PROMPT"] = "0"
+
+            # Run git clone with secure credential passing
             process = await asyncio.create_subprocess_exec(
                 *cmd,
                 stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE
+                stderr=asyncio.subprocess.PIPE,
+                env=env
             )
 
             stdout, stderr = await process.communicate()
 
             if process.returncode != 0:
                 error_msg = stderr.decode() if stderr else "Unknown error"
-                logger.error(f"Git clone failed: {error_msg}")
-                raise RuntimeError(f"Failed to clone repository: {error_msg}")
+                # Sanitize error message to prevent token leakage
+                sanitized_error = _sanitize_git_error(error_msg)
+                logger.error(f"Git clone failed: {sanitized_error}")
+                raise RuntimeError(f"Failed to clone repository: {sanitized_error}")
 
             logger.info(f"Successfully cloned to {temp_dir}")
 
             # If a subdirectory path is specified, return that path
             if repo_info.path:
-                repo_path = temp_dir / repo_info.path
+                # Validate path to prevent path traversal attacks
+                try:
+                    repo_path = validate_path_within_base(
+                        temp_dir,
+                        repo_info.path,
+                        error_message=f"Invalid subdirectory path: {repo_info.path}"
+                    )
+                except PathTraversalError as e:
+                    raise RuntimeError(str(e))
+
                 if not repo_path.exists():
                     raise RuntimeError(f"Subdirectory {repo_info.path} does not exist in repository")
                 return repo_path
@@ -102,7 +161,48 @@ class GitHubService:
             # Clean up on failure
             if temp_dir.exists():
                 shutil.rmtree(temp_dir, ignore_errors=True)
-            raise RuntimeError(f"Failed to clone repository: {str(e)}")
+            # Sanitize any error message
+            sanitized_error = _sanitize_git_error(str(e))
+            raise RuntimeError(f"Failed to clone repository: {sanitized_error}")
+        finally:
+            # Always clean up the askpass script
+            if askpass_script_path and askpass_script_path.exists():
+                try:
+                    askpass_script_path.unlink()
+                except OSError:
+                    pass  # Best effort cleanup
+
+    def _create_askpass_script(self, token: str) -> Path:
+        """Create a temporary script for GIT_ASKPASS credential passing.
+
+        This creates a minimal shell script that outputs the token when called.
+        Git calls this script with a prompt string when it needs credentials.
+
+        Args:
+            token: The GitHub access token
+
+        Returns:
+            Path to the temporary script file
+        """
+        # Create a temporary file for the askpass script
+        fd, script_path = tempfile.mkstemp(prefix="git_askpass_", suffix=".sh")
+
+        try:
+            # Write the script content
+            # The script echoes the token as the password
+            # Git calls this script with prompts like "Password for 'https://github.com':"
+            script_content = f"""#!/bin/sh
+echo "{token}"
+"""
+            os.write(fd, script_content.encode())
+        finally:
+            os.close(fd)
+
+        # Make the script executable (owner only for security)
+        script_path_obj = Path(script_path)
+        script_path_obj.chmod(stat.S_IRWXU)  # rwx for owner only
+
+        return script_path_obj
 
     async def get_default_branch(self, owner: str, repo: str) -> str:
         """Get the default branch of a repository.

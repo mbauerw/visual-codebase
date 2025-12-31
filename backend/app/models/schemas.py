@@ -1,8 +1,9 @@
 """Pydantic schemas for the Visual Codebase API."""
+import re
 from datetime import datetime
 from enum import Enum
 from typing import Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class Language(str, Enum):
@@ -68,13 +69,111 @@ class AnalysisStatus(str, Enum):
 
 
 # GitHub schemas
+# Regex patterns for GitHub naming validation
+# Owner/repo: alphanumeric, hyphens, underscores, dots
+# Cannot start/end with special chars, no consecutive special chars
+_GITHUB_NAME_PATTERN = re.compile(
+    r"^[a-zA-Z0-9](?:[a-zA-Z0-9]|[-_.](?=[a-zA-Z0-9]))*[a-zA-Z0-9]$|^[a-zA-Z0-9]$"
+)
+# Branch: alphanumeric, dots, hyphens, underscores, forward slashes
+# Cannot start/end with slash, no consecutive slashes, no ".." sequences
+_BRANCH_NAME_PATTERN = re.compile(
+    r"^(?!.*\.\.)[a-zA-Z0-9](?:[a-zA-Z0-9._/-]*[a-zA-Z0-9._-])?$|^[a-zA-Z0-9]$"
+)
+
+
 class GitHubRepoInfo(BaseModel):
     """GitHub repository information."""
 
-    owner: str = Field(..., description="Repository owner")
-    repo: str = Field(..., description="Repository name")
-    branch: Optional[str] = Field(default=None, description="Branch to analyze")
-    path: Optional[str] = Field(default=None, description="Subdirectory path")
+    owner: str = Field(..., description="Repository owner", min_length=1, max_length=39)
+    repo: str = Field(..., description="Repository name", min_length=1, max_length=100)
+    branch: Optional[str] = Field(default=None, description="Branch to analyze", max_length=256)
+    path: Optional[str] = Field(default=None, description="Subdirectory path", max_length=4096)
+
+    @field_validator("owner")
+    @classmethod
+    def validate_owner(cls, v: str) -> str:
+        """Validate GitHub owner name to prevent command injection."""
+        if not v or not v.strip():
+            raise ValueError("Owner cannot be empty")
+        v = v.strip()
+        if not _GITHUB_NAME_PATTERN.match(v):
+            raise ValueError(
+                "Invalid owner name. Must contain only alphanumeric characters, "
+                "hyphens, underscores, or dots. Cannot start or end with special "
+                "characters or have consecutive special characters."
+            )
+        return v
+
+    @field_validator("repo")
+    @classmethod
+    def validate_repo(cls, v: str) -> str:
+        """Validate GitHub repository name to prevent command injection."""
+        if not v or not v.strip():
+            raise ValueError("Repository name cannot be empty")
+        v = v.strip()
+        if not _GITHUB_NAME_PATTERN.match(v):
+            raise ValueError(
+                "Invalid repository name. Must contain only alphanumeric characters, "
+                "hyphens, underscores, or dots. Cannot start or end with special "
+                "characters or have consecutive special characters."
+            )
+        return v
+
+    @field_validator("branch")
+    @classmethod
+    def validate_branch(cls, v: Optional[str]) -> Optional[str]:
+        """Validate branch name to prevent command injection."""
+        if v is None:
+            return v
+        if not v.strip():
+            return None
+        v = v.strip()
+        # Check for dangerous characters that could enable command injection
+        dangerous_chars = [";", "&", "|", "$", "`", "(", ")", "{", "}", "<", ">", "\\", "\n", "\r", "\t", "'", '"']
+        for char in dangerous_chars:
+            if char in v:
+                raise ValueError(f"Branch name contains invalid character: {repr(char)}")
+        # Check for ".." sequences (path traversal in branch names)
+        if ".." in v:
+            raise ValueError("Branch name cannot contain '..' sequences")
+        # Validate against branch name pattern
+        if not _BRANCH_NAME_PATTERN.match(v):
+            raise ValueError(
+                "Invalid branch name. Must contain only alphanumeric characters, "
+                "dots, hyphens, underscores, or forward slashes. Cannot start or "
+                "end with a slash."
+            )
+        return v
+
+    @field_validator("path")
+    @classmethod
+    def validate_path(cls, v: Optional[str]) -> Optional[str]:
+        """Validate subdirectory path to prevent path traversal attacks."""
+        if v is None:
+            return v
+        if not v.strip():
+            return None
+        v = v.strip()
+        # Check for path traversal attempts
+        if ".." in v:
+            raise ValueError("Path cannot contain '..' sequences (path traversal not allowed)")
+        # Check for absolute paths
+        if v.startswith("/") or v.startswith("\\"):
+            raise ValueError("Path must be relative, not absolute")
+        # Check for Windows-style absolute paths (e.g., C:\)
+        if len(v) >= 2 and v[1] == ":":
+            raise ValueError("Path must be relative, not absolute")
+        # Check for dangerous characters that could enable command injection
+        dangerous_chars = [";", "&", "|", "$", "`", "(", ")", "{", "}", "<", ">", "\n", "\r", "\t", "'", '"']
+        for char in dangerous_chars:
+            if char in v:
+                raise ValueError(f"Path contains invalid character: {repr(char)}")
+        # Normalize path separators and validate
+        v = v.replace("\\", "/")
+        # Remove leading/trailing slashes for consistency
+        v = v.strip("/")
+        return v if v else None
 
 
 # Request schemas

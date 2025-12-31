@@ -18,6 +18,7 @@ from ..services.analysis import get_analysis_service
 from ..services.database import get_database_service
 from ..services.github import GitHubService
 from ..auth import get_current_user, get_optional_user
+from ..security import validate_path_within_base, PathTraversalError
 
 logger = logging.getLogger(__name__)
 
@@ -309,10 +310,22 @@ async def get_file_content(
             directory_path = result.get("directory_path")
             relative_path = result.get("file_path")  # The actual relative path from the node
             if directory_path and relative_path:
-                file_path = os.path.join(directory_path, relative_path)
-                if os.path.exists(file_path):
+                # Validate path to prevent path traversal attacks
+                try:
+                    validated_path = validate_path_within_base(
+                        directory_path,
+                        relative_path,
+                        error_message="Invalid file path: path traversal detected"
+                    )
+                except PathTraversalError:
+                    raise HTTPException(
+                        status_code=400,
+                        detail="Invalid file path: path traversal detected"
+                    )
+
+                if validated_path.exists() and validated_path.is_file():
                     try:
-                        with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
+                        with open(validated_path, "r", encoding="utf-8", errors="ignore") as f:
                             content = f.read()
                         return {
                             "content": content,
