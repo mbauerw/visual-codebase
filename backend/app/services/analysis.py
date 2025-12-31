@@ -26,7 +26,7 @@ class AnalysisJob:
         self.analysis_id = analysis_id
         self.directory_path = directory_path
         self.status = AnalysisStatus.PENDING
-        self.progress = 0.0
+        self.progress = 5.0  # Start at 5% to show immediate activity
         self.current_step = "Initializing"
         self.files_processed = 0
         self.total_files = 0
@@ -34,6 +34,18 @@ class AnalysisJob:
         self.result: Optional[ReactFlowGraph] = None
         self.started_at = datetime.utcnow()
         self.completed_at: Optional[datetime] = None
+
+
+# Progress allocation constants (should sum to ~100)
+# These define what percentage of the bar each phase occupies
+PROGRESS_INIT = 5.0          # 0-5%: Initialization
+PROGRESS_CLONING_END = 15.0  # 5-15%: Cloning (GitHub only)
+PROGRESS_PARSING_START = 15.0  # Start of parsing (same as cloning end for local)
+PROGRESS_PARSING_END = 25.0   # 15-25%: Parsing files
+PROGRESS_LLM_START = 25.0     # Start of LLM analysis
+PROGRESS_LLM_END = 85.0       # 25-85%: LLM analysis (biggest phase - 60% of bar)
+PROGRESS_GRAPH_END = 92.0     # 85-92%: Building graph
+PROGRESS_COMPLETE = 100.0     # 92-100%: Summary generation
 
 
 class AnalysisService:
@@ -117,7 +129,7 @@ class AnalysisService:
             # Step 1: Parse files
             job.status = AnalysisStatus.PARSING
             job.current_step = "Scanning and parsing files"
-            job.progress = 10.0
+            job.progress = PROGRESS_PARSING_START
 
             # Update database if user is authenticated
             if db_service:
@@ -134,12 +146,13 @@ class AnalysisService:
             )
 
             job.total_files = len(parsed_files)
-            job.progress = 30.0
+            job.progress = PROGRESS_PARSING_END
+            job.current_step = f"Found {len(parsed_files)} files to analyze"
 
             # Update database
             if db_service:
                 await db_service.update_analysis_progress(
-                    analysis_id, job.status, job.progress, job.current_step, 
+                    analysis_id, job.status, job.progress, job.current_step,
                     job.files_processed, job.total_files
                 )
 
@@ -149,38 +162,59 @@ class AnalysisService:
             # Step 2: LLM Analysis
             job.status = AnalysisStatus.ANALYZING
             job.current_step = "Analyzing files with AI"
-            job.progress = 40.0
+            job.progress = PROGRESS_LLM_START
 
             # Update database
             if db_service:
                 await db_service.update_analysis_progress(
-                    analysis_id, job.status, job.progress, job.current_step, 
+                    analysis_id, job.status, job.progress, job.current_step,
                     job.files_processed, job.total_files
                 )
 
+            # Create progress callback for per-batch updates
+            async def update_llm_progress(batch_num: int, total_batches: int, files_in_batch: int):
+                """Update progress as each LLM batch completes."""
+                # Calculate progress within LLM phase (25% to 85%)
+                llm_progress_range = PROGRESS_LLM_END - PROGRESS_LLM_START
+                batch_progress = (batch_num / total_batches) * llm_progress_range
+                job.progress = PROGRESS_LLM_START + batch_progress
+                job.files_processed = min(batch_num * 20, job.total_files)  # Approximate
+                job.current_step = f"Analyzing files with AI ({batch_num}/{total_batches} batches)"
+
+                if db_service:
+                    await db_service.update_analysis_progress(
+                        analysis_id, job.status, job.progress, job.current_step,
+                        job.files_processed, job.total_files
+                    )
+
+            # Wrapper to make the sync callback work with async updates
+            def sync_progress_callback(batch_num: int, total_batches: int, files_in_batch: int):
+                asyncio.create_task(update_llm_progress(batch_num, total_batches, files_in_batch))
+
             llm_analysis = await self._llm_analyzer.analyze_files(
-                parsed_files, job.directory_path
+                parsed_files, job.directory_path, progress_callback=sync_progress_callback
             )
 
-            job.progress = 70.0
+            job.progress = PROGRESS_LLM_END
             job.files_processed = len(parsed_files)
+            job.current_step = "AI analysis complete"
 
             # Update database
             if db_service:
                 await db_service.update_analysis_progress(
-                    analysis_id, job.status, job.progress, job.current_step, 
+                    analysis_id, job.status, job.progress, job.current_step,
                     job.files_processed, job.total_files
                 )
 
             # Step 3: Build Graph
             job.status = AnalysisStatus.BUILDING_GRAPH
             job.current_step = "Building dependency graph"
-            job.progress = 80.0
+            job.progress = PROGRESS_LLM_END + 2.0  # 87%
 
             # Update database
             if db_service:
                 await db_service.update_analysis_progress(
-                    analysis_id, job.status, job.progress, job.current_step, 
+                    analysis_id, job.status, job.progress, job.current_step,
                     job.files_processed, job.total_files
                 )
 
@@ -200,7 +234,7 @@ class AnalysisService:
             # Step 4: Generate codebase summary
             job.status = AnalysisStatus.GENERATING_SUMMARY
             job.current_step = "Generating codebase summary"
-            job.progress = 90.0
+            job.progress = PROGRESS_GRAPH_END
 
             # Update database
             if db_service:
@@ -243,7 +277,7 @@ class AnalysisService:
             # Mark as completed
             job.status = AnalysisStatus.COMPLETED
             job.current_step = "Analysis complete"
-            job.progress = 100.0
+            job.progress = PROGRESS_COMPLETE
             job.completed_at = datetime.utcnow()
 
             # Store complete results in database if user is authenticated

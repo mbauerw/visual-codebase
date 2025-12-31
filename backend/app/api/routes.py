@@ -14,7 +14,7 @@ from ..models.schemas import (
     GitHubRepoInfo,
     UpdateAnalysisRequest,
 )
-from ..services.analysis import get_analysis_service
+from ..services.analysis import get_analysis_service, PROGRESS_INIT, PROGRESS_CLONING_END
 from ..services.database import get_database_service
 from ..services.github import GitHubService
 from ..auth import get_current_user, get_optional_user
@@ -126,12 +126,17 @@ async def _run_github_analysis(
         job = service.get_job(analysis_id)
         if job:
             job.status = AnalysisStatus.CLONING
-            job.progress = 5.0
+            job.progress = PROGRESS_INIT
             job.current_step = "Cloning repository from GitHub..."
 
         # Clone the repository
         github_service = GitHubService(access_token=github_token)
         temp_dir = await github_service.clone_repository(repo_info)
+
+        # Update progress after successful clone
+        if job:
+            job.progress = PROGRESS_CLONING_END
+            job.current_step = "Repository cloned successfully"
 
         logger.info(f"Repository cloned to {temp_dir}")
 

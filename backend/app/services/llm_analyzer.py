@@ -1,9 +1,12 @@
 """LLM-based semantic analysis service using Claude."""
 import json
 import os
-from typing import Optional
+from typing import Callable, Optional
 
 import anthropic
+
+# Type alias for progress callback: (batch_number, total_batches, files_in_batch) -> None
+ProgressCallback = Callable[[int, int, int], None]
 
 from ..settings import get_settings
 from ..models.schemas import (
@@ -284,15 +287,27 @@ class LLMAnalyzer:
         return Category.UNKNOWN
 
     async def analyze_files(
-        self, files: list[ParsedFile], directory_path: str
+        self,
+        files: list[ParsedFile],
+        directory_path: str,
+        progress_callback: Optional[ProgressCallback] = None,
     ) -> dict[str, LLMFileAnalysis]:
-        """Analyze all files in batches and return a mapping of filename to analysis."""
+        """Analyze all files in batches and return a mapping of filename to analysis.
+
+        Args:
+            files: List of parsed files to analyze
+            directory_path: Path to the directory being analyzed
+            progress_callback: Optional callback for progress updates.
+                              Called with (batch_number, total_batches, files_in_batch)
+        """
         directory_name = os.path.basename(directory_path.rstrip(os.sep))
         results: dict[str, LLMFileAnalysis] = {}
 
         # Process in batches
         batch_size = self.settings.max_files_per_batch
-        for i in range(0, len(files), batch_size):
+        total_batches = (len(files) + batch_size - 1) // batch_size  # Ceiling division
+
+        for batch_num, i in enumerate(range(0, len(files), batch_size), start=1):
             batch = files[i : i + batch_size]
             batch_results = await self.analyze_batch(batch, directory_name)
 
@@ -303,6 +318,10 @@ class LLMAnalyzer:
                 basename = os.path.basename(analysis.filename)
                 if basename != analysis.filename:
                     results[basename] = analysis
+
+            # Report progress after each batch
+            if progress_callback:
+                progress_callback(batch_num, total_batches, len(batch))
 
         # Add fallback analysis for any files not in results
         for f in files:
