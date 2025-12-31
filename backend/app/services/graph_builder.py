@@ -162,16 +162,18 @@ class GraphBuilder:
                     target_id = self._generate_node_id(target_path)
 
                     # Avoid duplicate edges
-                    edge_key = (source_id, target_id)
+                    # Edge direction: from imported file -> to importing file
+                    # This shows the flow of dependencies (what provides to what consumes)
+                    edge_key = (target_id, source_id)
                     if edge_key not in seen_edges:
                         seen_edges.add(edge_key)
 
-                        edge_id = f"e-{source_id}-{target_id}"
+                        edge_id = f"e-{target_id}-{source_id}"
                         edges.append(
                             DependencyEdge(
                                 id=edge_id,
-                                source=source_id,
-                                target=target_id,
+                                source=target_id,
+                                target=source_id,
                                 import_type=imp.import_type,
                                 label=imp.module if len(imp.module) < 30 else None,
                             )

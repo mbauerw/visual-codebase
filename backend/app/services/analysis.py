@@ -1,5 +1,4 @@
 """Analysis orchestration service."""
-import asyncio
 import os
 import time
 import uuid
@@ -26,30 +25,12 @@ class AnalysisJob:
         self.analysis_id = analysis_id
         self.directory_path = directory_path
         self.status = AnalysisStatus.PENDING
-        self.progress = 5.0  # Start at 5% to show immediate activity
         self.current_step = "Initializing"
-        self.files_processed = 0
         self.total_files = 0
         self.error: Optional[str] = None
         self.result: Optional[ReactFlowGraph] = None
         self.started_at = datetime.utcnow()
         self.completed_at: Optional[datetime] = None
-
-
-# Progress allocation constants (should sum to ~100)
-# These define what percentage of the bar each phase occupies
-PROGRESS_INIT = 5.0           # 0-5%: Initialization
-PROGRESS_CLONING_END = 40.0   # 5-40%: Cloning (GitHub only) - cosmetic fill over 20s
-PROGRESS_PARSING_START = 40.0 # Start of parsing (same as cloning end)
-PROGRESS_PARSING_END = 50.0   # 40-50%: Parsing files
-PROGRESS_LLM_START = 50.0     # Start of LLM analysis
-PROGRESS_LLM_END = 90.0       # 50-90%: LLM analysis (biggest phase - 40% of bar)
-PROGRESS_GRAPH_END = 95.0     # 90-95%: Building graph
-PROGRESS_COMPLETE = 100.0     # 95-100%: Summary generation
-
-# Cloning animation settings
-CLONING_DURATION_SECONDS = 20.0  # Time to fill cloning progress cosmetically
-CLONING_UPDATE_INTERVAL = 0.5   # Update progress every 0.5 seconds
 
 
 class AnalysisService:
@@ -82,9 +63,7 @@ class AnalysisService:
         return AnalysisStatusResponse(
             analysis_id=job.analysis_id,
             status=job.status,
-            progress=job.progress,
             current_step=job.current_step,
-            files_processed=job.files_processed,
             total_files=job.total_files,
             error=job.error,
         )
@@ -132,14 +111,7 @@ class AnalysisService:
 
             # Step 1: Parse files
             job.status = AnalysisStatus.PARSING
-            job.current_step = "Scanning and parsing files"
-            job.progress = PROGRESS_PARSING_START
-
-            # Update database if user is authenticated
-            if db_service:
-                await db_service.update_analysis_progress(
-                    analysis_id, job.status, job.progress, job.current_step
-                )
+            job.current_step = "Scanning and parsing files..."
 
             # For GitHub analyses, include file content for storage (repo is deleted after)
             parsed_files = self._parser.parse_directory(
@@ -150,77 +122,22 @@ class AnalysisService:
             )
 
             job.total_files = len(parsed_files)
-            job.progress = PROGRESS_PARSING_END
-            job.current_step = f"Found {len(parsed_files)} files to analyze"
-
-            # Update database
-            if db_service:
-                await db_service.update_analysis_progress(
-                    analysis_id, job.status, job.progress, job.current_step,
-                    job.files_processed, job.total_files
-                )
+            job.current_step = f"Found {len(parsed_files)} files"
 
             if not parsed_files:
                 raise ValueError("No supported files found in directory")
 
             # Step 2: LLM Analysis
             job.status = AnalysisStatus.ANALYZING
-            job.current_step = "Analyzing files with AI"
-            job.progress = PROGRESS_LLM_START
-
-            # Update database
-            if db_service:
-                await db_service.update_analysis_progress(
-                    analysis_id, job.status, job.progress, job.current_step,
-                    job.files_processed, job.total_files
-                )
-
-            # Create progress callback for per-batch updates
-            async def update_llm_progress(batch_num: int, total_batches: int, files_in_batch: int):
-                """Update progress as each LLM batch completes."""
-                # Calculate progress within LLM phase (25% to 85%)
-                llm_progress_range = PROGRESS_LLM_END - PROGRESS_LLM_START
-                batch_progress = (batch_num / total_batches) * llm_progress_range
-                job.progress = PROGRESS_LLM_START + batch_progress
-                job.files_processed = min(batch_num * 20, job.total_files)  # Approximate
-                job.current_step = f"Analyzing files with AI ({batch_num}/{total_batches} batches)"
-
-                if db_service:
-                    await db_service.update_analysis_progress(
-                        analysis_id, job.status, job.progress, job.current_step,
-                        job.files_processed, job.total_files
-                    )
-
-            # Wrapper to make the sync callback work with async updates
-            def sync_progress_callback(batch_num: int, total_batches: int, files_in_batch: int):
-                asyncio.create_task(update_llm_progress(batch_num, total_batches, files_in_batch))
+            job.current_step = "AI is analyzing your code..."
 
             llm_analysis = await self._llm_analyzer.analyze_files(
-                parsed_files, job.directory_path, progress_callback=sync_progress_callback
+                parsed_files, job.directory_path
             )
-
-            job.progress = PROGRESS_LLM_END
-            job.files_processed = len(parsed_files)
-            job.current_step = "AI analysis complete"
-
-            # Update database
-            if db_service:
-                await db_service.update_analysis_progress(
-                    analysis_id, job.status, job.progress, job.current_step,
-                    job.files_processed, job.total_files
-                )
 
             # Step 3: Build Graph
             job.status = AnalysisStatus.BUILDING_GRAPH
-            job.current_step = "Building dependency graph"
-            job.progress = PROGRESS_LLM_END + 2.0  # 87%
-
-            # Update database
-            if db_service:
-                await db_service.update_analysis_progress(
-                    analysis_id, job.status, job.progress, job.current_step,
-                    job.files_processed, job.total_files
-                )
+            job.current_step = "Building dependency graph..."
 
             # Count languages
             language_counts: dict[str, int] = {}
@@ -237,15 +154,7 @@ class AnalysisService:
 
             # Step 4: Generate codebase summary
             job.status = AnalysisStatus.GENERATING_SUMMARY
-            job.current_step = "Generating codebase summary"
-            job.progress = PROGRESS_GRAPH_END
-
-            # Update database
-            if db_service:
-                await db_service.update_analysis_progress(
-                    analysis_id, job.status, job.progress, job.current_step,
-                    job.files_processed, job.total_files
-                )
+            job.current_step = "Generating codebase summary..."
 
             # Generate summary
             from .summary_generator import get_summary_generator
@@ -281,7 +190,6 @@ class AnalysisService:
             # Mark as completed
             job.status = AnalysisStatus.COMPLETED
             job.current_step = "Analysis complete"
-            job.progress = PROGRESS_COMPLETE
             job.completed_at = datetime.utcnow()
 
             # Store complete results in database if user is authenticated
@@ -298,14 +206,6 @@ class AnalysisService:
             job.status = AnalysisStatus.FAILED
             job.error = str(e)
             job.current_step = "Analysis failed"
-            
-            # Update database with error if user is authenticated
-            if db_service:
-                await db_service.update_analysis_progress(
-                    analysis_id, job.status, job.progress, job.current_step,
-                    job.files_processed, job.total_files, str(e)
-                )
-            
             print(f"Analysis failed: {e}")
             raise
 

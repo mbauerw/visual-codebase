@@ -1,7 +1,5 @@
-import asyncio
 import re
-from fastapi import FastAPI, APIRouter, BackgroundTasks, HTTPException, Depends, Header
-from pathlib import Path
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Depends, Header
 from typing import Optional
 import logging
 
@@ -14,13 +12,7 @@ from ..models.schemas import (
     GitHubRepoInfo,
     UpdateAnalysisRequest,
 )
-from ..services.analysis import (
-    get_analysis_service,
-    PROGRESS_INIT,
-    PROGRESS_CLONING_END,
-    CLONING_DURATION_SECONDS,
-    CLONING_UPDATE_INTERVAL,
-)
+from ..services.analysis import get_analysis_service
 from ..services.database import get_database_service
 from ..services.github import GitHubService
 from ..auth import get_current_user, get_optional_user
@@ -126,69 +118,26 @@ async def _run_github_analysis(
     github_token: Optional[str],
 ):
     """Run analysis for a GitHub repository."""
-    import asyncio
-
     temp_dir = None
-    cloning_done = asyncio.Event()
-
-    async def animate_cloning_progress():
-        """Cosmetically fill progress bar during cloning (5% to 40% over 20s)."""
-        job = service.get_job(analysis_id)
-        if not job:
-            return
-
-        progress_range = PROGRESS_CLONING_END - PROGRESS_INIT
-        num_steps = int(CLONING_DURATION_SECONDS / CLONING_UPDATE_INTERVAL)
-        progress_per_step = progress_range / num_steps
-
-        for step in range(num_steps):
-            if cloning_done.is_set():
-                break
-
-            job.progress = PROGRESS_INIT + (step + 1) * progress_per_step
-            job.current_step = "Cloning repository from GitHub..."
-
-            try:
-                await asyncio.wait_for(
-                    cloning_done.wait(),
-                    timeout=CLONING_UPDATE_INTERVAL
-                )
-                break  # Cloning finished
-            except asyncio.TimeoutError:
-                continue  # Keep animating
 
     try:
         # Update status to cloning
         job = service.get_job(analysis_id)
         if job:
             job.status = AnalysisStatus.CLONING
-            job.progress = PROGRESS_INIT
             job.current_step = "Cloning repository from GitHub..."
 
-        # Start cosmetic progress animation
-        animation_task = asyncio.create_task(animate_cloning_progress())
-
-        # Clone the repository (this is the actual work)
+        # Clone the repository
         github_service = GitHubService(access_token=github_token)
         temp_dir = await github_service.clone_repository(repo_info)
 
-        # Signal that cloning is done and wait for animation to stop
-        cloning_done.set()
-        await animation_task
-
-        # Ensure progress is at cloning end
         if job:
-            job.progress = PROGRESS_CLONING_END
             job.current_step = "Repository cloned successfully"
+            job.directory_path = str(temp_dir)
 
         logger.info(f"Repository cloned to {temp_dir}")
 
-        # Update job's directory_path to the cloned location
-        if job:
-            job.directory_path = str(temp_dir)
-
         # Run analysis on the cloned directory
-        # is_github_analysis=True ensures file contents are stored (repo is deleted after)
         await service.run_analysis(
             analysis_id,
             include_node_modules,
@@ -202,7 +151,6 @@ async def _run_github_analysis(
         job = service.get_job(analysis_id)
         if job:
             job.status = AnalysisStatus.FAILED
-            job.progress = 0.0
             job.error = str(e)
     finally:
         # Clean up temporary directory

@@ -104,9 +104,7 @@ export interface AnalyzeResponse {
 export interface AnalysisStatusResponse {
   analysis_id: string;
   status: AnalysisStatus;
-  progress: number;
   current_step: string;
-  files_processed: number;
   total_files: number;
   error?: string;
 }

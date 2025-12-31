@@ -16,7 +16,6 @@ from ..models.schemas import (
     GitHubRepoInfo,
     ParsedFile,
 )
-from .analysis import PROGRESS_INIT
 
 
 class DatabaseService:
@@ -38,9 +37,7 @@ class DatabaseService:
             "user_id": user_id,
             "directory_path": directory_path,
             "status": AnalysisStatus.PENDING.value,
-            "progress": PROGRESS_INIT,  # Start with visible progress
             "current_step": "Initializing",
-            "files_processed": 0,
             "total_files": 0,
         }
 
@@ -56,22 +53,18 @@ class DatabaseService:
         result = self.supabase.table("analyses").insert(analysis_data).execute()
         return result.data[0] if result.data else {}
 
-    async def update_analysis_progress(
+    async def update_analysis_status(
         self,
         analysis_id: str,
         status: AnalysisStatus,
-        progress: float = 0.0,
         current_step: str = "",
-        files_processed: int = 0,
         total_files: int = 0,
         error_message: Optional[str] = None,
     ) -> None:
-        """Update analysis progress."""
+        """Update analysis status."""
         update_data = {
             "status": status.value,
-            "progress": progress,
             "current_step": current_step,
-            "files_processed": files_processed,
             "total_files": total_files,
             "updated_at": datetime.utcnow().isoformat(),
         }
@@ -103,7 +96,6 @@ class DatabaseService:
         # Update analysis metadata
         analysis_update = {
             "status": AnalysisStatus.COMPLETED.value,
-            "progress": 100.0,
             "current_step": "Analysis complete",
             "file_count": metadata.file_count,
             "edge_count": metadata.edge_count,
@@ -217,9 +209,7 @@ class DatabaseService:
         return AnalysisStatusResponse(
             analysis_id=data["analysis_id"],
             status=AnalysisStatus(data["status"]),
-            progress=data["progress"],
             current_step=data["current_step"],
-            files_processed=data["files_processed"],
             total_files=data["total_files"],
             error=data.get("error_message"),
         )
@@ -341,7 +331,7 @@ class DatabaseService:
         """Get all analyses for a user."""
         result = (
             self.supabase.table("analyses")
-            .select("analysis_id, directory_path, github_repo, status, progress, file_count, edge_count, started_at, completed_at, user_title")
+            .select("analysis_id, directory_path, github_repo, status, file_count, edge_count, started_at, completed_at, user_title")
             .eq("user_id", user_id)
             .order("started_at", desc=True)
             .execute()

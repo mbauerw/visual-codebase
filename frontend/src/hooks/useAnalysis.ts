@@ -77,10 +77,10 @@ export function useAnalysis(): UseAnalysisReturn {
         const response = await startAnalysis(request);
         const analysisId = response.analysis_id;
 
-        // Start polling for status
+        // Start polling for status (every 3 seconds)
         pollingRef.current = window.setInterval(() => {
           pollStatus(analysisId);
-        }, 1000);
+        }, 3000);
 
         // Initial status check
         pollStatus(analysisId);

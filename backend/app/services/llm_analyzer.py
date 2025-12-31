@@ -140,7 +140,6 @@ class LLMAnalyzer:
             )
 
             response_text = message.content[0].text
-            print("LLM Response: ", response_text)
             return self._parse_llm_response(response_text)
 
         except Exception as e:

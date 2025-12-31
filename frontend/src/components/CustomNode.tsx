@@ -41,9 +41,9 @@ function CustomNode({ data, selected }: NodeProps<CustomNodeType>) {
         borderLeft: `4px solid ${borderColor}`,
       }}
     >
-      {/* Target handle */}
+      {/* Source handle - exports leave from top */}
       <Handle
-        type="target"
+        type="source"
         position={Position.Top}
         className="!bg-slate-500 !w-3 !h-3 !border-2 !border-slate-700"
       />
@@ -88,9 +88,9 @@ function CustomNode({ data, selected }: NodeProps<CustomNodeType>) {
         </p>
       )} */}
 
-      {/* Source handle */}
+      {/* Target handle - imports enter from bottom */}
       <Handle
-        type="source"
+        type="target"
         position={Position.Bottom}
         className="!bg-slate-500 !w-3 !h-3 !border-2 !border-slate-700"
       />

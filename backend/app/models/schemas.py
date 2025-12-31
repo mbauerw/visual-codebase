@@ -383,12 +383,8 @@ class AnalysisStatusResponse(BaseModel):
 
     analysis_id: str = Field(..., description="Analysis ID")
     status: AnalysisStatus = Field(..., description="Current status")
-    progress: float = Field(
-        default=0.0, description="Progress percentage (0-100)"
-    )
     current_step: str = Field(default="", description="Current processing step")
-    files_processed: int = Field(default=0, description="Files processed so far")
-    total_files: int = Field(default=0, description="Total files to process")
+    total_files: int = Field(default=0, description="Total files found")
     error: Optional[str] = Field(default=None, description="Error message if failed")
 
 
