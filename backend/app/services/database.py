@@ -16,6 +16,7 @@ from ..models.schemas import (
     GitHubRepoInfo,
     ParsedFile,
 )
+from .analysis import PROGRESS_INIT
 
 
 class DatabaseService:
@@ -37,7 +38,7 @@ class DatabaseService:
             "user_id": user_id,
             "directory_path": directory_path,
             "status": AnalysisStatus.PENDING.value,
-            "progress": 0.0,
+            "progress": PROGRESS_INIT,  # Start with visible progress
             "current_step": "Initializing",
             "files_processed": 0,
             "total_files": 0,
