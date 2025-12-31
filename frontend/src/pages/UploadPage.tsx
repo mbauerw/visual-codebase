@@ -6,6 +6,7 @@ import { useAuth } from '../hooks/useAuth';
 import { AuthModal } from '../components/AuthModal';
 import GitHubRepoForm from '../components/GitHubRepoForm';
 import UserDashboard from './UserDashboard';
+import { AnalysisProgressBar } from '../components/progress';
 import { GitHubRepoInfo } from '../types';
 import { motion } from "motion/react"
 
@@ -43,10 +44,6 @@ export default function UploadPage() {
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
-
-  useEffect(() => {
-    console.log('Analysis status updated:', status);
-  }, [status]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -418,51 +415,14 @@ export default function UploadPage() {
               />
             )}
 
-            {/* Progress - Stage-based indicator */}
+            {/* Animated Progress Bar */}
             {isLoading && (
-              <div className="mt-8 p-6 bg-gray-50 rounded-xl border border-gray-100">
-                <div className="flex items-center gap-4">
-                  <Loader2 size={24} className="animate-spin text-[#8FBCFA]" />
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-gray-700">
-                      {status?.current_step || 'Starting analysis...'}
-                    </p>
-                    {status?.total_files > 0 && (
-                      <p className="text-xs text-gray-500 mt-1">
-                        {status.total_files} files found
-                      </p>
-                    )}
-                  </div>
-                </div>
-                {/* Stage indicators */}
-                <div className="flex items-center gap-2 mt-4">
-                  {(['cloning', 'parsing', 'analyzing', 'building_graph', 'generating_summary'] as const).map((stage, index) => {
-                    const stages = ['cloning', 'parsing', 'analyzing', 'building_graph', 'generating_summary'];
-                    const currentIndex = status ? stages.indexOf(status.status) : -1;
-                    const isComplete = currentIndex > index;
-                    const isCurrent = status?.status === stage;
-                    const isGitHub = analyzeMode === 'github';
-
-                    // Skip cloning stage for local analysis
-                    if (stage === 'cloning' && !isGitHub) return null;
-
-                    return (
-                      <div key={stage} className="flex items-center gap-2">
-                        <div
-                          className={`w-2 h-2 rounded-full transition-all duration-300 ${
-                            isComplete ? 'bg-green-500' :
-                            isCurrent ? 'bg-[#8FBCFA] animate-pulse' :
-                            'bg-gray-300'
-                          }`}
-                        />
-                        {index < stages.length - 1 && (
-                          <div className={`w-8 h-0.5 ${isComplete ? 'bg-green-500' : 'bg-gray-300'}`} />
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
+              <AnalysisProgressBar
+                status={status?.status ?? null}
+                currentStep={status?.current_step ?? 'Starting analysis...'}
+                totalFiles={status?.total_files ?? 0}
+                isGitHub={analyzeMode === 'github'}
+              />
             )}
 
             {/* Error */}
