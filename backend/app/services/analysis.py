@@ -38,14 +38,18 @@ class AnalysisJob:
 
 # Progress allocation constants (should sum to ~100)
 # These define what percentage of the bar each phase occupies
-PROGRESS_INIT = 5.0          # 0-5%: Initialization
-PROGRESS_CLONING_END = 15.0  # 5-15%: Cloning (GitHub only)
-PROGRESS_PARSING_START = 15.0  # Start of parsing (same as cloning end for local)
-PROGRESS_PARSING_END = 25.0   # 15-25%: Parsing files
-PROGRESS_LLM_START = 25.0     # Start of LLM analysis
-PROGRESS_LLM_END = 85.0       # 25-85%: LLM analysis (biggest phase - 60% of bar)
-PROGRESS_GRAPH_END = 92.0     # 85-92%: Building graph
-PROGRESS_COMPLETE = 100.0     # 92-100%: Summary generation
+PROGRESS_INIT = 5.0           # 0-5%: Initialization
+PROGRESS_CLONING_END = 40.0   # 5-40%: Cloning (GitHub only) - cosmetic fill over 20s
+PROGRESS_PARSING_START = 40.0 # Start of parsing (same as cloning end)
+PROGRESS_PARSING_END = 50.0   # 40-50%: Parsing files
+PROGRESS_LLM_START = 50.0     # Start of LLM analysis
+PROGRESS_LLM_END = 90.0       # 50-90%: LLM analysis (biggest phase - 40% of bar)
+PROGRESS_GRAPH_END = 95.0     # 90-95%: Building graph
+PROGRESS_COMPLETE = 100.0     # 95-100%: Summary generation
+
+# Cloning animation settings
+CLONING_DURATION_SECONDS = 20.0  # Time to fill cloning progress cosmetically
+CLONING_UPDATE_INTERVAL = 0.5   # Update progress every 0.5 seconds
 
 
 class AnalysisService:
