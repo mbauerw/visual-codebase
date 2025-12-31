@@ -169,7 +169,7 @@ async def _run_github_analysis(
 
 @router.get("/analysis/{analysis_id}/status", response_model=AnalysisStatusResponse)
 async def get_analysis_status(
-    analysis_id: str, 
+    analysis_id: str,
     current_user = Depends(get_optional_user)
 ) -> AnalysisStatusResponse:
     """
@@ -179,20 +179,21 @@ async def get_analysis_status(
     """
     service = get_analysis_service()
     db_service = get_database_service()
-    
-    # Try to get status from database first if user is authenticated
+
+    # Prefer in-memory status during active analysis (more up-to-date)
+    in_memory_status = service.get_status(analysis_id)
+
+    if in_memory_status:
+        # In-memory status is available - use it for real-time progress
+        return in_memory_status
+
+    # Fall back to database for completed/historical analyses
     if current_user:
-        status = await db_service.get_analysis_status(analysis_id)
-        if status:
-            return status
-    
-    # Fallback to in-memory status
-    status = service.get_status(analysis_id)
+        db_status = await db_service.get_analysis_status(analysis_id)
+        if db_status:
+            return db_status
 
-    if not status:
-        raise HTTPException(status_code=404, detail="Analysis not found")
-
-    return status
+    raise HTTPException(status_code=404, detail="Analysis not found")
 
 
 @router.get("/analysis/{analysis_id}", response_model=ReactFlowGraph)
