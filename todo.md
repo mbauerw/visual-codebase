@@ -3,7 +3,7 @@
 - add drag and slide for NodeDetailPanel
 - ~~Change summary for project overview~~
 - ~~Change visualize page header to include nav bar info~~
-- add title change for stored analysis
+- ~~add title change for stored analysis~~
 - implement further-analysis button for files
 - adjust file layout
 - add function relations

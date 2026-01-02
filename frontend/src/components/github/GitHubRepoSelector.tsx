@@ -24,7 +24,7 @@ export default function GitHubRepoSelector({ onSelect, selectedRepo, externalOwn
   // Use different hooks based on whether we're browsing external owner
   const ownReposQuery = useGitHubRepos({
     page,
-    perPage: 10,
+    perPage: 6,
     sort: sortBy,
     direction: 'desc',
     type: typeFilter,
@@ -34,7 +34,7 @@ export default function GitHubRepoSelector({ onSelect, selectedRepo, externalOwn
   const externalReposQuery = useOwnerRepos({
     owner: externalOwner || '',
     page,
-    perPage: 10,
+    perPage: 6,
     sort: sortBy,
     direction: 'desc',
     enabled: !!externalOwner,
@@ -214,6 +214,7 @@ export default function GitHubRepoSelector({ onSelect, selectedRepo, externalOwn
           <>
             {filteredRepos.map((repo) => (
               <button
+                type="button"
                 key={repo.id}
                 onClick={() => handleSelectRepo(repo)}
                 className={`w-full text-left p-4 rounded-lg border-2 transition-all ${

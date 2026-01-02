@@ -15,7 +15,7 @@ export default function NodeDetailPanel({ data, onClose, setExpand, expanded }: 
     setExpand(prev => !prev);
   }
 
-  //  ${expanded ? 'w-full' : 'w-[50px]'} transition-all duration-1000 
+  //  ${expanded ? 'w-full' : 'w-[50px]'} transition-all duration-1000
 
   if (!data) {
     return (

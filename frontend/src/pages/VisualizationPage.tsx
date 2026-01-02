@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   ReactFlow,
@@ -25,6 +25,7 @@ import {
   FolderTree,
   Network,
   User,
+  ChevronsLeftRight,
 } from 'lucide-react';
 
 import CustomNode, { type CustomNodeType } from '../components/CustomNode';
@@ -891,6 +892,73 @@ function VisualizationPageInner() {
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [loading, setLoading] = useState(true);
 
+  // Resize state for right panel
+  const [panelWidth, setPanelWidth] = useState(400);
+  const [isResizing, setIsResizing] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const MIN_PANEL_WIDTH = 50; // Minimum when resizing (before auto-collapse)
+  const COLLAPSE_THRESHOLD = 80; // Auto-collapse when dragged below this
+  const TAB_WIDTH = 40; // Width of the expand tab when collapsed
+
+  const getMaxPanelWidth = useCallback(() => {
+    return Math.floor(window.innerWidth / 3);
+  }, []);
+
+  const handleResizeMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsResizing(true);
+  }, []);
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isResizing) return;
+
+      const maxWidth = getMaxPanelWidth();
+      const newWidth = window.innerWidth - e.clientX;
+
+      // If dragged below collapse threshold, collapse the panel
+      if (newWidth < COLLAPSE_THRESHOLD) {
+        setExpanded(false);
+        setIsResizing(false);
+        return;
+      }
+
+      const clampedWidth = Math.max(MIN_PANEL_WIDTH, Math.min(maxWidth, newWidth));
+      setPanelWidth(clampedWidth);
+    };
+
+    const handleMouseUp = () => {
+      setIsResizing(false);
+    };
+
+    if (isResizing) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = 'ew-resize';
+      document.body.style.userSelect = 'none';
+    }
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+  }, [isResizing, getMaxPanelWidth, setExpanded]);
+
+  // Clamp panel width on window resize
+  useEffect(() => {
+    const handleWindowResize = () => {
+      const maxWidth = getMaxPanelWidth();
+      if (panelWidth > maxWidth) {
+        setPanelWidth(maxWidth);
+      }
+    };
+    window.addEventListener('resize', handleWindowResize);
+    return () => window.removeEventListener('resize', handleWindowResize);
+  }, [panelWidth, getMaxPanelWidth]);
+
   // Source code panel state
   const [isSourcePanelOpen, setIsSourcePanelOpen] = useState(false);
   const [sourceCodeFile, setSourceCodeFile] = useState<{
@@ -1333,13 +1401,15 @@ function VisualizationPageInner() {
       </div>
 
       {/* Main grid layout */}
-      <div className={`grid mt-14 grid-rows-1 transition-all duration-200 min-h-[calc(100vh-3.5rem)] relative overflow-hidden ${expanded
-        ? 'xl:grid-cols-[5fr_minmax(400px,1fr)] grid-cols-[3fr_minmax(250px,1fr)]'
-        : 'grid-cols-[1fr_38px]'
-        }`}>
-
+      <div
+        ref={containerRef}
+        className="flex mt-14 min-h-[calc(100vh-3.5rem)] relative overflow-hidden"
+      >
         {/* Main content */}
-        <div className={`min-h-full overflow-y-auto flex flex-col ${mainSectionGap} items-center [scrollbar-width:10]`}>
+        <div
+          className={`min-h-full overflow-y-auto flex flex-col ${mainSectionGap} items-center [scrollbar-width:10] flex-1`}
+          style={{ width: expanded ? `calc(100% - ${panelWidth}px)` : `calc(100% - ${TAB_WIDTH}px)` }}
+        >
 
           {/* Overview Section */}
           <div className='max-w-[1000px] w-full py-12 px-8'>
@@ -1585,18 +1655,42 @@ function VisualizationPageInner() {
 
         </div>
 
-        {/* Right Panel / NodeDetailPanel */}
-        <div className="h-full bg-slate-900  overflow-hidden border-l border-slate-800 ">
-          {selectedNode && (
-          <NodeDetailPanel data={selectedNode} onClose={() => setSelectedNode(null)} setExpand={setExpanded} expanded={expanded} />
-          )}
-          {selectedCateogry && (
-            <CategoryRolePanel data={selectedCateogry} onClose={() => setSelectedCategory(null)} setExpand={setExpanded} expanded={expanded} />
-          )}
-          {!selectedNode && !selectedCateogry && (
-                      <NodeDetailPanel data={null} onClose={() => setSelectedNode(null)} setExpand={setExpanded} expanded={expanded} />
-                   ) }
-        </div>
+        {/* Resize Handle - only show when expanded */}
+        {expanded && (
+          <div
+            onMouseDown={handleResizeMouseDown}
+            className="w-1 bg-slate-800 hover:bg-indigo-500 cursor-ew-resize transition-colors flex-shrink-0 z-10"
+          />
+        )}
+
+        {/* Right Panel / NodeDetailPanel - or collapsed tab */}
+        {expanded ? (
+          <div
+            className="h-full bg-slate-900 overflow-hidden border-l border-slate-800 flex-shrink-0"
+            style={{ width: panelWidth }}
+          >
+            {selectedNode && (
+              <NodeDetailPanel data={selectedNode} onClose={() => setSelectedNode(null)} setExpand={setExpanded} expanded={expanded} />
+            )}
+            {selectedCateogry && (
+              <CategoryRolePanel data={selectedCateogry} onClose={() => setSelectedCategory(null)} setExpand={setExpanded} expanded={expanded} />
+            )}
+            {!selectedNode && !selectedCateogry && (
+              <NodeDetailPanel data={null} onClose={() => setSelectedNode(null)} setExpand={setExpanded} expanded={expanded} />
+            )}
+          </div>
+        ) : (
+          /* Collapsed tab - just the chevron to expand */
+          <div
+            className="h-full relative bg-slate-300/40 group  flex-shrink-0 flex flex-col items-center justify-center cursor-pointer hover:bg-slate-300 rounded-lg transition-colors"
+            style={{ width: TAB_WIDTH }}
+            onClick={() => setExpanded(true)}
+          >
+            <div className='flex h-10 w-8 items-center justify-center'>
+              <ChevronsLeftRight size={24} className="text-slate-400  group-hover:text-white transition-colors" />
+            </div>
+          </div>
+        )}
 
       </div>
 
