@@ -11,6 +11,9 @@ from ..models.schemas import (
     ReactFlowGraph,
     GitHubRepoInfo,
     UpdateAnalysisRequest,
+    TierListResponse,
+    FunctionDetailResponse,
+    FunctionStats,
 )
 from ..services.analysis import get_analysis_service
 from ..services.database import get_database_service
@@ -463,6 +466,112 @@ async def get_owner_repositories(
             status_code=500,
             detail=f"Failed to fetch repositories: {str(e)}",
         )
+
+
+# ==================== Function Tier List Endpoints ====================
+
+@router.get("/analysis/{analysis_id}/functions/tier-list", response_model=TierListResponse)
+async def get_function_tier_list(
+    analysis_id: str,
+    tier: Optional[str] = None,
+    file: Optional[str] = None,
+    type: Optional[str] = None,
+    search: Optional[str] = None,
+    sort_by: str = "call_count",
+    sort_order: str = "desc",
+    page: int = 1,
+    per_page: int = 50,
+    current_user = Depends(get_current_user),
+):
+    """
+    Get paginated function tier list for an analysis.
+
+    Query Parameters:
+        tier: Filter by tier (S/A/B/C/D/F)
+        file: Filter by file path (partial match)
+        type: Filter by function type (function, method, arrow_function, etc.)
+        search: Search function names
+        sort_by: Sort field - call_count, name, file, tier (default: call_count)
+        sort_order: Sort order - asc, desc (default: desc)
+        page: Page number (default: 1)
+        per_page: Items per page, max 100 (default: 50)
+    """
+    db_service = get_database_service()
+
+    result = await db_service.get_tier_list(
+        analysis_id=analysis_id,
+        user_id=current_user.id,
+        tier=tier,
+        file_filter=file,
+        function_type=type,
+        search=search,
+        sort_by=sort_by,
+        sort_order=sort_order,
+        page=page,
+        per_page=per_page,
+    )
+
+    if result is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Analysis not found or not owned by user"
+        )
+
+    return result
+
+
+@router.get("/analysis/{analysis_id}/functions/{function_id}", response_model=FunctionDetailResponse)
+async def get_function_detail(
+    analysis_id: str,
+    function_id: str,
+    current_user = Depends(get_current_user),
+):
+    """
+    Get detailed information about a specific function.
+
+    Returns the function details along with its callers and callees.
+    """
+    db_service = get_database_service()
+
+    result = await db_service.get_function_detail(
+        analysis_id=analysis_id,
+        function_id=function_id,
+        user_id=current_user.id,
+    )
+
+    if result is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Function not found or analysis not owned by user"
+        )
+
+    return result
+
+
+@router.get("/analysis/{analysis_id}/functions/stats", response_model=FunctionStats)
+async def get_function_stats(
+    analysis_id: str,
+    current_user = Depends(get_current_user),
+):
+    """
+    Get aggregate statistics for function analysis.
+
+    Returns total counts, tier distribution, and top functions.
+    """
+    db_service = get_database_service()
+
+    result = await db_service.get_function_stats(
+        analysis_id=analysis_id,
+        user_id=current_user.id,
+    )
+
+    if result is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Analysis not found or not owned by user"
+        )
+
+    return result
 
 
 @router.get("/health")

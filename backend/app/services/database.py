@@ -15,6 +15,14 @@ from ..models.schemas import (
     DependencyEdge,
     GitHubRepoInfo,
     ParsedFile,
+    FunctionTierItem,
+    FunctionStats,
+    FunctionCallInfo,
+    TierListResponse,
+    FunctionDetailResponse,
+    FunctionType,
+    TierLevel,
+    CallType,
 )
 
 
@@ -463,6 +471,433 @@ class DatabaseService:
         # Delete analysis (cascading will handle nodes and edges)
         self.supabase.table("analyses").delete().eq("analysis_id", analysis_id).execute()
         return True
+
+    # ==================== Function Tier List Methods ====================
+
+    async def save_functions(
+        self,
+        analysis_id: str,
+        tier_items: List[FunctionTierItem],
+        language: str = "typescript",
+    ) -> None:
+        """Save function tier items to the database.
+
+        Args:
+            analysis_id: The analysis identifier
+            tier_items: List of function tier items to save
+            language: Primary language of the codebase
+        """
+        # Get the database analysis record
+        analysis_result = (
+            self.supabase.table("analyses")
+            .select("id")
+            .eq("analysis_id", analysis_id)
+            .execute()
+        )
+
+        if not analysis_result.data:
+            raise ValueError(f"Analysis {analysis_id} not found")
+
+        db_analysis_id = analysis_result.data[0]["id"]
+
+        # Prepare function records
+        function_data = []
+        for item in tier_items:
+            function_data.append({
+                "analysis_id": db_analysis_id,
+                "node_id": item.node_id,
+                "function_name": item.function_name,
+                "qualified_name": item.qualified_name,
+                "function_type": item.function_type.value,
+                "start_line": item.start_line,
+                "end_line": item.end_line,
+                "internal_call_count": item.internal_call_count,
+                "external_call_count": item.external_call_count,
+                "is_exported": item.is_exported,
+                "is_entry_point": item.is_entry_point,
+                "tier": item.tier.value,
+                "tier_percentile": item.tier_percentile,
+                "language": language,
+                "is_async": item.is_async,
+                "parameters_count": item.parameters_count,
+            })
+
+        # Insert in batches
+        if function_data:
+            batch_size = 100
+            for i in range(0, len(function_data), batch_size):
+                batch = function_data[i:i + batch_size]
+                self.supabase.table("analysis_functions").insert(batch).execute()
+
+        # Update function count in analyses table
+        self.supabase.table("analyses").update({
+            "function_count": len(tier_items),
+        }).eq("analysis_id", analysis_id).execute()
+
+    async def save_function_calls(
+        self,
+        analysis_id: str,
+        calls: List[FunctionCallInfo],
+    ) -> None:
+        """Save function call graph to the database.
+
+        Args:
+            analysis_id: The analysis identifier
+            calls: List of function calls
+        """
+        # Get the database analysis record
+        analysis_result = (
+            self.supabase.table("analyses")
+            .select("id")
+            .eq("analysis_id", analysis_id)
+            .execute()
+        )
+
+        if not analysis_result.data:
+            raise ValueError(f"Analysis {analysis_id} not found")
+
+        db_analysis_id = analysis_result.data[0]["id"]
+
+        # Prepare call records
+        call_data = []
+        for call in calls:
+            if call.resolved_target:  # Only save resolved calls
+                call_data.append({
+                    "analysis_id": db_analysis_id,
+                    "caller_node_id": call.source_file,
+                    "call_line": call.line_number,
+                    "callee_qualified_name": call.qualified_name or call.callee_name,
+                    "callee_node_id": call.resolved_target,
+                    "call_type": call.call_type.value,
+                })
+
+        # Insert in batches
+        if call_data:
+            batch_size = 100
+            for i in range(0, len(call_data), batch_size):
+                batch = call_data[i:i + batch_size]
+                self.supabase.table("analysis_function_calls").insert(batch).execute()
+
+        # Update call count in analyses table
+        self.supabase.table("analyses").update({
+            "function_call_count": len(calls),
+        }).eq("analysis_id", analysis_id).execute()
+
+    async def get_tier_list(
+        self,
+        analysis_id: str,
+        user_id: str,
+        tier: Optional[str] = None,
+        file_filter: Optional[str] = None,
+        function_type: Optional[str] = None,
+        search: Optional[str] = None,
+        sort_by: str = "call_count",
+        sort_order: str = "desc",
+        page: int = 1,
+        per_page: int = 50,
+    ) -> Optional[TierListResponse]:
+        """Get paginated tier list with filtering.
+
+        Args:
+            analysis_id: The analysis identifier
+            user_id: User ID for ownership verification
+            tier: Filter by tier (S/A/B/C/D/F)
+            file_filter: Filter by file path (partial match)
+            function_type: Filter by function type
+            search: Search function names
+            sort_by: Sort field (call_count, name, file, tier)
+            sort_order: Sort order (asc, desc)
+            page: Page number
+            per_page: Items per page (max 100)
+
+        Returns:
+            TierListResponse with paginated functions
+        """
+        # Verify ownership and get DB analysis ID
+        analysis_result = (
+            self.supabase.table("analyses")
+            .select("id, function_count")
+            .eq("analysis_id", analysis_id)
+            .eq("user_id", user_id)
+            .execute()
+        )
+
+        if not analysis_result.data:
+            return None
+
+        db_analysis_id = analysis_result.data[0]["id"]
+        total_functions = analysis_result.data[0].get("function_count", 0)
+
+        # Build query
+        query = (
+            self.supabase.table("analysis_functions")
+            .select("*", count="exact")
+            .eq("analysis_id", db_analysis_id)
+        )
+
+        # Apply filters
+        if tier:
+            query = query.eq("tier", tier)
+        if file_filter:
+            query = query.ilike("node_id", f"%{file_filter}%")
+        if function_type:
+            query = query.eq("function_type", function_type)
+        if search:
+            query = query.ilike("function_name", f"%{search}%")
+
+        # Apply sorting
+        sort_column = {
+            "call_count": "internal_call_count",
+            "name": "function_name",
+            "file": "node_id",
+            "tier": "tier_percentile",
+        }.get(sort_by, "internal_call_count")
+
+        is_desc = sort_order.lower() == "desc"
+        query = query.order(sort_column, desc=is_desc)
+
+        # Apply pagination
+        per_page = min(per_page, 100)
+        offset = (page - 1) * per_page
+        query = query.range(offset, offset + per_page - 1)
+
+        result = query.execute()
+
+        # Get tier summary
+        tier_summary = await self._get_tier_summary(db_analysis_id)
+
+        # Convert to FunctionTierItem objects
+        functions = []
+        for row in result.data:
+            functions.append(FunctionTierItem(
+                id=str(row["id"]),
+                function_name=row["function_name"],
+                qualified_name=row["qualified_name"],
+                function_type=FunctionType(row["function_type"]),
+                file_path=row["node_id"],
+                file_name=row["node_id"].split("/")[-1] if row["node_id"] else "",
+                node_id=row["node_id"],
+                internal_call_count=row["internal_call_count"],
+                external_call_count=row["external_call_count"],
+                is_exported=row["is_exported"],
+                is_entry_point=row["is_entry_point"],
+                tier=TierLevel(row["tier"]),
+                tier_percentile=row["tier_percentile"],
+                start_line=row["start_line"],
+                end_line=row["end_line"],
+                is_async=row["is_async"],
+                parameters_count=row["parameters_count"],
+            ))
+
+        # Calculate pagination info
+        total_count = result.count if result.count else len(functions)
+        total_pages = (total_count + per_page - 1) // per_page if per_page > 0 else 1
+
+        return TierListResponse(
+            analysis_id=analysis_id,
+            total_functions=total_functions,
+            tier_summary=tier_summary,
+            functions=functions,
+            page=page,
+            per_page=per_page,
+            total_pages=total_pages,
+            has_next=page < total_pages,
+        )
+
+    async def _get_tier_summary(self, db_analysis_id: str) -> Dict[str, int]:
+        """Get count of functions per tier."""
+        result = (
+            self.supabase.table("analysis_functions")
+            .select("tier")
+            .eq("analysis_id", db_analysis_id)
+            .execute()
+        )
+
+        summary = {"S": 0, "A": 0, "B": 0, "C": 0, "D": 0, "F": 0}
+        for row in result.data:
+            tier = row.get("tier")
+            if tier in summary:
+                summary[tier] += 1
+
+        return summary
+
+    async def get_function_detail(
+        self,
+        analysis_id: str,
+        function_id: str,
+        user_id: str,
+    ) -> Optional[FunctionDetailResponse]:
+        """Get detailed information about a single function.
+
+        Args:
+            analysis_id: The analysis identifier
+            function_id: The function UUID
+            user_id: User ID for ownership verification
+
+        Returns:
+            FunctionDetailResponse with function details and call info
+        """
+        # Verify ownership
+        analysis_result = (
+            self.supabase.table("analyses")
+            .select("id")
+            .eq("analysis_id", analysis_id)
+            .eq("user_id", user_id)
+            .execute()
+        )
+
+        if not analysis_result.data:
+            return None
+
+        db_analysis_id = analysis_result.data[0]["id"]
+
+        # Get function
+        func_result = (
+            self.supabase.table("analysis_functions")
+            .select("*")
+            .eq("analysis_id", db_analysis_id)
+            .eq("id", function_id)
+            .execute()
+        )
+
+        if not func_result.data:
+            return None
+
+        row = func_result.data[0]
+        function = FunctionTierItem(
+            id=str(row["id"]),
+            function_name=row["function_name"],
+            qualified_name=row["qualified_name"],
+            function_type=FunctionType(row["function_type"]),
+            file_path=row["node_id"],
+            file_name=row["node_id"].split("/")[-1] if row["node_id"] else "",
+            node_id=row["node_id"],
+            internal_call_count=row["internal_call_count"],
+            external_call_count=row["external_call_count"],
+            is_exported=row["is_exported"],
+            is_entry_point=row["is_entry_point"],
+            tier=TierLevel(row["tier"]),
+            tier_percentile=row["tier_percentile"],
+            start_line=row["start_line"],
+            end_line=row["end_line"],
+            is_async=row["is_async"],
+            parameters_count=row["parameters_count"],
+        )
+
+        # Get callers (functions that call this function)
+        callers_result = (
+            self.supabase.table("analysis_function_calls")
+            .select("caller_node_id, call_line, call_type")
+            .eq("analysis_id", db_analysis_id)
+            .eq("callee_qualified_name", row["qualified_name"])
+            .limit(10)
+            .execute()
+        )
+
+        callers = [
+            {
+                "file": c["caller_node_id"],
+                "line": c["call_line"],
+                "call_type": c["call_type"],
+            }
+            for c in callers_result.data
+        ]
+
+        # Get callees (functions called by this function)
+        callees_result = (
+            self.supabase.table("analysis_function_calls")
+            .select("callee_qualified_name, callee_node_id, call_line, call_type")
+            .eq("analysis_id", db_analysis_id)
+            .eq("caller_node_id", row["node_id"])
+            .limit(10)
+            .execute()
+        )
+
+        callees = [
+            {
+                "name": c["callee_qualified_name"],
+                "file": c["callee_node_id"],
+                "line": c["call_line"],
+                "call_type": c["call_type"],
+            }
+            for c in callees_result.data
+        ]
+
+        # Get total counts
+        caller_count_result = (
+            self.supabase.table("analysis_function_calls")
+            .select("id", count="exact")
+            .eq("analysis_id", db_analysis_id)
+            .eq("callee_qualified_name", row["qualified_name"])
+            .execute()
+        )
+
+        callee_count_result = (
+            self.supabase.table("analysis_function_calls")
+            .select("id", count="exact")
+            .eq("analysis_id", db_analysis_id)
+            .eq("caller_node_id", row["node_id"])
+            .execute()
+        )
+
+        return FunctionDetailResponse(
+            function=function,
+            callers=callers,
+            callees=callees,
+            caller_count=caller_count_result.count or 0,
+            callee_count=callee_count_result.count or 0,
+        )
+
+    async def get_function_stats(
+        self,
+        analysis_id: str,
+        user_id: str,
+    ) -> Optional[FunctionStats]:
+        """Get aggregate statistics for function analysis.
+
+        Args:
+            analysis_id: The analysis identifier
+            user_id: User ID for ownership verification
+
+        Returns:
+            FunctionStats with aggregate data
+        """
+        # Verify ownership
+        analysis_result = (
+            self.supabase.table("analyses")
+            .select("id, function_count, function_call_count")
+            .eq("analysis_id", analysis_id)
+            .eq("user_id", user_id)
+            .execute()
+        )
+
+        if not analysis_result.data:
+            return None
+
+        data = analysis_result.data[0]
+        db_analysis_id = data["id"]
+
+        # Get tier counts
+        tier_summary = await self._get_tier_summary(db_analysis_id)
+
+        # Get top functions
+        top_result = (
+            self.supabase.table("analysis_functions")
+            .select("function_name")
+            .eq("analysis_id", db_analysis_id)
+            .order("internal_call_count", desc=True)
+            .limit(5)
+            .execute()
+        )
+
+        top_functions = [row["function_name"] for row in top_result.data]
+
+        return FunctionStats(
+            total_functions=data.get("function_count", 0),
+            total_calls=data.get("function_call_count", 0),
+            tier_counts=tier_summary,
+            top_functions=top_functions,
+        )
 
 
 # Singleton instance

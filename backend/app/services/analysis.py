@@ -168,6 +168,7 @@ class AnalysisService:
 
             function_stats = None
             tier_items = []
+            resolved_calls = []
 
             # Only run function analysis if we have file content
             files_with_content = [pf for pf in parsed_files if pf.content]
@@ -249,6 +250,19 @@ class AnalysisService:
                     edges,
                     parsed_files if is_github_analysis else None,
                 )
+
+                # Save function tier data if available
+                if tier_items:
+                    try:
+                        # Determine primary language
+                        primary_lang = max(language_counts, key=language_counts.get) if language_counts else "unknown"
+                        await db_service.save_functions(analysis_id, tier_items, primary_lang)
+
+                        # Save resolved calls
+                        if resolved_calls:
+                            await db_service.save_function_calls(analysis_id, resolved_calls)
+                    except Exception as e:
+                        print(f"Failed to save function data (non-fatal): {e}")
 
         except Exception as e:
             job.status = AnalysisStatus.FAILED

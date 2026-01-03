@@ -585,3 +585,55 @@ class ReactFlowGraph(BaseModel):
     nodes: list[ReactFlowNode]
     edges: list[ReactFlowEdge]
     metadata: AnalysisMetadata
+
+
+# Tier List API Response Models
+class TierListResponse(BaseModel):
+    """Response for the tier list endpoint."""
+
+    analysis_id: str = Field(..., description="Analysis ID")
+    total_functions: int = Field(..., description="Total number of functions")
+    tier_summary: dict[str, int] = Field(
+        ..., description="Count per tier (S, A, B, C, D, F)"
+    )
+    functions: list[FunctionTierItem] = Field(..., description="Paginated functions")
+    page: int = Field(..., description="Current page number")
+    per_page: int = Field(..., description="Items per page")
+    total_pages: int = Field(..., description="Total number of pages")
+    has_next: bool = Field(..., description="Whether there are more pages")
+
+
+class FunctionDetailResponse(BaseModel):
+    """Response for a single function's details."""
+
+    function: FunctionTierItem = Field(..., description="Function details")
+    callers: list[dict] = Field(
+        default_factory=list, description="Functions that call this function"
+    )
+    callees: list[dict] = Field(
+        default_factory=list, description="Functions called by this function"
+    )
+    caller_count: int = Field(default=0, description="Total number of callers")
+    callee_count: int = Field(default=0, description="Total number of callees")
+
+
+class FunctionCallersResponse(BaseModel):
+    """Paginated response for function callers."""
+
+    function_id: str = Field(..., description="Function ID")
+    callers: list[dict] = Field(..., description="Paginated callers")
+    total: int = Field(..., description="Total number of callers")
+    page: int = Field(..., description="Current page")
+    per_page: int = Field(..., description="Items per page")
+    has_next: bool = Field(..., description="Whether there are more pages")
+
+
+class FunctionCalleesResponse(BaseModel):
+    """Paginated response for function callees."""
+
+    function_id: str = Field(..., description="Function ID")
+    callees: list[dict] = Field(..., description="Paginated callees")
+    total: int = Field(..., description="Total number of callees")
+    page: int = Field(..., description="Current page")
+    per_page: int = Field(..., description="Items per page")
+    has_next: bool = Field(..., description="Whether there are more pages")
