@@ -11,11 +11,16 @@ from ..models.schemas import (
     AnalysisStatus,
     AnalysisStatusResponse,
     ReactFlowGraph,
+    FunctionTierItem,
+    FunctionStats,
     Language,
 )
 from .graph_builder import get_graph_builder
 from .llm_analyzer import get_llm_analyzer
 from .parser import get_parser
+from .function_analyzer import get_function_analyzer
+from .call_resolver import create_call_resolver
+from .tier_calculator import create_tier_calculator
 
 
 class AnalysisJob:
@@ -31,6 +36,9 @@ class AnalysisJob:
         self.result: Optional[ReactFlowGraph] = None
         self.started_at = datetime.utcnow()
         self.completed_at: Optional[datetime] = None
+        # Function tier list data
+        self.function_tier_items: list[FunctionTierItem] = []
+        self.function_stats: Optional[FunctionStats] = None
 
 
 class AnalysisService:
@@ -42,6 +50,7 @@ class AnalysisService:
         self._parser = get_parser()
         self._llm_analyzer = get_llm_analyzer()
         self._graph_builder = get_graph_builder()
+        self._function_analyzer = get_function_analyzer()
 
     def create_job(self, directory_path: str) -> str:
         """Create a new analysis job."""
@@ -113,12 +122,13 @@ class AnalysisService:
             job.status = AnalysisStatus.PARSING
             job.current_step = "Scanning and parsing files..."
 
-            # For GitHub analyses, include file content for storage (repo is deleted after)
+            # Always include content for function analysis
+            # For GitHub analyses, content is also needed for storage (repo is deleted after)
             parsed_files = self._parser.parse_directory(
                 job.directory_path,
                 include_node_modules,
                 max_depth,
-                include_content=is_github_analysis,
+                include_content=True,
             )
 
             job.total_files = len(parsed_files)
@@ -152,7 +162,44 @@ class AnalysisService:
                 None,  # metadata will be created below
             )
 
-            # Step 4: Generate codebase summary
+            # Step 4: Analyze functions (requires file content)
+            job.status = AnalysisStatus.ANALYZING_FUNCTIONS
+            job.current_step = "Analyzing function calls..."
+
+            function_stats = None
+            tier_items = []
+
+            # Only run function analysis if we have file content
+            files_with_content = [pf for pf in parsed_files if pf.content]
+            if files_with_content:
+                try:
+                    # Extract functions and calls
+                    functions, calls = self._function_analyzer.analyze(files_with_content)
+
+                    if functions:
+                        # Build node ID map from nodes
+                        node_id_map = {node.path: node.id for node in nodes}
+
+                        # Resolve calls to definitions
+                        call_resolver = create_call_resolver(
+                            files_with_content, functions, job.directory_path
+                        )
+                        resolved_calls = call_resolver.resolve_all(calls)
+
+                        # Calculate tiers
+                        tier_calculator = create_tier_calculator(job.directory_path)
+                        tier_items, function_stats = tier_calculator.classify(
+                            functions, resolved_calls, node_id_map
+                        )
+
+                        job.function_tier_items = tier_items
+                        job.function_stats = function_stats
+                        job.current_step = f"Found {len(functions)} functions, {len(calls)} calls"
+                except Exception as e:
+                    print(f"Function analysis failed (non-fatal): {e}")
+                    # Continue without function analysis
+
+            # Step 5: Generate codebase summary
             job.status = AnalysisStatus.GENERATING_SUMMARY
             job.current_step = "Generating codebase summary..."
 
@@ -180,6 +227,7 @@ class AnalysisService:
                 errors=[],
                 summary=summary,
                 readme_detected=readme_detected,
+                function_stats=function_stats,
             )
 
             # Convert to React Flow format

@@ -62,10 +62,51 @@ class AnalysisStatus(str, Enum):
     CLONING = "cloning"
     PARSING = "parsing"
     ANALYZING = "analyzing"
+    ANALYZING_FUNCTIONS = "analyzing_functions"
     BUILDING_GRAPH = "building_graph"
     GENERATING_SUMMARY = "generating_summary"
     COMPLETED = "completed"
     FAILED = "failed"
+
+
+class CallType(str, Enum):
+    """Types of function/method calls."""
+
+    FUNCTION = "function"
+    METHOD = "method"
+    CONSTRUCTOR = "constructor"
+    STATIC_METHOD = "static_method"
+    IIFE = "iife"
+
+
+class CallOrigin(str, Enum):
+    """Origin of the called function."""
+
+    LOCAL = "local"
+    INTERNAL = "internal"
+    EXTERNAL = "external"
+
+
+class FunctionType(str, Enum):
+    """Types of function definitions."""
+
+    FUNCTION = "function"
+    METHOD = "method"
+    ARROW_FUNCTION = "arrow_function"
+    CONSTRUCTOR = "constructor"
+    HOOK = "hook"
+    CALLBACK = "callback"
+
+
+class TierLevel(str, Enum):
+    """Function importance tiers."""
+
+    S = "S"
+    A = "A"
+    B = "B"
+    C = "C"
+    D = "D"
+    F = "F"
 
 
 # GitHub schemas
@@ -241,6 +282,95 @@ class ParsedFile(BaseModel):
     line_count: int = Field(..., description="Number of lines in file")
 
 
+class FunctionCallInfo(BaseModel):
+    """Information about a function call site."""
+
+    callee_name: str = Field(..., description="Name of the called function")
+    qualified_name: Optional[str] = Field(
+        default=None, description="Qualified name like obj.method or Class.method"
+    )
+    call_type: CallType = Field(..., description="Type of call")
+    origin: CallOrigin = Field(
+        default=CallOrigin.LOCAL, description="Origin of the called function"
+    )
+    source_file: str = Field(..., description="File containing the call")
+    line_number: int = Field(..., description="Line number of the call")
+    column: int = Field(default=0, description="Column of the call")
+    resolved_target: Optional[str] = Field(
+        default=None, description="Resolved file path if internal"
+    )
+    original_name: Optional[str] = Field(
+        default=None, description="Original name if aliased import"
+    )
+
+
+class FunctionDefinition(BaseModel):
+    """Detailed function definition information from parsing."""
+
+    name: str = Field(..., description="Function name")
+    qualified_name: str = Field(
+        ..., description="Qualified name like FileName.ClassName.FunctionName"
+    )
+    function_type: FunctionType = Field(..., description="Type of function")
+    file_path: str = Field(..., description="File containing the function")
+    start_line: int = Field(..., description="Starting line number")
+    end_line: Optional[int] = Field(default=None, description="Ending line number")
+    is_exported: bool = Field(default=False, description="Whether exported")
+    is_async: bool = Field(default=False, description="Whether async function")
+    is_entry_point: bool = Field(
+        default=False, description="Whether this is an entry point (main, handler)"
+    )
+    parameters_count: int = Field(default=0, description="Number of parameters")
+    parent_class: Optional[str] = Field(
+        default=None, description="Parent class name if method"
+    )
+
+
+class FunctionTierItem(BaseModel):
+    """Single function in the tier list."""
+
+    id: str = Field(..., description="Unique identifier")
+    function_name: str = Field(..., description="Function name")
+    qualified_name: str = Field(..., description="Qualified name")
+    function_type: FunctionType = Field(..., description="Type of function")
+    file_path: str = Field(..., description="File path")
+    file_name: str = Field(..., description="File name")
+    node_id: str = Field(..., description="Associated graph node ID")
+
+    # Metrics
+    internal_call_count: int = Field(
+        default=0, description="Number of internal calls"
+    )
+    external_call_count: int = Field(
+        default=0, description="Number of external calls"
+    )
+    is_exported: bool = Field(default=False, description="Whether exported")
+    is_entry_point: bool = Field(default=False, description="Whether entry point")
+
+    # Tier information
+    tier: TierLevel = Field(..., description="Assigned tier")
+    tier_percentile: float = Field(..., description="Percentile (0.0-100.0)")
+
+    # Location
+    start_line: int = Field(..., description="Starting line")
+    end_line: Optional[int] = Field(default=None, description="Ending line")
+    is_async: bool = Field(default=False, description="Whether async")
+    parameters_count: int = Field(default=0, description="Parameter count")
+
+
+class FunctionStats(BaseModel):
+    """Summary statistics for function analysis."""
+
+    total_functions: int = Field(..., description="Total functions found")
+    total_calls: int = Field(..., description="Total call sites found")
+    tier_counts: dict[str, int] = Field(
+        default_factory=dict, description="Count per tier"
+    )
+    top_functions: list[str] = Field(
+        default_factory=list, description="Top 5 function names"
+    )
+
+
 class LLMFileAnalysis(BaseModel):
     """LLM analysis result for a single file."""
 
@@ -366,6 +496,9 @@ class AnalysisMetadata(BaseModel):
     )
     readme_detected: bool = Field(
         default=False, description="Whether a README file was found and analyzed"
+    )
+    function_stats: Optional[FunctionStats] = Field(
+        default=None, description="Function tier list statistics"
     )
 
 

@@ -10,7 +10,17 @@ import tree_sitter_typescript as tsts
 from tree_sitter import Language, Parser
 
 from ..settings import get_settings
-from ..models.schemas import ImportInfo, ImportType, Language as LangEnum, ParsedFile
+from ..models.schemas import (
+    ImportInfo,
+    ImportType,
+    Language as LangEnum,
+    ParsedFile,
+    FunctionCallInfo,
+    FunctionDefinition,
+    FunctionType,
+    CallType,
+    CallOrigin,
+)
 
 
 class FileParser:
@@ -447,6 +457,443 @@ class FileParser:
         text = self._get_node_text(node, content)
         # Remove quotes (single, double, or template literals)
         return text.strip("\"'`")
+
+    def extract_function_calls(
+        self, file_path: str, content: str, tree
+    ) -> list[FunctionCallInfo]:
+        """Extract function call sites from a parsed file.
+
+        Args:
+            file_path: Path to the file
+            content: File content
+            tree: Parsed AST tree
+        """
+        language = self.detect_language(file_path)
+
+        if language in (LangEnum.JAVASCRIPT, LangEnum.TYPESCRIPT):
+            return self._extract_js_ts_calls(tree, content, file_path)
+        elif language == LangEnum.PYTHON:
+            return self._extract_python_calls(tree, content, file_path)
+
+        return []
+
+    def extract_function_definitions(
+        self, file_path: str, content: str, tree, exports: list[str]
+    ) -> list[FunctionDefinition]:
+        """Extract detailed function definitions from a parsed file.
+
+        Args:
+            file_path: Path to the file
+            content: File content
+            tree: Parsed AST tree
+            exports: List of exported names
+        """
+        language = self.detect_language(file_path)
+
+        if language in (LangEnum.JAVASCRIPT, LangEnum.TYPESCRIPT):
+            return self._extract_js_ts_function_definitions(tree, content, file_path, exports)
+        elif language == LangEnum.PYTHON:
+            return self._extract_python_function_definitions(tree, content, file_path)
+
+        return []
+
+    def _extract_js_ts_calls(
+        self, tree, content: str, file_path: str
+    ) -> list[FunctionCallInfo]:
+        """Extract function call sites from JS/TS files."""
+        calls = []
+        root = tree.root_node
+
+        def traverse(node):
+            if node.type == "call_expression":
+                callee = node.child_by_field_name("function")
+                if callee:
+                    call_info = self._parse_call_expression(callee, node, content, file_path)
+                    if call_info:
+                        calls.append(call_info)
+
+            # Also check for new expressions (constructor calls)
+            elif node.type == "new_expression":
+                constructor = node.child_by_field_name("constructor")
+                if constructor:
+                    call_info = self._parse_new_expression(constructor, node, content, file_path)
+                    if call_info:
+                        calls.append(call_info)
+
+            for child in node.children:
+                traverse(child)
+
+        traverse(root)
+        return calls
+
+    def _parse_call_expression(
+        self, callee, call_node, content: str, file_path: str
+    ) -> Optional[FunctionCallInfo]:
+        """Parse a JS/TS call expression node into FunctionCallInfo."""
+        line = call_node.start_point[0] + 1
+        column = call_node.start_point[1]
+
+        if callee.type == "identifier":
+            # Direct function call: foo()
+            name = self._get_node_text(callee, content)
+            # Skip common built-ins
+            if name in ("console", "setTimeout", "setInterval", "clearTimeout", "clearInterval"):
+                return None
+            return FunctionCallInfo(
+                callee_name=name,
+                call_type=CallType.FUNCTION,
+                origin=CallOrigin.LOCAL,
+                source_file=file_path,
+                line_number=line,
+                column=column,
+            )
+
+        elif callee.type == "member_expression":
+            # Method call: obj.method()
+            prop = callee.child_by_field_name("property")
+            obj = callee.child_by_field_name("object")
+            if prop:
+                method_name = self._get_node_text(prop, content)
+                obj_name = self._get_node_text(obj, content) if obj else None
+
+                # Skip console.log etc
+                if obj_name == "console":
+                    return None
+
+                return FunctionCallInfo(
+                    callee_name=method_name,
+                    qualified_name=f"{obj_name}.{method_name}" if obj_name else method_name,
+                    call_type=CallType.METHOD,
+                    origin=CallOrigin.LOCAL,
+                    source_file=file_path,
+                    line_number=line,
+                    column=column,
+                )
+
+        return None
+
+    def _parse_new_expression(
+        self, constructor, new_node, content: str, file_path: str
+    ) -> Optional[FunctionCallInfo]:
+        """Parse a new expression (constructor call)."""
+        line = new_node.start_point[0] + 1
+        column = new_node.start_point[1]
+
+        if constructor.type == "identifier":
+            name = self._get_node_text(constructor, content)
+            return FunctionCallInfo(
+                callee_name=name,
+                call_type=CallType.CONSTRUCTOR,
+                origin=CallOrigin.LOCAL,
+                source_file=file_path,
+                line_number=line,
+                column=column,
+            )
+        elif constructor.type == "member_expression":
+            prop = constructor.child_by_field_name("property")
+            obj = constructor.child_by_field_name("object")
+            if prop:
+                class_name = self._get_node_text(prop, content)
+                obj_name = self._get_node_text(obj, content) if obj else None
+                return FunctionCallInfo(
+                    callee_name=class_name,
+                    qualified_name=f"{obj_name}.{class_name}" if obj_name else class_name,
+                    call_type=CallType.CONSTRUCTOR,
+                    origin=CallOrigin.LOCAL,
+                    source_file=file_path,
+                    line_number=line,
+                    column=column,
+                )
+
+        return None
+
+    def _extract_python_calls(
+        self, tree, content: str, file_path: str
+    ) -> list[FunctionCallInfo]:
+        """Extract function call sites from Python files."""
+        calls = []
+        root = tree.root_node
+
+        def traverse(node):
+            if node.type == "call":
+                func = node.child_by_field_name("function")
+                if func:
+                    call_info = self._parse_python_call(func, node, content, file_path)
+                    if call_info:
+                        calls.append(call_info)
+
+            for child in node.children:
+                traverse(child)
+
+        traverse(root)
+        return calls
+
+    def _parse_python_call(
+        self, func, call_node, content: str, file_path: str
+    ) -> Optional[FunctionCallInfo]:
+        """Parse a Python call node into FunctionCallInfo."""
+        line = call_node.start_point[0] + 1
+        column = call_node.start_point[1]
+
+        if func.type == "identifier":
+            # Direct function call: foo()
+            name = self._get_node_text(func, content)
+            # Skip common built-ins
+            if name in ("print", "len", "str", "int", "float", "list", "dict", "set", "tuple", "range", "type", "isinstance", "hasattr", "getattr", "setattr"):
+                return None
+            return FunctionCallInfo(
+                callee_name=name,
+                call_type=CallType.FUNCTION,
+                origin=CallOrigin.LOCAL,
+                source_file=file_path,
+                line_number=line,
+                column=column,
+            )
+
+        elif func.type == "attribute":
+            # Method call: obj.method()
+            attr = func.child_by_field_name("attribute")
+            obj = func.child_by_field_name("object")
+            if attr:
+                method_name = self._get_node_text(attr, content)
+                obj_name = self._get_node_text(obj, content) if obj else None
+                return FunctionCallInfo(
+                    callee_name=method_name,
+                    qualified_name=f"{obj_name}.{method_name}" if obj_name else method_name,
+                    call_type=CallType.METHOD,
+                    origin=CallOrigin.LOCAL,
+                    source_file=file_path,
+                    line_number=line,
+                    column=column,
+                )
+
+        return None
+
+    def _extract_js_ts_function_definitions(
+        self, tree, content: str, file_path: str, exports: list[str]
+    ) -> list[FunctionDefinition]:
+        """Extract detailed function definitions from JS/TS files."""
+        definitions = []
+        root = tree.root_node
+        file_name = os.path.basename(file_path).rsplit(".", 1)[0]
+        export_set = set(exports)
+
+        def traverse(node, parent_class: Optional[str] = None):
+            # Regular function declarations: function foo() {}
+            if node.type == "function_declaration":
+                name_node = node.child_by_field_name("name")
+                if name_node:
+                    name = self._get_node_text(name_node, content)
+                    is_async = any(
+                        child.type == "async" for child in node.children
+                    )
+                    params = node.child_by_field_name("parameters")
+                    param_count = self._count_parameters(params) if params else 0
+
+                    func_type = FunctionType.HOOK if name.startswith("use") else FunctionType.FUNCTION
+                    qualified = f"{file_name}.{name}"
+
+                    definitions.append(FunctionDefinition(
+                        name=name,
+                        qualified_name=qualified,
+                        function_type=func_type,
+                        file_path=file_path,
+                        start_line=node.start_point[0] + 1,
+                        end_line=node.end_point[0] + 1,
+                        is_exported=name in export_set,
+                        is_async=is_async,
+                        is_entry_point=self._is_entry_point(name),
+                        parameters_count=param_count,
+                        parent_class=parent_class,
+                    ))
+
+            # Arrow functions assigned to variables
+            elif node.type == "variable_declarator":
+                name_node = node.child_by_field_name("name")
+                value = node.child_by_field_name("value")
+                if name_node and value and value.type in ("arrow_function", "function_expression"):
+                    name = self._get_node_text(name_node, content)
+                    is_async = any(
+                        child.type == "async" for child in value.children
+                    )
+                    params = value.child_by_field_name("parameters")
+                    param_count = self._count_parameters(params) if params else 0
+
+                    func_type = FunctionType.HOOK if name.startswith("use") else FunctionType.ARROW_FUNCTION
+                    qualified = f"{file_name}.{name}"
+
+                    definitions.append(FunctionDefinition(
+                        name=name,
+                        qualified_name=qualified,
+                        function_type=func_type,
+                        file_path=file_path,
+                        start_line=node.start_point[0] + 1,
+                        end_line=node.end_point[0] + 1,
+                        is_exported=name in export_set,
+                        is_async=is_async,
+                        is_entry_point=self._is_entry_point(name),
+                        parameters_count=param_count,
+                        parent_class=parent_class,
+                    ))
+
+            # Class declarations
+            elif node.type == "class_declaration":
+                class_name_node = node.child_by_field_name("name")
+                if class_name_node:
+                    class_name = self._get_node_text(class_name_node, content)
+                    # Traverse class body
+                    body = node.child_by_field_name("body")
+                    if body:
+                        for child in body.children:
+                            traverse(child, parent_class=class_name)
+                    return
+
+            # Method definitions in classes
+            elif node.type == "method_definition":
+                name_node = node.child_by_field_name("name")
+                if name_node:
+                    name = self._get_node_text(name_node, content)
+                    is_async = any(
+                        child.type == "async" for child in node.children
+                    )
+                    params = node.child_by_field_name("parameters")
+                    param_count = self._count_parameters(params) if params else 0
+
+                    func_type = FunctionType.CONSTRUCTOR if name == "constructor" else FunctionType.METHOD
+                    qualified = f"{file_name}.{parent_class}.{name}" if parent_class else f"{file_name}.{name}"
+
+                    definitions.append(FunctionDefinition(
+                        name=name,
+                        qualified_name=qualified,
+                        function_type=func_type,
+                        file_path=file_path,
+                        start_line=node.start_point[0] + 1,
+                        end_line=node.end_point[0] + 1,
+                        is_exported=parent_class in export_set if parent_class else False,
+                        is_async=is_async,
+                        is_entry_point=False,
+                        parameters_count=param_count,
+                        parent_class=parent_class,
+                    ))
+
+            for child in node.children:
+                traverse(child, parent_class)
+
+        traverse(root)
+        return definitions
+
+    def _extract_python_function_definitions(
+        self, tree, content: str, file_path: str
+    ) -> list[FunctionDefinition]:
+        """Extract detailed function definitions from Python files."""
+        definitions = []
+        root = tree.root_node
+        file_name = os.path.basename(file_path).rsplit(".", 1)[0]
+
+        def traverse(node, parent_class: Optional[str] = None):
+            if node.type == "function_definition":
+                name_node = node.child_by_field_name("name")
+                if name_node:
+                    name = self._get_node_text(name_node, content)
+
+                    # Skip dunder methods except __init__
+                    if name.startswith("__") and name.endswith("__") and name != "__init__":
+                        for child in node.children:
+                            traverse(child, parent_class)
+                        return
+
+                    is_async = node.type == "async_function_definition" or any(
+                        child.type == "async" for child in node.children
+                    )
+                    params = node.child_by_field_name("parameters")
+                    param_count = self._count_python_parameters(params) if params else 0
+
+                    if parent_class:
+                        func_type = FunctionType.CONSTRUCTOR if name == "__init__" else FunctionType.METHOD
+                        qualified = f"{file_name}.{parent_class}.{name}"
+                    else:
+                        func_type = FunctionType.FUNCTION
+                        qualified = f"{file_name}.{name}"
+
+                    # Check for decorators to detect entry points
+                    is_entry = self._is_entry_point(name) or self._has_entry_decorator(node, content)
+
+                    definitions.append(FunctionDefinition(
+                        name=name,
+                        qualified_name=qualified,
+                        function_type=func_type,
+                        file_path=file_path,
+                        start_line=node.start_point[0] + 1,
+                        end_line=node.end_point[0] + 1,
+                        is_exported=not name.startswith("_"),
+                        is_async=is_async,
+                        is_entry_point=is_entry,
+                        parameters_count=param_count,
+                        parent_class=parent_class,
+                    ))
+
+            elif node.type == "class_definition":
+                class_name_node = node.child_by_field_name("name")
+                if class_name_node:
+                    class_name = self._get_node_text(class_name_node, content)
+                    body = node.child_by_field_name("body")
+                    if body:
+                        for child in body.children:
+                            traverse(child, parent_class=class_name)
+                    return
+
+            for child in node.children:
+                traverse(child, parent_class)
+
+        traverse(root)
+        return definitions
+
+    def _count_parameters(self, params_node) -> int:
+        """Count parameters in JS/TS function."""
+        if not params_node:
+            return 0
+        count = 0
+        for child in params_node.children:
+            if child.type in ("identifier", "required_parameter", "optional_parameter", "rest_pattern"):
+                count += 1
+        return count
+
+    def _count_python_parameters(self, params_node) -> int:
+        """Count parameters in Python function (excluding self/cls)."""
+        if not params_node:
+            return 0
+        count = 0
+        for child in params_node.children:
+            if child.type in ("identifier", "default_parameter", "typed_parameter", "typed_default_parameter"):
+                name = self._get_node_text(child, "")
+                # Try to get the name for typed parameters
+                if child.type in ("typed_parameter", "typed_default_parameter"):
+                    name_node = child.children[0] if child.children else None
+                    if name_node:
+                        name = self._get_node_text(name_node, "")
+                if name not in ("self", "cls"):
+                    count += 1
+        return count
+
+    def _is_entry_point(self, name: str) -> bool:
+        """Check if function name indicates an entry point."""
+        entry_patterns = (
+            "main", "handler", "handle", "endpoint", "route",
+            "get", "post", "put", "delete", "patch",
+            "on_", "handle_",
+        )
+        lower_name = name.lower()
+        return lower_name == "main" or any(lower_name.startswith(p) for p in entry_patterns)
+
+    def _has_entry_decorator(self, node, content: str) -> bool:
+        """Check if function has entry point decorators (Python)."""
+        entry_decorators = ("app.", "router.", "@route", "@get", "@post", "@put", "@delete")
+        for child in node.children:
+            if child.type == "decorator":
+                decorator_text = self._get_node_text(child, content)
+                if any(d in decorator_text for d in entry_decorators):
+                    return True
+        return False
 
     def walk_directory(
         self,
