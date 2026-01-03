@@ -1407,8 +1407,9 @@ function VisualizationPageInner() {
       >
         {/* Main content */}
         <div
+          id="left-content"
           className={`min-h-full overflow-y-auto flex flex-col ${mainSectionGap} items-center [scrollbar-width:10] flex-1`}
-          style={{ width: expanded ? `calc(100% - ${panelWidth}px)` : `calc(100% - ${TAB_WIDTH}px)` }}
+          style={{ width: expanded ? `calc(100% - ${panelWidth}px)` : '100%' }}
         >
 
           {/* Overview Section */}
@@ -1663,31 +1664,36 @@ function VisualizationPageInner() {
           />
         )}
 
-        {/* Right Panel / NodeDetailPanel - or collapsed tab */}
-        {expanded ? (
+        {/* Right Panel / NodeDetailPanel */}
+        <div
+          id="right-content"
+          className="h-full bg-slate-900 overflow-hidden border-l border-slate-800 flex-shrink-0 transition-[width] duration-200"
+          style={{ width: expanded ? panelWidth : 0 }}
+        >
+          {expanded && (
+            <>
+              {selectedNode && (
+                <NodeDetailPanel data={selectedNode} onClose={() => setSelectedNode(null)} setExpand={setExpanded} expanded={expanded} />
+              )}
+              {selectedCateogry && (
+                <CategoryRolePanel data={selectedCateogry} onClose={() => setSelectedCategory(null)} setExpand={setExpanded} expanded={expanded} />
+              )}
+              {!selectedNode && !selectedCateogry && (
+                <NodeDetailPanel data={null} onClose={() => setSelectedNode(null)} setExpand={setExpanded} expanded={expanded} />
+              )}
+            </>
+          )}
+        </div>
+
+        {/* Collapsed tab - absolutely positioned, independent of right-content */}
+        {!expanded && (
           <div
-            className="h-full bg-slate-900 overflow-hidden border-l border-slate-800 flex-shrink-0"
-            style={{ width: panelWidth }}
-          >
-            {selectedNode && (
-              <NodeDetailPanel data={selectedNode} onClose={() => setSelectedNode(null)} setExpand={setExpanded} expanded={expanded} />
-            )}
-            {selectedCateogry && (
-              <CategoryRolePanel data={selectedCateogry} onClose={() => setSelectedCategory(null)} setExpand={setExpanded} expanded={expanded} />
-            )}
-            {!selectedNode && !selectedCateogry && (
-              <NodeDetailPanel data={null} onClose={() => setSelectedNode(null)} setExpand={setExpanded} expanded={expanded} />
-            )}
-          </div>
-        ) : (
-          /* Collapsed tab - just the chevron to expand */
-          <div
-            className="h-full relative bg-slate-300/40 group  flex-shrink-0 flex flex-col items-center justify-center cursor-pointer hover:bg-slate-300 rounded-lg transition-colors"
+            className="absolute right-0 top-0 h-[40px] bg-slate-300/40 group flex flex-col items-center justify-center cursor-pointer hover:bg-slate-300 rounded-l-lg transition-colors z-20"
             style={{ width: TAB_WIDTH }}
             onClick={() => setExpanded(true)}
           >
             <div className='flex h-10 w-8 items-center justify-center'>
-              <ChevronsLeftRight size={24} className="text-slate-400  group-hover:text-white transition-colors" />
+              <ChevronsLeftRight size={24} className="text-slate-400 group-hover:text-white transition-colors" />
             </div>
           </div>
         )}
