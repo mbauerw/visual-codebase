@@ -35,6 +35,9 @@ import NodeDetailPanel from '../components/NodeDetailPanel';
 import CategoryRolePanel from '../components/CateogoryDetailPanel';
 import UserDashboardModal from '../components/UserDashboardModal';
 import SummaryDisplay from '../components/SummaryDisplay';
+import { FunctionTierList } from '../components/TierList';
+import type { FunctionTierItem } from '../types/tierList';
+import { BarChart3, FileText } from 'lucide-react';
 import type {
   ReactFlowGraph,
   ReactFlowNodeData,
@@ -892,6 +895,10 @@ function VisualizationPageInner() {
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [loading, setLoading] = useState(true);
 
+  // Right panel tab state
+  type RightPanelTab = 'details' | 'tierlist';
+  const [rightPanelTab, setRightPanelTab] = useState<RightPanelTab>('details');
+
   // Resize state for right panel
   const [panelWidth, setPanelWidth] = useState(400);
   const [isResizing, setIsResizing] = useState(false);
@@ -1278,6 +1285,31 @@ function VisualizationPageInner() {
     setSelectedNode(null);
     setSelectedNodeId(null);
   }, []);
+
+  // Handle function selection from tier list
+  const handleFunctionSelect = useCallback((func: FunctionTierItem) => {
+    // Find the node that corresponds to this function's file
+    const targetNode = nodes.find(node =>
+      node.type === 'custom' && node.id === func.node_id
+    );
+
+    if (targetNode && targetNode.type === 'custom') {
+      // Set the selected node
+      const nodeData = targetNode.data as ReactFlowNodeData;
+      setSelectedNode(nodeData);
+      setSelectedNodeId(targetNode.id);
+      setSelectedCategory(null);
+
+      // Open source code panel
+      setSourceCodeFile({
+        nodeId: targetNode.id,
+        fileName: nodeData.label,
+        language: nodeData.language,
+        lineCount: nodeData.line_count,
+      });
+      setIsSourcePanelOpen(true);
+    }
+  }, [nodes]);
 
   // Track viewport changes for background sync
   const onMove = useCallback(() => {
@@ -1667,20 +1699,58 @@ function VisualizationPageInner() {
         {/* Right Panel / NodeDetailPanel */}
         <div
           id="right-content"
-          className="h-full bg-slate-900 overflow-hidden border-l border-slate-800 flex-shrink-0 transition-[width] duration-200"
+          className="h-full bg-slate-900 overflow-hidden border-l border-slate-800 flex-shrink-0 transition-[width] duration-200 flex flex-col"
           style={{ width: expanded ? panelWidth : 0 }}
         >
           {expanded && (
             <>
-              {selectedNode && (
-                <NodeDetailPanel data={selectedNode} onClose={() => setSelectedNode(null)} setExpand={setExpanded} expanded={expanded} />
-              )}
-              {selectedCateogry && (
-                <CategoryRolePanel data={selectedCateogry} onClose={() => setSelectedCategory(null)} setExpand={setExpanded} expanded={expanded} />
-              )}
-              {!selectedNode && !selectedCateogry && (
-                <NodeDetailPanel data={null} onClose={() => setSelectedNode(null)} setExpand={setExpanded} expanded={expanded} />
-              )}
+              {/* Tab Navigation */}
+              <div className="flex border-b border-slate-700 flex-shrink-0">
+                <button
+                  onClick={() => setRightPanelTab('details')}
+                  className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium transition-colors ${
+                    rightPanelTab === 'details'
+                      ? 'bg-slate-800 text-white border-b-2 border-blue-500'
+                      : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
+                  }`}
+                >
+                  <FileText size={16} />
+                  Files
+                </button>
+                <button
+                  onClick={() => setRightPanelTab('tierlist')}
+                  className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium transition-colors ${
+                    rightPanelTab === 'tierlist'
+                      ? 'bg-slate-800 text-white border-b-2 border-amber-500'
+                      : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
+                  }`}
+                >
+                  <BarChart3 size={16} />
+                  Tier List
+                </button>
+              </div>
+
+              {/* Tab Content */}
+              <div className="flex-1 overflow-hidden">
+                {rightPanelTab === 'details' ? (
+                  <>
+                    {selectedNode && (
+                      <NodeDetailPanel data={selectedNode} onClose={() => setSelectedNode(null)} setExpand={setExpanded} expanded={expanded} />
+                    )}
+                    {selectedCateogry && (
+                      <CategoryRolePanel data={selectedCateogry} onClose={() => setSelectedCategory(null)} setExpand={setExpanded} expanded={expanded} />
+                    )}
+                    {!selectedNode && !selectedCateogry && (
+                      <NodeDetailPanel data={null} onClose={() => setSelectedNode(null)} setExpand={setExpanded} expanded={expanded} />
+                    )}
+                  </>
+                ) : (
+                  <FunctionTierList
+                    analysisId={analysisId}
+                    onFunctionSelect={handleFunctionSelect}
+                  />
+                )}
+              </div>
             </>
           )}
         </div>

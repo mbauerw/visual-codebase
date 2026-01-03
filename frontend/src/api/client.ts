@@ -6,6 +6,12 @@ import type {
   AnalysisStatusResponse,
   ReactFlowGraph,
 } from '../types';
+import type {
+  TierListResponse,
+  FunctionDetailResponse,
+  FunctionStats,
+  TierListQueryParams,
+} from '../types/tierList';
 
 const API_BASE_URL = '/api';
 
@@ -100,6 +106,49 @@ export async function getFileContent(
 ): Promise<FileContentResponse> {
   const response = await client.get<FileContentResponse>(
     `/analysis/${analysisId}/file/${encodeURIComponent(nodeId)}/content`
+  );
+  return response.data;
+}
+
+// ==================== Function Tier List API ====================
+
+export async function getTierList(
+  analysisId: string,
+  params?: TierListQueryParams
+): Promise<TierListResponse> {
+  const queryParams = new URLSearchParams();
+
+  if (params?.tier) queryParams.append('tier', params.tier);
+  if (params?.file) queryParams.append('file', params.file);
+  if (params?.type) queryParams.append('type', params.type);
+  if (params?.search) queryParams.append('search', params.search);
+  if (params?.sort_by) queryParams.append('sort_by', params.sort_by);
+  if (params?.sort_order) queryParams.append('sort_order', params.sort_order);
+  if (params?.page) queryParams.append('page', params.page.toString());
+  if (params?.per_page) queryParams.append('per_page', params.per_page.toString());
+
+  const queryString = queryParams.toString();
+  const url = `/analysis/${analysisId}/functions/tier-list${queryString ? `?${queryString}` : ''}`;
+
+  const response = await client.get<TierListResponse>(url);
+  return response.data;
+}
+
+export async function getFunctionDetail(
+  analysisId: string,
+  functionId: string
+): Promise<FunctionDetailResponse> {
+  const response = await client.get<FunctionDetailResponse>(
+    `/analysis/${analysisId}/functions/${functionId}`
+  );
+  return response.data;
+}
+
+export async function getFunctionStats(
+  analysisId: string
+): Promise<FunctionStats> {
+  const response = await client.get<FunctionStats>(
+    `/analysis/${analysisId}/functions/stats`
   );
   return response.data;
 }
