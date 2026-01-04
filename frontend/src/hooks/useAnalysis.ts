@@ -72,6 +72,12 @@ export function useAnalysis(): UseAnalysisReturn {
     async (request: AnalyzeRequest) => {
       reset();
       setIsLoading(true);
+      // Set initial pending status immediately so progress bar starts animating
+      setStatus({
+        status: 'pending',
+        current_step: 'Starting analysis...',
+        total_files: 0,
+      });
 
       try {
         const response = await startAnalysis(request);

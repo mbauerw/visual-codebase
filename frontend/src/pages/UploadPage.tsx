@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FolderOpen, Play, Loader2, AlertCircle, Zap, GitBranch, Eye, ChevronDown, Menu, X, User } from 'lucide-react';
+import { FolderOpen, Play, Loader2, AlertCircle, Zap, GitBranch, Eye, ChevronDown, Menu, X, User, Pause } from 'lucide-react';
 import { useAnalysis } from '../hooks/useAnalysis';
 import { useAuth } from '../hooks/useAuth';
 import { AuthModal } from '../components/AuthModal';
@@ -23,6 +23,7 @@ export default function UploadPage() {
   const [authModalTab, setAuthModalTab] = useState(0);
   const [dashboardOpen, setDashboardOpen] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
+  const [isCarouselPaused, setIsCarouselPaused] = useState(false);
   const lastScrollY = useRef(0);
   const navigate = useNavigate();
   const { isLoading, status, result, error, analyze } = useAnalysis();
@@ -74,13 +75,14 @@ export default function UploadPage() {
     },
   ];
 
-  // Rotate steps every 4 seconds
+  // Rotate steps every 6 seconds (unless paused)
   useEffect(() => {
+    if (isCarouselPaused) return;
     const interval = setInterval(() => {
       setCurrentStep((prev) => (prev + 1) % howItWorksSteps.length);
     }, 6000);
     return () => clearInterval(interval);
-  }, [howItWorksSteps.length]);
+  }, [howItWorksSteps.length, isCarouselPaused]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -350,8 +352,8 @@ export default function UploadPage() {
               <button
                 onClick={() => setAnalyzeMode('local')}
                 className={`flex-1 px-6 py-3 rounded-xl font-medium transition-all ${analyzeMode === 'local'
-                    ? 'bg-gray-900 text-white shadow-md'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  ? 'bg-gray-900 text-white shadow-md'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                   }`}
               >
                 <FolderOpen size={18} className="inline mr-2" />
@@ -360,8 +362,8 @@ export default function UploadPage() {
               <button
                 onClick={() => setAnalyzeMode('github')}
                 className={`flex-1 px-6 py-3 rounded-xl font-medium transition-all ${analyzeMode === 'github'
-                    ? 'bg-gray-900 text-white shadow-md'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  ? 'bg-gray-900 text-white shadow-md'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                   }`}
               >
                 <GitBranch size={18} className="inline mr-2" />
@@ -455,7 +457,7 @@ export default function UploadPage() {
             {/* Animated Progress Bar */}
             {isLoading && (
               <AnalysisProgressBar
-                status={status?.status ?? null}
+                status={status?.status ?? 'pending'}
                 currentStep={status?.current_step ?? 'Starting analysis...'}
                 totalFiles={status?.total_files ?? 0}
                 isGitHub={analyzeMode === 'github'}
@@ -551,62 +553,80 @@ export default function UploadPage() {
       </section>
 
       {/* How It Works Section */}
-      <section id="how-it-works" className="py-20 md:py-20 px-4 min-h-[100vh] flex flex-col justify-center bg-white gap-0">
-        <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-16">
-            <span className="text-[#8FBCFA] font-semibold text-sm uppercase tracking-wider">How It Works</span>
-            <h2 className="text-3xl md:text-5xl font-bold text-gray-900 mt-4 mb-6">
-              Three simple steps
-            </h2>
-          </div>
+      <section id="how-it-works" className="py-4 md:py-20 px-4 h-[100vh] min-h-[1000px] flex flex-col justify-center bg-white gap-6">
+        <motion.div
+          className="text-center mb-20"
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+          viewport={{ once: true, amount: 0.8 }}
+        >
+          <span className="text-[#8FBCFA] font-semibold text-sm uppercase tracking-wider">How It Works</span>
+          <h2 className="text-3xl md:text-5xl font-bold text-gray-900 mt-4 mb-6">
+            Three simple steps
+          </h2>
+        </motion.div>
 
-          {/* Animated Step Carousel */}
-          <div className="relative h-[60vh] flex items-center justify-center">
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={currentStep}
-                initial={{ opacity: 0, y: 50 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -50 }}
-                transition={{ duration: 0.5, ease: 'easeInOut' }}
-                className="absolute text-center max-w-lg mx-auto"
+        {/* Animated Step Carousel */}
+        <div className="relative lg:h-[60vh] h-[80vh] flex items-center justify-center">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={currentStep}
+              initial={{ opacity: 0, y: 50 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -50 }}
+              transition={{ duration: 0.5, ease: 'easeInOut' }}
+              className="absolute text-center max-w-lg mx-auto"
+            >
+              <div
+                className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6 text-3xl font-bold"
+                style={{
+                  background: `linear-gradient(to bottom right, ${howItWorksSteps[currentStep].gradientFrom}33, ${howItWorksSteps[currentStep].gradientTo}1a)`,
+                  color: howItWorksSteps[currentStep].gradientFrom,
+                }}
               >
-                <div
-                  className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6 text-3xl font-bold"
-                  style={{
-                    background: `linear-gradient(to bottom right, ${howItWorksSteps[currentStep].gradientFrom}33, ${howItWorksSteps[currentStep].gradientTo}1a)`,
-                    color: howItWorksSteps[currentStep].gradientFrom,
-                  }}
-                >
-                  {howItWorksSteps[currentStep].number}
-                </div>
-                <h3 className="text-3xl font-semibold text-gray-900 mb-3">
-                  {howItWorksSteps[currentStep].title}
-                </h3>
-                <p className="text-gray-600 text-xl">
-                  {howItWorksSteps[currentStep].description}
-                </p>
-                <img src={howItWorksSteps[currentStep].image} alt={howItWorksSteps[currentStep].title} className="mt-6 rounded-lg shadow-md mx-auto max-h-[70%] object-cover" /> 
-              </motion.div>
-            </AnimatePresence>
-          </div>
+                {howItWorksSteps[currentStep].number}
+              </div>
+              <h3 className="text-3xl font-semibold text-gray-900 mb-3">
+                {howItWorksSteps[currentStep].title}
+              </h3>
+              <p className="text-gray-600 text-xl">
+                {howItWorksSteps[currentStep].description}
+              </p>
+              <img src={howItWorksSteps[currentStep].image} alt={howItWorksSteps[currentStep].title} className="mt-6 rounded-lg shadow-md mx-auto max-h-[70%] object-cover" />
+            </motion.div>
+          </AnimatePresence>
+        </div>
 
-          {/* Step Indicators */}
-          <div className="flex justify-center items-end gap-3 mt-16">
+        {/* Step Indicators */}
+        <div className="flex flex-col justify-center items-center gap-4 mt-16">
+          <div className='flex flex-row justify-center items-center gap-3'>
             {howItWorksSteps.map((_, index) => (
               <button
                 key={index}
                 onClick={() => setCurrentStep(index)}
-                className={`w-3 h-3 rounded-full transition-all duration-300 ${
-                  index === currentStep
+                className={`w-3 h-3 rounded-full transition-all duration-300 ${index === currentStep
                     ? 'bg-gray-900 scale-110'
                     : 'bg-gray-300 hover:bg-gray-400'
-                }`}
+                  }`}
                 aria-label={`Go to step ${index + 1}`}
               />
+
             ))}
           </div>
+          <button
+            onClick={() => setIsCarouselPaused(!isCarouselPaused)}
+            className="w-8 h-8 rounded-full hover:bg-gray-200 flex items-center justify-center transition-all duration-200"
+            aria-label={isCarouselPaused ? 'Resume carousel' : 'Pause carousel'}
+          >
+            {isCarouselPaused ? (
+              <Play size={14} className="text-gray-600 ml-0.5" />
+            ) : (
+              <Pause size={14} className="text-gray-600 " />
+            )}
+          </button>
         </div>
+
       </section>
 
 

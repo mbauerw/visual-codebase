@@ -20,9 +20,10 @@ const GITHUB_STAGE_CONFIG: Record<string, StageConfig> = {
 };
 
 // Progress configuration for local analysis (no cloning)
+// pending phase is when files are being read - similar to cloning for GitHub
 const LOCAL_STAGE_CONFIG: Record<string, StageConfig> = {
-  pending: { targetPercent: 5, durationMs: 2000 },
-  parsing: { targetPercent: 60, durationMs: 3000 },
+  pending: { targetPercent: 50, durationMs: 20000 },
+  parsing: { targetPercent: 65, durationMs: 3000 },
   analyzing: { targetPercent: 85, durationMs: 8000 },
   building_graph: { targetPercent: 92, durationMs: 2000 },
   generating_summary: { targetPercent: 98, durationMs: 3000 },
@@ -71,8 +72,13 @@ export function useProgressAnimation(
   }, [stopAnimation]);
 
   useEffect(() => {
-    // No status or same status - do nothing
-    if (!status || status === previousStatusRef.current) {
+    // No status - do nothing
+    if (!status) {
+      return;
+    }
+
+    // Same status as before - do nothing (but allow first render with any status)
+    if (previousStatusRef.current !== null && status === previousStatusRef.current) {
       return;
     }
 
@@ -128,6 +134,11 @@ export function useProgressAnimation(
     });
 
     previousStatusRef.current = status;
+
+    // Reset ref on cleanup so next mount starts fresh
+    return () => {
+      previousStatusRef.current = null;
+    };
   }, [status, stageConfig, stopAnimation]);
 
   // Cleanup on unmount

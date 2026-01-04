@@ -2,7 +2,7 @@ import { Loader2 } from 'lucide-react';
 import { useProgressAnimation } from '../../hooks/useProgressAnimation';
 import type { AnalysisStatus } from '../../types';
 
-const STAGES = ['cloning', 'parsing', 'analyzing', 'building_graph', 'generating_summary'] as const;
+const STAGES = ['pending', 'cloning', 'parsing', 'analyzing', 'building_graph', 'generating_summary'] as const;
 
 // Map status to stage index for comparison
 const STATUS_TO_STAGE_INDEX: Record<string, number> = {
@@ -45,7 +45,7 @@ export function AnalysisProgressBar({
         <Loader2 size={24} className="animate-spin text-[#8FBCFA]" />
         <div className="flex-1">
           <p className="text-sm font-medium text-gray-700">
-            {currentStep || 'Starting analysis...'}
+            {currentStep || 'Starting Analysis...'}
           </p>
           {totalFiles > 0 && (
             <p className="text-xs text-gray-500 mt-1">
@@ -61,10 +61,11 @@ export function AnalysisProgressBar({
       {/* Animated progress bar */}
       <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden mb-4">
         <div
-          className="h-full rounded-full bg-gradient-to-r from-[#8FBCFA] to-[#FF9A9D]"
+          className="h-2 rounded-full bg-gradient-to-r from-[#8FBCFA] to-[#FF9A9D]"
           style={{
-            width: `${progress}%`,
-            transition: 'width 100ms ease-out',
+            width: `${Math.max(0, Math.min(100, progress))}%`,
+            transition: 'width 150ms ease-out',
+            minWidth: progress > 0 ? '8px' : '0px',
           }}
         />
       </div>
