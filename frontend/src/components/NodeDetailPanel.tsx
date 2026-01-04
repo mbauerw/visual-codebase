@@ -20,10 +20,7 @@ export default function NodeDetailPanel({ data, onClose, setExpand, expanded }: 
   if (!data) {
     return (
       <div className={`h-full w-full flex flex-col items-center justify-center p-8 text-center`}>
-        <div className='absolute top-2 left-2 flex items-center cursor-pointer gap-2 text-slate-400 z-50 ' >
-          <ChevronsLeftRight size={26} onMouseDown={handleExpandToggle} className='z-50 pointer-events-all' />
-          {/* <span className="text-sm uppercase tracking-wider font-semibold">Node Details</span> */}
-        </div>
+        
         {expanded &&
           <div className='flex flex-col items-center justify-center'>
             <div className="p-6 bg-slate-800/50 w-[96px] rounded-2xl border border-slate-700/50 mb-4">
@@ -54,13 +51,14 @@ export default function NodeDetailPanel({ data, onClose, setExpand, expanded }: 
 
 
   return (
-    <div className="h-full w-full flex flex-col">
+    <div className="h-full w-full flex flex-col relative">
+        {/* <div className='absolute top-2 right-2 flex items-center cursor-pointer gap-2 text-slate-400 z-50 ' >
+          <ChevronsLeftRight size={26} onMouseDown={handleExpandToggle} className='z-50 pointer-events-all' />
+          {/* <span className="text-sm uppercase tracking-wider font-semibold">Node Details</span>
+        </div> */}
       {/* Header with gradient accent */}
       <div className="relative">
-        <div className='absolute top-2 left-2 flex items-center cursor-pointer gap-2 text-slate-400 z-50 ' >
-          <ChevronsLeftRight size={26} onMouseDown={handleExpandToggle} className='z-50 pointer-events-all' />
-          {/* <span className="text-sm uppercase tracking-wider font-semibold">Node Details</span> */}
-        </div>
+        
         <div className="p-6 mt-8 border-b border-slate-800 bg-slate-800/30">
           <div className="flex items-start justify-between gap-4">
             <div className="flex items-center gap-4 min-w-0">

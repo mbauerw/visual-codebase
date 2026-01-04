@@ -63,7 +63,7 @@ const nodeTypes: NodeTypes = {
 // Combined node type for all nodes in the graph
 type AllNodeTypes = CustomNodeType | CategoryNodeType;
 
-interface stylesType  {
+interface stylesType {
   background: string
   '--xy-node-color-default'?: string
 }
@@ -133,8 +133,8 @@ function calculateTreeRoleDimensions(nodeCount: number): { width: number; height
     rows++;
   }
 
-  const width = maxCols * (nodeWidth + nodeGapX) + rolePadding * 2 ;
-  const height = roleHeaderHeight + rows * (nodeHeight + nodeGapY) + rolePadding ;
+  const width = maxCols * (nodeWidth + nodeGapX) + rolePadding * 2;
+  const height = roleHeaderHeight + rows * (nodeHeight + nodeGapY) + rolePadding;
 
   return {
     width: Math.max(width, 300),
@@ -561,7 +561,7 @@ function getFileHierarchyLayout(
         data: {
           label: node.name === 'root' ? '/' : node.name,
           category: 'folder',
-          width: node.width ,
+          width: node.width,
           height: node.height,
           nodeCount: node.files.length,
           level: 'folder',
@@ -748,7 +748,7 @@ function testLayout(
     console.log("path: ", node.data.path)
 
     const base = node.data.path.split('/')[0]
-    if (!folderNodes.has(base)){
+    if (!folderNodes.has(base)) {
       folderNodes.set(base, [])
     }
 
@@ -760,7 +760,7 @@ function testLayout(
   })
 
   // Sort alphabetically by folder name
-  folderNodes = new Map([...folderNodes].sort((a, b) => 
+  folderNodes = new Map([...folderNodes].sort((a, b) =>
     a[0].localeCompare(b[0])
   ))
 
@@ -844,7 +844,7 @@ function testLayout(
         x = 0
         y = y + rowHeight;
       }
-      
+
       positionedNodes.push({
         ...node,
         position: { x: x, y: y },
@@ -1071,10 +1071,10 @@ function VisualizationPageInner() {
 
     // Apply selected layout
     let layoutResult: LayoutResult;
-    
+
     switch (layoutType) {
       case 'file-hierarchy':
-        layoutResult = getFileHierarchyLayout(fileNodesForLayout, filteredEdges); 
+        layoutResult = getFileHierarchyLayout(fileNodesForLayout, filteredEdges);
         break;
       case 'dependency':
         layoutResult = testLayout(fileNodesForLayout, filteredEdges);
@@ -1341,7 +1341,7 @@ function VisualizationPageInner() {
   }
 
   const mainSectionGap = 'gap-[100px]';
-  
+
 
   return (
     <div className="min-h-screen max-h-screen w-screen bg-gray-100 flex flex-col overflow-hidden ">
@@ -1708,26 +1708,28 @@ function VisualizationPageInner() {
               <div className="flex border-b border-slate-700 flex-shrink-0">
                 <button
                   onClick={() => setRightPanelTab('details')}
-                  className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium transition-colors ${
-                    rightPanelTab === 'details'
+                  className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium transition-colors ${rightPanelTab === 'details'
                       ? 'bg-slate-800 text-white border-b-2 border-blue-500'
                       : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
-                  }`}
+                    }`}
                 >
                   <FileText size={16} />
                   Files
                 </button>
                 <button
                   onClick={() => setRightPanelTab('tierlist')}
-                  className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium transition-colors ${
-                    rightPanelTab === 'tierlist'
+                  className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium transition-colors ${rightPanelTab === 'tierlist'
                       ? 'bg-slate-800 text-white border-b-2 border-amber-500'
                       : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
-                  }`}
+                    }`}
                 >
                   <BarChart3 size={16} />
                   Tier List
                 </button>
+                <div className='absolute top-2 right-2 flex items-center cursor-pointer gap-2 text-slate-400 z-50 ' >
+                  <ChevronsLeftRight size={26} onMouseDown={()=>setExpanded(prev => !prev)} className='z-50 pointer-events-all' />
+                  {/* <span className="text-sm uppercase tracking-wider font-semibold">Node Details</span> */}
+                </div>
               </div>
 
               {/* Tab Content */}

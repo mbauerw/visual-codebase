@@ -62,7 +62,7 @@ export default function UploadPage() {
       description: "Our AI processes your files, extracting imports and understanding each file's purpose.",
       gradientFrom: '#8FBCFA',
       gradientTo: '#8FBCFA',
-      image: '/visualize-cr.png'
+      image: '/grid-mountains-1.png'
     },
     {
       number: 3,
@@ -70,7 +70,7 @@ export default function UploadPage() {
       description: 'Navigate your codebase visually, understanding dependencies and architecture at a glance.',
       gradientFrom: '#F6D785',
       gradientTo: '#F6D785',
-      image:'/grid-mountains-1.jpeg'
+      image: '/visualize-cr.png'
     },
   ];
 
@@ -551,7 +551,7 @@ export default function UploadPage() {
       </section>
 
       {/* How It Works Section */}
-      <section id="how-it-works" className="py-20 md:py-20 px-4 min-h-[100vh] flex flex-col justify-center bg-white">
+      <section id="how-it-works" className="py-20 md:py-20 px-4 min-h-[100vh] flex flex-col justify-center bg-white gap-0">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-16">
             <span className="text-[#8FBCFA] font-semibold text-sm uppercase tracking-wider">How It Works</span>
@@ -569,7 +569,7 @@ export default function UploadPage() {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -50 }}
                 transition={{ duration: 0.5, ease: 'easeInOut' }}
-                className="absolute text-center max-w-md mx-auto"
+                className="absolute text-center max-w-lg mx-auto"
               >
                 <div
                   className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6 text-3xl font-bold"
@@ -580,19 +580,19 @@ export default function UploadPage() {
                 >
                   {howItWorksSteps[currentStep].number}
                 </div>
-                <h3 className="text-xl font-semibold text-gray-900 mb-3">
+                <h3 className="text-3xl font-semibold text-gray-900 mb-3">
                   {howItWorksSteps[currentStep].title}
                 </h3>
-                <p className="text-gray-600">
+                <p className="text-gray-600 text-xl">
                   {howItWorksSteps[currentStep].description}
                 </p>
-                <img src={howItWorksSteps[currentStep].image} alt={howItWorksSteps[currentStep].title} className="mt-6 rounded-lg shadow-md mx-auto max-h-48 object-cover" /> 
+                <img src={howItWorksSteps[currentStep].image} alt={howItWorksSteps[currentStep].title} className="mt-6 rounded-lg shadow-md mx-auto max-h-[70%] object-cover" /> 
               </motion.div>
             </AnimatePresence>
           </div>
 
           {/* Step Indicators */}
-          <div className="flex justify-center gap-3 mt-8">
+          <div className="flex justify-center items-end gap-3 mt-16">
             {howItWorksSteps.map((_, index) => (
               <button
                 key={index}
