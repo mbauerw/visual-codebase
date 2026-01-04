@@ -478,7 +478,7 @@ export default function UploadPage() {
 
           <div className="grid md:grid-cols-3 gap-6 md:gap-8">
             {/* Feature 1 */}
-            <div className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100 hover:shadow-xl hover:ring-2 hover:ring-[#6BA3F5] transition-all duration-300">
+            <div className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100 hover:shadow-xl transition-all duration-300">
               <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#8FBCFA] to-[#6BA3F5] flex items-center justify-center mb-6">
                 <GitBranch size={28} className="text-white" />
               </div>
@@ -489,7 +489,7 @@ export default function UploadPage() {
             </div>
 
             {/* Feature 2 */}
-            <div className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100 hover:shadow-xl hover:ring-2 hover:ring-[#FF7A7D] transition-all duration-300">
+            <div className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100 hover:shadow-xl  transition-all duration-300">
               <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#FF9A9D] to-[#FF7A7D] flex items-center justify-center mb-6">
                 <Zap size={28} className="text-white" />
               </div>
@@ -500,7 +500,7 @@ export default function UploadPage() {
             </div>
 
             {/* Feature 3 */}
-            <div className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100 hover:shadow-xl hover:ring-2 hover:ring-[#F0C560] transition-all duration-300">
+            <div className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100 hover:shadow-xl transition-all duration-300">
               <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#F6D785] to-[#F0C560] flex items-center justify-center mb-6">
                 <Eye size={28} className="text-white" />
               </div>

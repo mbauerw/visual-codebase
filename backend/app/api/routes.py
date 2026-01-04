@@ -520,6 +520,32 @@ async def get_function_tier_list(
     return result
 
 
+@router.get("/analysis/{analysis_id}/functions/stats", response_model=FunctionStats)
+async def get_function_stats(
+    analysis_id: str,
+    current_user = Depends(get_current_user),
+):
+    """
+    Get aggregate statistics for function analysis.
+
+    Returns total counts, tier distribution, and top functions.
+    """
+    db_service = get_database_service()
+
+    result = await db_service.get_function_stats(
+        analysis_id=analysis_id,
+        user_id=current_user.id,
+    )
+
+    if result is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Analysis not found or not owned by user"
+        )
+
+    return result
+
+
 @router.get("/analysis/{analysis_id}/functions/{function_id}", response_model=FunctionDetailResponse)
 async def get_function_detail(
     analysis_id: str,
@@ -543,32 +569,6 @@ async def get_function_detail(
         raise HTTPException(
             status_code=404,
             detail="Function not found or analysis not owned by user"
-        )
-
-    return result
-
-
-@router.get("/analysis/{analysis_id}/functions/stats", response_model=FunctionStats)
-async def get_function_stats(
-    analysis_id: str,
-    current_user = Depends(get_current_user),
-):
-    """
-    Get aggregate statistics for function analysis.
-
-    Returns total counts, tier distribution, and top functions.
-    """
-    db_service = get_database_service()
-
-    result = await db_service.get_function_stats(
-        analysis_id=analysis_id,
-        user_id=current_user.id,
-    )
-
-    if result is None:
-        raise HTTPException(
-            status_code=404,
-            detail="Analysis not found or not owned by user"
         )
 
     return result

@@ -909,7 +909,7 @@ function VisualizationPageInner() {
   const TAB_WIDTH = 40; // Width of the expand tab when collapsed
 
   const getMaxPanelWidth = useCallback(() => {
-    return Math.floor(window.innerWidth / 3);
+    return Math.floor(window.innerWidth / 2);
   }, []);
 
   const handleResizeMouseDown = useCallback((e: React.MouseEvent) => {
@@ -1435,7 +1435,7 @@ function VisualizationPageInner() {
       {/* Main grid layout */}
       <div
         ref={containerRef}
-        className="flex mt-14 min-h-[calc(100vh-3.5rem)] relative overflow-hidden"
+        className="flex mt-14 h-[calc(100vh-3.5rem)] relative overflow-hidden"
       >
         {/* Main content */}
         <div
@@ -1699,7 +1699,7 @@ function VisualizationPageInner() {
         {/* Right Panel / NodeDetailPanel */}
         <div
           id="right-content"
-          className="h-full bg-slate-900 overflow-hidden border-l border-slate-800 flex-shrink-0 transition-[width] duration-200 flex flex-col"
+          className="h-full bg-slate-900 border-l border-slate-800 flex-shrink-0 transition-[width] duration-200 flex flex-col"
           style={{ width: expanded ? panelWidth : 0 }}
         >
           {expanded && (
