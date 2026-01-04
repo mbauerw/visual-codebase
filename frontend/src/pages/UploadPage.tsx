@@ -8,7 +8,7 @@ import GitHubRepoForm from '../components/GitHubRepoForm';
 import UserDashboard from './UserDashboard';
 import { AnalysisProgressBar } from '../components/progress';
 import { GitHubRepoInfo } from '../types';
-import { motion } from "motion/react"
+import { motion, AnimatePresence } from "motion/react"
 
 
 
@@ -22,6 +22,7 @@ export default function UploadPage() {
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [authModalTab, setAuthModalTab] = useState(0);
   const [dashboardOpen, setDashboardOpen] = useState(false);
+  const [currentStep, setCurrentStep] = useState(0);
   const lastScrollY = useRef(0);
   const navigate = useNavigate();
   const { isLoading, status, result, error, analyze } = useAnalysis();
@@ -44,6 +45,42 @@ export default function UploadPage() {
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  // How It Works steps data
+  const howItWorksSteps = [
+    {
+      number: 1,
+      title: 'Point to Your Project',
+      description: 'Enter the path to your project directory. We support JavaScript, TypeScript, and Python.',
+      gradientFrom: '#FF9A9D',
+      gradientTo: '#FF9A9D',
+      image: '/upload-cr.png'
+    },
+    {
+      number: 2,
+      title: 'AI Analysis',
+      description: "Our AI processes your files, extracting imports and understanding each file's purpose.",
+      gradientFrom: '#8FBCFA',
+      gradientTo: '#8FBCFA',
+      image: '/visualize-cr.png'
+    },
+    {
+      number: 3,
+      title: 'Explore the Graph',
+      description: 'Navigate your codebase visually, understanding dependencies and architecture at a glance.',
+      gradientFrom: '#F6D785',
+      gradientTo: '#F6D785',
+      image:'/grid-mountains-1.jpeg'
+    },
+  ];
+
+  // Rotate steps every 4 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentStep((prev) => (prev + 1) % howItWorksSteps.length);
+    }, 6000);
+    return () => clearInterval(interval);
+  }, [howItWorksSteps.length]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -299,7 +336,7 @@ export default function UploadPage() {
         <div className="max-w-2xl mx-auto">
           <div className="bg-white rounded-[2rem] p-8 md:p-12 shadow-xl border border-gray-100">
             <div className="text-center mb-10">
-              <span className="text-[#F6D785] font-semibold text-sm uppercase tracking-wider">Get Started</span>
+              <span className="text-yellow-400 font-semibold text-md uppercase tracking-wider">Get Started</span>
               <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mt-4 mb-4">
                 Analyze Your Codebase
               </h2>
@@ -514,7 +551,7 @@ export default function UploadPage() {
       </section>
 
       {/* How It Works Section */}
-      <section id="how-it-works" className="py-20 md:py-32 px-4 min-h-[80vh] flex flex-col justify-center bg-white">
+      <section id="how-it-works" className="py-20 md:py-20 px-4 min-h-[100vh] flex flex-col justify-center bg-white">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-16">
             <span className="text-[#8FBCFA] font-semibold text-sm uppercase tracking-wider">How It Works</span>
@@ -523,39 +560,51 @@ export default function UploadPage() {
             </h2>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-8">
-            {/* Step 1 */}
-            <div className="text-center">
-              <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[#FF9A9D]/20 to-[#FF9A9D]/10 flex items-center justify-center mx-auto mb-6 text-2xl font-bold text-[#FF9A9D]">
-                1
-              </div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-3">Point to Your Project</h3>
-              <p className="text-gray-600">
-                Enter the path to your project directory. We support JavaScript, TypeScript, and Python.
-              </p>
-            </div>
+          {/* Animated Step Carousel */}
+          <div className="relative h-[60vh] flex items-center justify-center">
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={currentStep}
+                initial={{ opacity: 0, y: 50 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -50 }}
+                transition={{ duration: 0.5, ease: 'easeInOut' }}
+                className="absolute text-center max-w-md mx-auto"
+              >
+                <div
+                  className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6 text-3xl font-bold"
+                  style={{
+                    background: `linear-gradient(to bottom right, ${howItWorksSteps[currentStep].gradientFrom}33, ${howItWorksSteps[currentStep].gradientTo}1a)`,
+                    color: howItWorksSteps[currentStep].gradientFrom,
+                  }}
+                >
+                  {howItWorksSteps[currentStep].number}
+                </div>
+                <h3 className="text-xl font-semibold text-gray-900 mb-3">
+                  {howItWorksSteps[currentStep].title}
+                </h3>
+                <p className="text-gray-600">
+                  {howItWorksSteps[currentStep].description}
+                </p>
+                <img src={howItWorksSteps[currentStep].image} alt={howItWorksSteps[currentStep].title} className="mt-6 rounded-lg shadow-md mx-auto max-h-48 object-cover" /> 
+              </motion.div>
+            </AnimatePresence>
+          </div>
 
-            {/* Step 2 */}
-            <div className="text-center">
-              <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[#8FBCFA]/20 to-[#8FBCFA]/10 flex items-center justify-center mx-auto mb-6 text-2xl font-bold text-[#8FBCFA]">
-                2
-              </div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-3">AI Analysis</h3>
-              <p className="text-gray-600">
-                Our AI processes your files, extracting imports and understanding each file's purpose.
-              </p>
-            </div>
-
-            {/* Step 3 */}
-            <div className="text-center">
-              <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[#F6D785]/20 to-[#F6D785]/10 flex items-center justify-center mx-auto mb-6 text-2xl font-bold text-[#F6D785]">
-                3
-              </div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-3">Explore the Graph</h3>
-              <p className="text-gray-600">
-                Navigate your codebase visually, understanding dependencies and architecture at a glance.
-              </p>
-            </div>
+          {/* Step Indicators */}
+          <div className="flex justify-center gap-3 mt-8">
+            {howItWorksSteps.map((_, index) => (
+              <button
+                key={index}
+                onClick={() => setCurrentStep(index)}
+                className={`w-3 h-3 rounded-full transition-all duration-300 ${
+                  index === currentStep
+                    ? 'bg-gray-900 scale-110'
+                    : 'bg-gray-300 hover:bg-gray-400'
+                }`}
+                aria-label={`Go to step ${index + 1}`}
+              />
+            ))}
           </div>
         </div>
       </section>
