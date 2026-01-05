@@ -67,5 +67,9 @@ logs/
 public/
 public
 /public
+implementations
+/implementations
+implementations/
+
 
 frontend/src/pages/TavalyHtml.html

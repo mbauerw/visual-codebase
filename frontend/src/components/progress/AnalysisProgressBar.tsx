@@ -1,6 +1,7 @@
 import { Loader2 } from 'lucide-react';
 import { useProgressAnimation } from '../../hooks/useProgressAnimation';
 import type { AnalysisStatus } from '../../types';
+import { useEffect, useState } from 'react';
 
 const STAGES = ['pending', 'cloning', 'parsing', 'analyzing', 'building_graph', 'generating_summary'] as const;
 
@@ -30,8 +31,18 @@ export function AnalysisProgressBar({
   isGitHub,
 }: AnalysisProgressBarProps) {
   const { progress } = useProgressAnimation(status, { isGitHub });
+  const [fakeProgress, setFakeProgress] = useState(0);
 
   const currentStageIndex = status ? STATUS_TO_STAGE_INDEX[status] ?? -1 : -1;
+
+  useEffect(() => {
+    setTimeout(() => {
+      if (status === 'pending' ) {
+        setFakeProgress((prev) => (prev + 1));
+      }
+    }, 1000);
+
+  },[status]);
 
   // Filter stages based on analysis type
   const visibleStages = isGitHub
@@ -54,7 +65,7 @@ export function AnalysisProgressBar({
           )}
         </div>
         <span className="text-sm font-medium text-gray-500">
-          {Math.round(progress)}%
+         {Math.round(progress)}%
         </span>
       </div>
 
@@ -63,11 +74,11 @@ export function AnalysisProgressBar({
         <div
           className="h-2 rounded-full bg-gradient-to-r from-[#8FBCFA] to-[#FF9A9D]"
           style={{
-            width: `${Math.max(0, Math.min(100, progress))}%`,
+            width: `${Math.round(progress)}%`,
             transition: 'width 150ms ease-out',
             minWidth: progress > 0 ? '8px' : '0px',
           }}
-        />
+        /> 
       </div>
 
       {/* Stage indicators */}
@@ -122,6 +133,7 @@ export function AnalysisProgressBar({
 
 function getStageLabel(stage: string): string {
   const labels: Record<string, string> = {
+    pending: 'Load',
     cloning: 'Clone',
     parsing: 'Parse',
     analyzing: 'Analyze',

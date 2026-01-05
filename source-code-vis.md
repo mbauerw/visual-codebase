@@ -1,3 +1,0 @@
-1. Explore potential options for displaying file source code on website. Top choices would be a vscode embed. Users won't need to edit any of the code. This is purely read-only
-2. Explore efficient ways to make this possible. Would it be possible to load files on an as-needed basis, or would it be cheap enough to just store the full repo somehow and have access to all the text
-3. This is a plan-only for now. Weight the realistic costs for implementing this idea.
