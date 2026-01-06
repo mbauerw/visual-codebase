@@ -48,6 +48,7 @@ export interface GitHubRepoInfo {
   repo: string;
   branch?: string;
   path?: string;
+  size_kb?: number; // Repository size in KB (from GitHub API)
 }
 
 export interface GitHubRepository {

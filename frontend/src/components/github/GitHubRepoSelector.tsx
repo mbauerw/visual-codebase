@@ -69,6 +69,7 @@ export default function GitHubRepoSelector({ onSelect, selectedRepo, externalOwn
       owner: repo.owner.login,
       repo: repo.name,
       branch: repo.default_branch,
+      size_kb: repo.size,
     };
     onSelect(repoInfo);
   };

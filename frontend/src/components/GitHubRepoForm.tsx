@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { GitBranch, AlertCircle, Link2, List, Users, Search, X } from 'lucide-react';
+import { GitBranch, AlertCircle, Link2, List, Users, Search, X, HardDrive, Check } from 'lucide-react';
 import { GitHubRepoInfo } from '../types';
 import { User } from '@supabase/supabase-js';
 import GitHubRepoSelector from './github/GitHubRepoSelector';
@@ -26,6 +26,16 @@ function isValidGitHubUsername(username: string): boolean {
   if (!username || username.length > 39) return false;
   if (username.includes('--')) return false;
   return SIMPLE_OWNER_REGEX.test(username);
+}
+
+// Format repository size from KB to human-readable format
+function formatRepoSize(sizeKB: number): string {
+  if (sizeKB === 0) return '< 1 KB';
+  if (sizeKB < 1024) return `${sizeKB} KB`;
+  const sizeMB = sizeKB / 1024;
+  if (sizeMB < 1024) return `${sizeMB.toFixed(1)} MB`;
+  const sizeGB = sizeMB / 1024;
+  return `${sizeGB.toFixed(2)} GB`;
 }
 
 // Parse repo URL only (for URL mode)
@@ -313,6 +323,32 @@ export default function GitHubRepoForm({
             selectedRepo={selectedRepo ?? undefined}
             externalOwner={browseOwner ?? undefined}
           />
+
+          {/* Selection Summary */}
+          {selectedRepo && (
+            <div className="flex items-center justify-between p-3 bg-green-50 border border-green-200 rounded-lg">
+              <div className="flex items-center gap-2 text-green-800">
+                <Check size={18} />
+                <span>
+                  Selected: <span className="font-semibold">{selectedRepo.owner}/{selectedRepo.repo}</span>
+                </span>
+              </div>
+              <div className="flex items-center gap-4 text-sm text-green-700">
+                {selectedRepo.branch && (
+                  <span className="flex items-center gap-1">
+                    <GitBranch size={14} />
+                    {selectedRepo.branch}
+                  </span>
+                )}
+                {selectedRepo.size_kb !== undefined && (
+                  <span className="flex items-center gap-1">
+                    <HardDrive size={14} />
+                    {formatRepoSize(selectedRepo.size_kb)}
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
