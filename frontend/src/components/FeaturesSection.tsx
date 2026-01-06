@@ -4,13 +4,13 @@ import { motion } from "motion/react";
 export default function FeaturesSection() {
   return (
     <section id="features" className="py-20 md:py-14 min-h-[95vh] flex flex-col justify-end px-4 relative overflow-hidden">
-      <img className="absolute top-0 left-0 w-full h-full opacity-[0.6] z-0 blur-sm scale-108 pointer-events-none" src="/hills-grey.jpeg" />
+      <img className="absolute top-0 left-0 w-full h-full opacity-[0.6] z-0  scale-108 pointer-events-none" src="/hills-grey.jpeg" />
       {/* Dome-shaped fade overlay - fades top corners, reveals image in dome shape */}
       <div
         className="absolute top-0 left-0 w-full h-[100%] z-[1] pointer-events-none"
         style={{
           background: `
-            radial-gradient(ellipse 80% 100% at 50% 95%, transparent 20%, transparent 50%, rgba(250, 250, 250, 0.1) 60%, rgba(250, 250, 250, 0.3) 65%, rgba(250, 250, 250, 0.5) 75%, rgba(250, 250, 250, 0.75) 80%, rgba(250, 250, 250, 0.9) 90%, rgba(250, 250, 250, 1) 100%)
+            radial-gradient(ellipse 80% 100% at 50% 95%, transparent 20%, transparent 50%, rgba(255, 255, 255, 0.1) 60%, rgba(255, 255, 255, 0.3) 65%, rgba(255, 255, 255, 0.5) 75%, rgba(255, 255, 255, 0.75) 80%, rgba(255, 255, 255, 0.8) 85%, rgba(255, 255, 255, 1) 100%)
           `
         }}
       />

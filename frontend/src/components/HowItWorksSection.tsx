@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Play, Pause } from 'lucide-react';
-import { motion, AnimatePresence } from "motion/react";
+import { motion, AnimatePresence, useInView } from "motion/react";
 
 const howItWorksSteps = [
   {
@@ -31,21 +31,54 @@ const howItWorksSteps = [
 
 export default function HowItWorksSection() {
   const [currentStep, setCurrentStep] = useState(0);
-  const [isCarouselPaused, setIsCarouselPaused] = useState(false);
+  const [showAllCards, setShowAllCards] = useState(false);
+  const [iterationComplete, setIterationComplete] = useState(false);
+  const [animationStarted, setAnimationStarted] = useState(false);
 
-  // Rotate steps every 6 seconds (unless paused)
+  const sectionRef = useRef<HTMLElement>(null);
+  const isInView = useInView(sectionRef, { amount: 0.5, once: true });
+
+  // Start animation when section is 50% in view
   useEffect(() => {
-    if (isCarouselPaused) return;
+    if (isInView && !animationStarted) {
+      setAnimationStarted(true);
+    }
+  }, [isInView, animationStarted]);
+
+  // Phase 1: Rotate steps every 6 seconds until one full iteration
+  useEffect(() => {
+    if (!animationStarted || iterationComplete) return;
+
     const interval = setInterval(() => {
-      setCurrentStep((prev) => (prev + 1) % howItWorksSteps.length);
+      setCurrentStep((prev) => {
+        const nextStep = prev + 1;
+        if (nextStep >= howItWorksSteps.length) {
+          // First iteration complete, trigger phase 2
+          setIterationComplete(true);
+          return prev;
+        }
+        return nextStep;
+      });
     }, 6000);
+
     return () => clearInterval(interval);
-  }, [isCarouselPaused]);
+  }, [animationStarted, iterationComplete]);
+
+  // Phase 2: After iteration complete, show all cards
+  useEffect(() => {
+    if (iterationComplete && !showAllCards) {
+      // Small delay before showing all cards for smooth transition
+      const timeout = setTimeout(() => {
+        setShowAllCards(true);
+      }, 500);
+      return () => clearTimeout(timeout);
+    }
+  }, [iterationComplete, showAllCards]);
 
   return (
-    <section id="how-it-works" className="py-4 md:py-20 px-4 h-[100vh] min-h-[1000px] flex flex-col justify-center bg-white gap-6">
+    <section ref={sectionRef} id="how-it-works" className="py-12 md:py-20 px-4 min-h-[800px] md:h-[90vh] flex flex-col justify-center bg-white gap-6">
       <motion.div
-        className="text-center mb-20"
+        className="text-center mb-8 md:mb-20"
         initial={{ opacity: 0, y: 20 }}
         whileInView={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6 }}
@@ -57,39 +90,86 @@ export default function HowItWorksSection() {
         </h2>
       </motion.div>
 
-      {/* Animated Step Carousel */}
-      <div className="relative lg:h-[60vh] h-[80vh] flex items-center justify-center">
+      {/* Animated Step Carousel / Final Layout */}
+      <div className="relative min-h-[500px] md:h-[60vh] flex items-center justify-center">
         <AnimatePresence mode="wait">
-          <motion.div
-            key={currentStep}
-            initial={{ opacity: 0, y: 50 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -50 }}
-            transition={{ duration: 0.5, ease: 'easeInOut' }}
-            className="absolute text-center max-w-lg mx-auto"
-          >
-            <div
-              className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6 text-3xl font-bold"
-              style={{
-                background: `linear-gradient(to bottom right, ${howItWorksSteps[currentStep].gradientFrom}33, ${howItWorksSteps[currentStep].gradientTo}1a)`,
-                color: howItWorksSteps[currentStep].gradientFrom,
-              }}
+          {!showAllCards ? (
+            // Phase 1: Single card carousel
+            <motion.div
+              key={currentStep}
+              initial={{ opacity: 0, y: 50 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -50 }}
+              transition={{ duration: 0.5, ease: 'easeInOut' }}
+              className="absolute text-center max-w-lg mx-auto"
             >
-              {howItWorksSteps[currentStep].number}
-            </div>
-            <h3 className="text-3xl font-semibold text-gray-900 mb-3">
-              {howItWorksSteps[currentStep].title}
-            </h3>
-            <p className="text-gray-600 text-xl">
-              {howItWorksSteps[currentStep].description}
-            </p>
-            <img src={howItWorksSteps[currentStep].image} alt={howItWorksSteps[currentStep].title} className="mt-6 rounded-lg shadow-md mx-auto max-h-[70%] object-cover" />
-          </motion.div>
+              <div
+                className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6 text-3xl font-bold"
+                style={{
+                  background: `linear-gradient(to bottom right, ${howItWorksSteps[currentStep].gradientFrom}33, ${howItWorksSteps[currentStep].gradientTo}1a)`,
+                  color: howItWorksSteps[currentStep].gradientFrom,
+                }}
+              >
+                {howItWorksSteps[currentStep].number}
+              </div>
+              <h3 className="text-3xl font-semibold text-gray-900 mb-3">
+                {howItWorksSteps[currentStep].title}
+              </h3>
+              <p className="text-gray-600 text-xl">
+                {howItWorksSteps[currentStep].description}
+              </p>
+              <img src={howItWorksSteps[currentStep].image} alt={howItWorksSteps[currentStep].title} className="mt-6 rounded-lg shadow-md mx-auto max-h-[70%] object-cover" />
+            </motion.div>
+          ) : (
+            // Phase 2: All three cards side by side
+            <motion.div
+              key="all-cards"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.6, ease: 'easeInOut' }}
+              className="w-full mx-auto flex flex-col md:flex-row items-center md:items-start justify-center mb-14 gap-6 md:gap-12 px-4"
+            >
+              {howItWorksSteps.map((step, index) => (
+                <motion.div
+                  key={step.number}
+                  initial={{ opacity: 0, x: 0 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{
+                    duration: 0.6,
+                    delay: index * 0.15,
+                    ease: 'easeOut'
+                  }}
+                  className="w-full md:flex-1 text-center text-wrap max-w-md mx-auto"
+                >
+                  <div
+                    className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl font-bold"
+                    style={{
+                      background: `linear-gradient(to bottom right, ${step.gradientFrom}33, ${step.gradientTo}1a)`,
+                      color: step.gradientFrom,
+                    }}
+                  >
+                    {step.number}
+                  </div>
+                  <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                    {step.title}
+                  </h3>
+                  <p className="text-gray-600 text-lg">
+                    {step.description}
+                  </p>
+                  <img
+                    src={step.image}
+                    alt={step.title}
+                    className="mt-4 rounded-lg shadow-md mx-auto max-h-[180px] md:max-h-[280px] object-cover"
+                  />
+                </motion.div>
+              ))}
+            </motion.div>
+          )}
         </AnimatePresence>
       </div>
 
       {/* Step Indicators */}
-      <div className="flex flex-col justify-center items-center gap-4 mt-16">
+      {/* <div className="flex flex-col justify-center items-center gap-4 mt-16">
         <div className='flex flex-row justify-center items-center gap-3'>
           {howItWorksSteps.map((_, index) => (
             <button
@@ -115,7 +195,7 @@ export default function HowItWorksSection() {
             <Pause size={14} className="text-gray-600 " />
           )}
         </button>
-      </div>
+      </div> */}
 
     </section>
   );

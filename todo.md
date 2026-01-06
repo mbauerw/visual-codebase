@@ -4,9 +4,9 @@
 - ~~Change summary for project overview~~
 - ~~Change visualize page header to include nav bar info~~
 - ~~add title change for stored analysis~~
-- implement further-analysis button for files
+- custom layouts
 - adjust file layout
-- add function relations
+- add function relations (Function tier list)
 - do testing
 - add payment options for users
 - change vis page github stuff

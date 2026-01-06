@@ -448,9 +448,10 @@ export default function UploadPage() {
         </div>
       </section>
 
+      <HowItWorksSection />
       <FeaturesSection />
 
-      <HowItWorksSection />
+      
 
 
 
