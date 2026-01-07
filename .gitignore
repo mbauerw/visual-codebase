@@ -73,3 +73,14 @@ implementations/
 
 
 frontend/src/pages/TavalyHtml.html
+
+# Network logs and HAR files
+*.har
+backend/network-log.app
+frontend/frontend-network.json
+backend/tests/benchmarks/clone_timing_results.json
+
+# Temporary notes
+node-errors.md
+network.md
+summaries/
