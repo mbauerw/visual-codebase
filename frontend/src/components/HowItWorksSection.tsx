@@ -129,14 +129,24 @@ export default function HowItWorksSection() {
               transition={{ duration: 0.6, ease: 'easeInOut' }}
               className="w-full mx-auto flex flex-col md:flex-row items-center md:items-start justify-center mb-14 gap-6 md:gap-12 px-4"
             >
-              {howItWorksSteps.map((step, index) => (
+              {howItWorksSteps.map((step, index) => {
+                // Card 1: center to left, Card 2: bottom to center, Card 3: center to right
+                const initialPosition =
+                  index === 0 ? { opacity: 0, x: 100, y: 0 } :
+                  index === 1 ? { opacity: 0, x: 0, y: 50 } :
+                  { opacity: 0, x: -100, y: 0 };
+
+                // Each card waits for the previous to complete (0.6s duration each)
+                const animationDelay = index * 0.6;
+
+                return (
                 <motion.div
                   key={step.number}
-                  initial={{ opacity: 0, x: 0 }}
-                  animate={{ opacity: 1, x: 0 }}
+                  initial={initialPosition}
+                  animate={{ opacity: 1, x: 0, y: 0 }}
                   transition={{
                     duration: 0.6,
-                    delay: index * 0.15,
+                    delay: animationDelay,
                     ease: 'easeOut'
                   }}
                   className="w-full md:flex-1 text-center text-wrap max-w-md mx-auto"
@@ -162,7 +172,8 @@ export default function HowItWorksSection() {
                     className="mt-4 rounded-lg shadow-md mx-auto max-h-[180px] md:max-h-[280px] object-cover"
                   />
                 </motion.div>
-              ))}
+              );
+              })}
             </motion.div>
           )}
         </AnimatePresence>

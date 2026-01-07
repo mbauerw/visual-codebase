@@ -3,7 +3,7 @@ import { useProgressAnimation } from '../../hooks/useProgressAnimation';
 import type { AnalysisStatus } from '../../types';
 import { useEffect, useState } from 'react';
 
-const STAGES = ['pending', 'cloning', 'parsing', 'analyzing', 'building_graph', 'generating_summary'] as const;
+const STAGES = ['pending', 'cloning', 'parsing', 'analyzing', 'analyzing_functions', 'building_graph', 'generating_summary'] as const;
 
 // Map status to stage index for comparison
 const STATUS_TO_STAGE_INDEX: Record<string, number> = {
@@ -11,9 +11,10 @@ const STATUS_TO_STAGE_INDEX: Record<string, number> = {
   cloning: 0,
   parsing: 1,
   analyzing: 2,
-  building_graph: 3,
-  generating_summary: 4,
-  completed: 5,
+  analyzing_functions: 3,
+  building_graph: 4,
+  generating_summary: 5,
+  completed: 6,
   failed: -2,
 };
 
@@ -35,19 +36,20 @@ export function AnalysisProgressBar({
 
   const currentStageIndex = status ? STATUS_TO_STAGE_INDEX[status] ?? -1 : -1;
 
-  useEffect(() => {
-    setTimeout(() => {
-      if (status === 'pending' ) {
-        setFakeProgress((prev) => (prev + 1));
-      }
-    }, 1000);
+  // useEffect(() => {
+  //   setTimeout(() => {
+  //     if (status === 'pending' ) {
+  //       setFakeProgress((prev) => (prev + 1));
+  //     }
+  //   }, 1000);
 
-  },[status]);
+  // },[status]);
 
   // Filter stages based on analysis type
+  // Hide pending/cloning based on type, and hide analyzing_functions to keep UI clean
   const visibleStages = isGitHub
-    ? STAGES
-    : STAGES.filter(s => s !== 'cloning');
+    ? STAGES.filter(s => s !== 'pending' && s !== 'analyzing_functions')
+    : STAGES.filter(s => s !== 'cloning' && s !== 'analyzing_functions');
 
   return (
     <div className="mt-8 p-6 bg-gray-50 rounded-xl border border-gray-100">

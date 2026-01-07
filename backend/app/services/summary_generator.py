@@ -60,7 +60,8 @@ class SummaryGenerator:
 
     def __init__(self):
         self.settings = get_settings()
-        self.client = anthropic.Anthropic(api_key=self.settings.anthropic_api_key)
+        # Use AsyncAnthropic to avoid blocking the event loop during API calls
+        self.client = anthropic.AsyncAnthropic(api_key=self.settings.anthropic_api_key)
 
     async def generate_summary(
         self,
@@ -252,7 +253,8 @@ class SummaryGenerator:
 
     async def _call_llm(self, prompt: str) -> CodebaseSummary:
         """Call Claude API and parse response."""
-        message = self.client.messages.create(
+        # Use await for async client to avoid blocking the event loop
+        message = await self.client.messages.create(
             model=self.settings.llm_model,
             max_tokens=1024,
             system=SUMMARY_SYSTEM_PROMPT,

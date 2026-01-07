@@ -107,6 +107,7 @@ export interface AnalysisStatusResponse {
   status: AnalysisStatus;
   current_step: string;
   total_files: number;
+  progress: number;
   error?: string;
 }
 

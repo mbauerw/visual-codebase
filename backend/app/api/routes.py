@@ -1,4 +1,5 @@
 import re
+import time
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Depends, Header
 from typing import Optional
 import logging
@@ -18,8 +19,26 @@ from ..models.schemas import (
 from ..services.analysis import get_analysis_service
 from ..services.database import get_database_service
 from ..services.github import GitHubService
+from ..services.network_logger import log_clone
 from ..auth import get_current_user, get_optional_user
 from ..security import validate_path_within_base, PathTraversalError
+
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    filename='app.log',  # Write to this file
+    filemode='a'  # 'a' = append, 'w' = overwrite
+)
+
+# Silence noisy third-party loggers
+logging.getLogger("hpack").setLevel(logging.WARNING)
+logging.getLogger("hpack.hpack").setLevel(logging.WARNING)
+logging.getLogger("httpcore").setLevel(logging.WARNING)
+logging.getLogger("httpcore.http11").setLevel(logging.WARNING)
+logging.getLogger("httpcore.connection").setLevel(logging.WARNING)
+logging.getLogger("httpx").setLevel(logging.WARNING)
+logging.getLogger("anthropic").setLevel(logging.WARNING)
+logging.getLogger("urllib3").setLevel(logging.WARNING)
 
 logger = logging.getLogger(__name__)
 
@@ -111,6 +130,20 @@ async def start_analysis(
         )
 
 
+def _get_directory_size(path) -> int:
+    """Get total size of a directory in bytes."""
+    import os
+    total = 0
+    for dirpath, dirnames, filenames in os.walk(path):
+        for f in filenames:
+            fp = os.path.join(dirpath, f)
+            try:
+                total += os.path.getsize(fp)
+            except (OSError, IOError):
+                pass
+    return total
+
+
 async def _run_github_analysis(
     service,
     analysis_id: str,
@@ -122,25 +155,41 @@ async def _run_github_analysis(
 ):
     """Run analysis for a GitHub repository."""
     temp_dir = None
+    clone_start = None
 
     try:
         # Update status to cloning
         job = service.get_job(analysis_id)
+        logger.info(f"[DEBUG] GitHub analysis started. Job found: {job is not None}, analysis_id: {analysis_id}")
         if job:
-            job.status = AnalysisStatus.CLONING
-            job.current_step = "Cloning repository from GitHub..."
+            job.set_status(AnalysisStatus.CLONING, "Cloning repository from GitHub...")
+            logger.info(f"[DEBUG] Set status to CLONING, progress: {job.progress}")
 
-        # Clone the repository
+        # Clone the repository with timing
+        clone_start = time.perf_counter()
         github_service = GitHubService(access_token=github_token)
         temp_dir = await github_service.clone_repository(repo_info)
+        clone_duration = time.perf_counter() - clone_start
+
+        # Calculate cloned size and log
+        clone_size = _get_directory_size(temp_dir) if temp_dir else 0
+        log_clone(
+            duration_seconds=clone_duration,
+            success=True,
+            repo=f"{repo_info.owner}/{repo_info.repo}",
+            branch=repo_info.branch,
+            size_bytes=clone_size,
+        )
 
         if job:
             job.current_step = "Repository cloned successfully"
             job.directory_path = str(temp_dir)
+            logger.info(f"[DEBUG] Clone complete. Job status: {job.status}, progress: {job.progress}")
 
-        logger.info(f"Repository cloned to {temp_dir}")
+        logger.info(f"Repository cloned to {temp_dir} in {clone_duration:.2f}s")
 
         # Run analysis on the cloned directory
+        logger.info(f"[DEBUG] About to call run_analysis for {analysis_id}")
         await service.run_analysis(
             analysis_id,
             include_node_modules,
@@ -151,6 +200,18 @@ async def _run_github_analysis(
 
     except Exception as e:
         logger.error(f"GitHub analysis failed: {str(e)}")
+
+        # Log clone failure if clone didn't complete
+        if temp_dir is None and clone_start is not None:
+            clone_duration = time.perf_counter() - clone_start
+            log_clone(
+                duration_seconds=clone_duration,
+                success=False,
+                repo=f"{repo_info.owner}/{repo_info.repo}",
+                branch=repo_info.branch,
+                error_message=str(e),
+            )
+
         job = service.get_job(analysis_id)
         if job:
             job.status = AnalysisStatus.FAILED
@@ -178,6 +239,9 @@ async def get_analysis_status(
     in_memory_status = service.get_status(analysis_id)
 
     if in_memory_status:
+        # Log status being returned (only log non-completed to avoid spam)
+        if in_memory_status.status not in ['completed', 'failed']:
+            logger.debug(f"[STATUS] Returning: {in_memory_status.status}, progress: {in_memory_status.progress}, step: {in_memory_status.current_step}")
         # In-memory status is available - use it for real-time progress
         return in_memory_status
 

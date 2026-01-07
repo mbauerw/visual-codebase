@@ -1,9 +1,12 @@
 """Analysis orchestration service."""
+import logging
 import os
 import time
 import uuid
 from datetime import datetime
 from typing import Optional
+
+logger = logging.getLogger(__name__)
 
 from ..models.schemas import (
     AnalysisMetadata,
@@ -21,6 +24,21 @@ from .parser import get_parser
 from .function_analyzer import get_function_analyzer
 from .call_resolver import create_call_resolver
 from .tier_calculator import create_tier_calculator
+from .network_logger import log_parse, log_llm_analyze, log_build_graph, log_analyze_functions, log_generate_summary
+
+
+# Progress percentages for each phase (reflecting actual time distribution)
+PROGRESS_MAP = {
+    AnalysisStatus.PENDING: 0,
+    AnalysisStatus.CLONING: 5,       # Clone is fast
+    AnalysisStatus.PARSING: 10,      # Parsing is quick
+    AnalysisStatus.ANALYZING: 15,    # Start of LLM (main work starts here)
+    AnalysisStatus.ANALYZING_FUNCTIONS: 75,  # After LLM
+    AnalysisStatus.BUILDING_GRAPH: 85,
+    AnalysisStatus.GENERATING_SUMMARY: 92,
+    AnalysisStatus.COMPLETED: 100,
+    AnalysisStatus.FAILED: 0,
+}
 
 
 class AnalysisJob:
@@ -32,6 +50,7 @@ class AnalysisJob:
         self.status = AnalysisStatus.PENDING
         self.current_step = "Initializing"
         self.total_files = 0
+        self.progress = 0  # 0-100 percentage
         self.error: Optional[str] = None
         self.result: Optional[ReactFlowGraph] = None
         self.started_at = datetime.utcnow()
@@ -39,6 +58,15 @@ class AnalysisJob:
         # Function tier list data
         self.function_tier_items: list[FunctionTierItem] = []
         self.function_stats: Optional[FunctionStats] = None
+
+    def set_status(self, status: AnalysisStatus, step: str = "") -> None:
+        """Update status and progress together."""
+        old_status = self.status
+        self.status = status
+        self.progress = PROGRESS_MAP.get(status, self.progress)
+        if step:
+            self.current_step = step
+        logger.info(f"[PHASE] {self.analysis_id}: {old_status} -> {status}, progress: {self.progress}, step: {step}")
 
 
 class AnalysisService:
@@ -74,6 +102,7 @@ class AnalysisService:
             status=job.status,
             current_step=job.current_step,
             total_files=job.total_files,
+            progress=job.progress,
             error=job.error,
         )
 
@@ -102,9 +131,12 @@ class AnalysisService:
             is_github_analysis: If True, store file contents (GitHub repos are deleted after analysis)
         """
         job = self.get_job(analysis_id)
+        logger.info(f"[DEBUG] run_analysis called for {analysis_id}, job found: {job is not None}")
         if not job:
+            logger.error(f"[DEBUG] Job not found for {analysis_id}! Returning early.")
             return
 
+        logger.info(f"[DEBUG] Job {analysis_id} current status: {job.status}, path: {job.directory_path}")
         start_time = time.time()
 
         # Get database service if user is authenticated
@@ -119,8 +151,8 @@ class AnalysisService:
                 raise ValueError(f"Directory does not exist: {job.directory_path}")
 
             # Step 1: Parse files
-            job.status = AnalysisStatus.PARSING
-            job.current_step = "Scanning and parsing files..."
+            job.set_status(AnalysisStatus.PARSING, "Scanning and parsing files...")
+            parse_start = time.perf_counter()
 
             # Always include content for function analysis
             # For GitHub analyses, content is also needed for storage (repo is deleted after)
@@ -131,23 +163,30 @@ class AnalysisService:
                 include_content=True,
             )
 
+            parse_duration = time.perf_counter() - parse_start
+            log_parse(parse_duration, True, len(parsed_files))
+
             job.total_files = len(parsed_files)
             job.current_step = f"Found {len(parsed_files)} files"
 
             if not parsed_files:
                 raise ValueError("No supported files found in directory")
 
-            # Step 2: LLM Analysis
-            job.status = AnalysisStatus.ANALYZING
-            job.current_step = "AI is analyzing your code..."
+            # Step 2: LLM Analysis (main work - takes longest)
+            job.set_status(AnalysisStatus.ANALYZING, "AI is analyzing your code...")
+            llm_start = time.perf_counter()
+            batch_count = (len(parsed_files) + 19) // 20  # Ceiling division
 
             llm_analysis = await self._llm_analyzer.analyze_files(
                 parsed_files, job.directory_path
             )
 
+            llm_duration = time.perf_counter() - llm_start
+            log_llm_analyze(llm_duration, True, len(parsed_files), batch_count)
+
             # Step 3: Build Graph
-            job.status = AnalysisStatus.BUILDING_GRAPH
-            job.current_step = "Building dependency graph..."
+            job.set_status(AnalysisStatus.BUILDING_GRAPH, "Building dependency graph...")
+            graph_start = time.perf_counter()
 
             # Count languages
             language_counts: dict[str, int] = {}
@@ -162,13 +201,18 @@ class AnalysisService:
                 None,  # metadata will be created below
             )
 
+            graph_duration = time.perf_counter() - graph_start
+            log_build_graph(graph_duration, True, len(nodes), len(edges))
+
             # Step 4: Analyze functions (requires file content)
-            job.status = AnalysisStatus.ANALYZING_FUNCTIONS
-            job.current_step = "Analyzing function calls..."
+            job.set_status(AnalysisStatus.ANALYZING_FUNCTIONS, "Analyzing function calls...")
+            func_analysis_start = time.perf_counter()
 
             function_stats = None
             tier_items = []
             resolved_calls = []
+            functions = []
+            calls = []
 
             # Only run function analysis if we have file content
             files_with_content = [pf for pf in parsed_files if pf.content]
@@ -200,9 +244,12 @@ class AnalysisService:
                     print(f"Function analysis failed (non-fatal): {e}")
                     # Continue without function analysis
 
+            func_analysis_duration = time.perf_counter() - func_analysis_start
+            log_analyze_functions(func_analysis_duration, True, len(functions), len(calls))
+
             # Step 5: Generate codebase summary
-            job.status = AnalysisStatus.GENERATING_SUMMARY
-            job.current_step = "Generating codebase summary..."
+            job.set_status(AnalysisStatus.GENERATING_SUMMARY, "Generating codebase summary...")
+            summary_start = time.perf_counter()
 
             # Generate summary
             from .summary_generator import get_summary_generator
@@ -213,6 +260,9 @@ class AnalysisService:
                 edges=edges,
                 language_distribution=language_counts,
             )
+
+            summary_duration = time.perf_counter() - summary_start
+            log_generate_summary(summary_duration, True)
 
             # Create metadata
             analysis_time = time.time() - start_time
@@ -237,8 +287,7 @@ class AnalysisService:
             )
 
             # Mark as completed
-            job.status = AnalysisStatus.COMPLETED
-            job.current_step = "Analysis complete"
+            job.set_status(AnalysisStatus.COMPLETED, "Analysis complete")
             job.completed_at = datetime.utcnow()
 
             # Store complete results in database if user is authenticated

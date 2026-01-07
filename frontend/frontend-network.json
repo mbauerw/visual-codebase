@@ -1,0 +1,151 @@
+[
+    {
+        "timestamp": "2026-01-07T08:28:17.577Z",
+        "operation": "analysis_start",
+        "source": "analysis_start",
+        "metadata": {
+            "analysisId": "pending",
+            "isGitHub": true
+        }
+    },
+    {
+        "timestamp": "2026-01-07T08:28:17.589Z",
+        "operation": "progress_animation",
+        "phase": "pending",
+        "progress": 0,
+        "source": "progress_animation",
+        "timeSinceAnalysisStart": 0.012,
+        "metadata": {
+            "targetProgress": 2,
+            "delta": 2
+        }
+    },
+    {
+        "timestamp": "2026-01-07T08:28:17.590Z",
+        "operation": "progress_animation",
+        "phase": "pending",
+        "progress": 0,
+        "source": "progress_animation",
+        "timeSinceAnalysisStart": 0.013,
+        "metadata": {
+            "targetProgress": 2,
+            "delta": 2
+        }
+    },
+    {
+        "timestamp": "2026-01-07T08:28:17.786Z",
+        "operation": "analysis_start",
+        "source": "analysis_start",
+        "metadata": {
+            "analysisId": "e48754fd-ef1e-4d44-8bfe-0c1f20d1970c",
+            "isGitHub": true
+        }
+    },
+    {
+        "timestamp": "2026-01-07T08:28:17.842Z",
+        "operation": "status_poll",
+        "phase": "cloning",
+        "progress": 5,
+        "currentStep": "Cloning repository from GitHub...",
+        "totalFiles": 0,
+        "source": "status_poll",
+        "timeSinceAnalysisStart": 0.056,
+        "timeSinceLastUpdate": 0.056
+    },
+    {
+        "timestamp": "2026-01-07T08:28:17.847Z",
+        "operation": "progress_animation",
+        "phase": "cloning",
+        "progress": 0.7171024954295717,
+        "source": "progress_animation",
+        "timeSinceAnalysisStart": 0.061,
+        "metadata": {
+            "targetProgress": 8,
+            "delta": 7.282897504570428
+        }
+    },
+    {
+        "timestamp": "2026-01-07T08:29:42.402Z",
+        "operation": "phase_change",
+        "phase": "completed",
+        "progress": 100,
+        "currentStep": "Analysis complete",
+        "totalFiles": 64,
+        "source": "status_change",
+        "timeSinceAnalysisStart": 84.616,
+        "timeSinceLastUpdate": 84.555,
+        "previousPhase": "cloning"
+    },
+    {
+        "timestamp": "2026-01-07T08:29:42.404Z",
+        "operation": "analysis_complete",
+        "source": "analysis_complete",
+        "timeSinceAnalysisStart": 84.618
+    },
+    {
+        "timestamp": "2026-01-07T08:29:42.426Z",
+        "operation": "progress_animation",
+        "phase": "completed",
+        "progress": 8,
+        "source": "progress_animation",
+        "metadata": {
+            "targetProgress": 100,
+            "delta": 92
+        }
+    },
+    {
+        "timestamp": "2026-01-07T08:29:42.458Z",
+        "operation": "status_poll",
+        "phase": "completed",
+        "progress": 100,
+        "currentStep": "Analysis complete",
+        "totalFiles": 64,
+        "source": "status_poll",
+        "timeSinceLastUpdate": 0.032
+    },
+    {
+        "timestamp": "2026-01-07T08:29:42.458Z",
+        "operation": "analysis_complete",
+        "source": "analysis_complete"
+    },
+    {
+        "timestamp": "2026-01-07T08:29:42.513Z",
+        "operation": "status_poll",
+        "phase": "completed",
+        "progress": 100,
+        "currentStep": "Analysis complete",
+        "totalFiles": 64,
+        "source": "status_poll"
+    },
+    {
+        "timestamp": "2026-01-07T08:29:42.513Z",
+        "operation": "analysis_complete",
+        "source": "analysis_complete"
+    },
+    {
+        "timestamp": "2026-01-07T08:29:42.570Z",
+        "operation": "status_poll",
+        "phase": "completed",
+        "progress": 100,
+        "currentStep": "Analysis complete",
+        "totalFiles": 64,
+        "source": "status_poll"
+    },
+    {
+        "timestamp": "2026-01-07T08:29:42.570Z",
+        "operation": "analysis_complete",
+        "source": "analysis_complete"
+    },
+    {
+        "timestamp": "2026-01-07T08:29:42.625Z",
+        "operation": "status_poll",
+        "phase": "completed",
+        "progress": 100,
+        "currentStep": "Analysis complete",
+        "totalFiles": 64,
+        "source": "status_poll"
+    },
+    {
+        ... continues to repeat a few hundred more times
+    }
+]

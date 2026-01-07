@@ -2,6 +2,7 @@
 import json
 import os
 from typing import Callable, Optional
+import logging
 
 import anthropic
 
@@ -16,14 +17,23 @@ from ..models.schemas import (
     ParsedFile,
 )
 
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    filename='app.log',  # Write to this file
+    filemode='a'  # 'a' = append, 'w' = overwrite
+)
+
+logger = logging.getLogger(__name__)
 
 class LLMAnalyzer:
     """Service for analyzing codebase files using Claude."""
 
     def __init__(self):
-        """Initialize the Anthropic client."""
+        """Initialize the Anthropic client with async support."""
         self.settings = get_settings()
-        self.client = anthropic.Anthropic(api_key=self.settings.anthropic_api_key)
+        # Use AsyncAnthropic to avoid blocking the event loop during API calls
+        self.client = anthropic.AsyncAnthropic(api_key=self.settings.anthropic_api_key)
 
     def _build_file_summary(self, files: list[ParsedFile]) -> str:
         """Build a summary of files for the LLM prompt."""
@@ -133,7 +143,8 @@ class LLMAnalyzer:
         prompt = self._get_analysis_prompt(directory_name, files)
 
         try:
-            message = self.client.messages.create(
+            # Use await for async client to avoid blocking the event loop
+            message = await self.client.messages.create(
                 model=self.settings.llm_model,
                 max_tokens=self.settings.llm_max_tokens,
                 messages=[{"role": "user", "content": prompt}],
@@ -332,6 +343,9 @@ class LLMAnalyzer:
                     description=f"File located at {f.relative_path}",
                     category=self._infer_category_from_path(f.relative_path),
                 )
+
+        print(f"LLM Analysis response per file: {results}")
+
 
         return results
 

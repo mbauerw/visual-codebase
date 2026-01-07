@@ -518,6 +518,7 @@ class AnalysisStatusResponse(BaseModel):
     status: AnalysisStatus = Field(..., description="Current status")
     current_step: str = Field(default="", description="Current processing step")
     total_files: int = Field(default=0, description="Total files found")
+    progress: int = Field(default=0, description="Progress percentage 0-100")
     error: Optional[str] = Field(default=None, description="Error message if failed")
 
 

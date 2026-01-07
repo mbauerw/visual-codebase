@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { animate } from 'motion';
 import type { AnalysisStatus } from '../types';
+import { logProgressAnimation } from '../utils/networkLogger';
 
 interface StageConfig {
   targetPercent: number;
@@ -8,25 +9,27 @@ interface StageConfig {
 }
 
 // Progress configuration for GitHub analysis (includes cloning)
+// LLM analysis takes the majority of time, so it gets most of the progress bar
 const GITHUB_STAGE_CONFIG: Record<string, StageConfig> = {
-  pending: { targetPercent: 5, durationMs: 2000 },
-  cloning: { targetPercent: 50, durationMs: 20000 },
-  parsing: { targetPercent: 65, durationMs: 3000 },
-  analyzing: { targetPercent: 85, durationMs: 8000 },
-  building_graph: { targetPercent: 92, durationMs: 2000 },
-  generating_summary: { targetPercent: 98, durationMs: 3000 },
+  pending: { targetPercent: 2, durationMs: 1000 },
+  cloning: { targetPercent: 8, durationMs: 5000 },       // Clone is fast (~5s)
+  parsing: { targetPercent: 15, durationMs: 3000 },      // Parsing is quick
+  analyzing: { targetPercent: 75, durationMs: 45000 },   // LLM is the main work (60% of bar)
+  analyzing_functions: { targetPercent: 82, durationMs: 5000 },
+  building_graph: { targetPercent: 88, durationMs: 2000 },
+  generating_summary: { targetPercent: 98, durationMs: 4000 },
   completed: { targetPercent: 100, durationMs: 300 },
   failed: { targetPercent: -1, durationMs: 0 }, // -1 means freeze
 };
 
 // Progress configuration for local analysis (no cloning)
-// pending phase is when files are being read - similar to cloning for GitHub
 const LOCAL_STAGE_CONFIG: Record<string, StageConfig> = {
-  pending: { targetPercent: 50, durationMs: 20000 },
-  parsing: { targetPercent: 65, durationMs: 3000 },
-  analyzing: { targetPercent: 85, durationMs: 8000 },
-  building_graph: { targetPercent: 92, durationMs: 2000 },
-  generating_summary: { targetPercent: 98, durationMs: 3000 },
+  pending: { targetPercent: 5, durationMs: 2000 },
+  parsing: { targetPercent: 15, durationMs: 3000 },
+  analyzing: { targetPercent: 75, durationMs: 45000 },   // LLM is the main work
+  analyzing_functions: { targetPercent: 82, durationMs: 5000 },
+  building_graph: { targetPercent: 88, durationMs: 2000 },
+  generating_summary: { targetPercent: 98, durationMs: 4000 },
   completed: { targetPercent: 100, durationMs: 300 },
   failed: { targetPercent: -1, durationMs: 0 },
 };
@@ -115,6 +118,13 @@ export function useProgressAnimation(
       ? (config.durationMs * remainingDistance) / fullDistance
       : config.durationMs;
 
+    // Log animation start
+    logProgressAnimation(status, currentProgress, targetPercent);
+    console.log(
+      `%c[ANIM] Starting animation: ${status} | ${currentProgress.toFixed(1)}% -> ${targetPercent}% | duration: ${(scaledDuration / 1000).toFixed(1)}s`,
+      'color: #FF9A9D; font-weight: bold;'
+    );
+
     // Start new animation
     setIsAnimating(true);
 
@@ -130,6 +140,10 @@ export function useProgressAnimation(
         setProgress(targetPercent);
         setIsAnimating(false);
         animationRef.current = null;
+        console.log(
+          `%c[ANIM] Completed: ${status} at ${targetPercent}%`,
+          'color: #4CAF50; font-weight: bold;'
+        );
       },
     });
 

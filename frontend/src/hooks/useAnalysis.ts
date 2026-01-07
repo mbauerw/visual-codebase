@@ -9,6 +9,12 @@ import type {
   AnalysisStatusResponse,
   ReactFlowGraph,
 } from '../types';
+import {
+  logAnalysisStart,
+  logStatusPoll,
+  logAnalysisComplete,
+  logAnalysisError,
+} from '../utils/networkLogger';
 
 interface UseAnalysisReturn {
   isLoading: boolean;
@@ -47,8 +53,17 @@ export function useAnalysis(): UseAnalysisReturn {
         const statusResponse = await getAnalysisStatus(analysisId);
         setStatus(statusResponse);
 
+        // Log the status poll
+        logStatusPoll(
+          statusResponse.status,
+          statusResponse.progress ?? 0,
+          statusResponse.current_step ?? '',
+          statusResponse.total_files ?? 0
+        );
+
         if (statusResponse.status === 'completed') {
           stopPolling();
+          logAnalysisComplete();
           try {
             const resultData = await getAnalysisResult(analysisId);
             setResult(resultData);
@@ -58,6 +73,7 @@ export function useAnalysis(): UseAnalysisReturn {
           setIsLoading(false);
         } else if (statusResponse.status === 'failed') {
           stopPolling();
+          logAnalysisError(statusResponse.error || 'Analysis failed');
           setError(statusResponse.error || 'Analysis failed');
           setIsLoading(false);
         }
@@ -72,28 +88,39 @@ export function useAnalysis(): UseAnalysisReturn {
     async (request: AnalyzeRequest) => {
       reset();
       setIsLoading(true);
+
+      const isGitHub = !!request.github_repo;
+
+      // Log analysis start
+      logAnalysisStart('pending', isGitHub);
+
       // Set initial pending status immediately so progress bar starts animating
       setStatus({
+        analysis_id: '', // Provide a default or placeholder value
         status: 'pending',
         current_step: 'Starting analysis...',
         total_files: 0,
+        progress: 0,
       });
 
       try {
         const response = await startAnalysis(request);
         const analysisId = response.analysis_id;
 
-        // Start polling for status (every 3 seconds)
+        // Log with actual analysis ID
+        logAnalysisStart(analysisId, isGitHub);
+
+        // Start polling for status (every 1 second for more responsive updates)
         pollingRef.current = window.setInterval(() => {
           pollStatus(analysisId);
-        }, 3000);
+        }, 1000);
 
         // Initial status check
         pollStatus(analysisId);
       } catch (err) {
-        setError(
-          err instanceof Error ? err.message : 'Failed to start analysis'
-        );
+        const errorMsg = err instanceof Error ? err.message : 'Failed to start analysis';
+        logAnalysisError(errorMsg);
+        setError(errorMsg);
         setIsLoading(false);
       }
     },
