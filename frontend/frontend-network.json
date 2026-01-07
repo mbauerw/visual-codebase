@@ -144,8 +144,6 @@
         "currentStep": "Analysis complete",
         "totalFiles": 64,
         "source": "status_poll"
-    },
-    {
-        ... continues to repeat a few hundred more times
     }
+    
 ]

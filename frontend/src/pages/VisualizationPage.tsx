@@ -1269,7 +1269,7 @@ function VisualizationPageInner() {
   // Handle node double-click to expand the panel
   const onNodeDoubleClick = useCallback(
     (_: React.MouseEvent, node: Node) => {
-      if (node.type === 'custom') {
+      if (node.type === 'custom' || node.type === 'category') {
         setExpanded(true);
       }
       // if (node.type === 'category') {
