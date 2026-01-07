@@ -239,8 +239,6 @@ function getNestedCategoryLayout(
     const roleDimensions = roleGroups.map((rg) => calculateTreeRoleDimensions(rg.nodes.length));
     const maxRoleWidth = Math.max(...roleDimensions.map((d) => d.width));
     const maxRoleHeight = Math.max(...roleDimensions.map((d) => d.height));
-    const averageRoleWidth = roleDimensions.reduce((sum, d) => sum + d.width, 0) / roleDimensions.length;
-    const averageRoleHeight = roleDimensions.reduce((sum, d) => sum + d.height, 0) / roleDimensions.length;
 
     // Calculate the circle radius needed
     const numRoles = roleGroups.length;
@@ -623,106 +621,6 @@ function getFileHierarchyLayout(
   return { nodes: allNodes, edges: combinedEdges, categorySections: [] };
 }
 
-// Dependency Hierarchy Layout - arranges files based on import frequency
-// Files with fewer importers (like app.tsx) on left, heavily imported files on right
-function getDependencyHierarchyLayout(
-  fileNodes: CustomNodeType[],
-  edges: Edge[]
-): LayoutResult {
-
-  console.log("Files nodes: ", fileNodes);
-
-  const importedByCount: Record<string, number> = {};
-  const importersOf: Record<string, Set<string>> = {};
-
-  fileNodes.forEach((node) => {
-    importedByCount[node.id] = 0;
-    importersOf[node.id] = new Set();
-  });
-
-  // Count direct imports
-  edges.forEach((edge) => {
-    // edge.source imports edge.target (source -> target means source imports target)
-    if (importedByCount[edge.target] !== undefined) {
-      importedByCount[edge.target]++;
-      importersOf[edge.target].add(edge.source);
-    }
-  });
-
-  // Calculate "dependency depth" - how deep in the dependency chain a file is
-  // Files that are only imported (never import) have highest depth
-  // Files that only import (never imported) have depth 0
-  const dependencyDepth: Record<string, number> = {};
-
-  // Calculate transitive dependency score
-  // Higher score = more foundational (imported by more files transitively)
-  function calculateDepthScore(nodeId: string, visited: Set<string> = new Set()): number {
-    if (visited.has(nodeId)) return 0;
-    visited.add(nodeId);
-
-    const directImporters = importersOf[nodeId] || new Set();
-    let score = directImporters.size;
-
-    // Add transitive importers
-    directImporters.forEach(importerId => {
-      score += calculateDepthScore(importerId, new Set(visited)) * 0.5;
-    });
-
-    return score;
-  }
-
-  fileNodes.forEach((node) => {
-    dependencyDepth[node.id] = calculateDepthScore(node.id);
-  });
-
-  // Group nodes by their dependency depth ranges
-  const maxDepth = Math.max(...Object.values(dependencyDepth), 1);
-  const numColumns = Math.min(8, Math.ceil(Math.sqrt(fileNodes.length)));
-
-  // Assign each node to a column based on its depth
-  const columns: CustomNodeType[][] = Array.from({ length: numColumns }, () => []);
-
-  fileNodes.forEach((node) => {
-    const depth = dependencyDepth[node.id];
-    const columnIndex = Math.min(
-      numColumns - 1,
-      Math.floor((depth / maxDepth) * numColumns)
-    );
-    columns[columnIndex].push(node);
-  });
-
-  // Sort nodes within each column by import count for consistent ordering
-  columns.forEach((column) => {
-    column.sort((a, b) => {
-      const depthDiff = dependencyDepth[a.id] - dependencyDepth[b.id];
-      if (Math.abs(depthDiff) > 0.1) return depthDiff;
-      return a.data.label.localeCompare(b.data.label);
-    });
-  });
-
-  // Position nodes
-  const positionedNodes: CustomNodeType[] = [];
-  const columnWidth = nodeWidth + 100;
-  const rowHeight = nodeHeight + 30;
-  const startX = 50;
-  const startY = 50;
-
-  columns.forEach((column, colIndex) => {
-    const x = startX + colIndex * columnWidth;
-    const columnStartY = startY;
-
-    column.forEach((node, rowIndex) => {
-      const y = columnStartY + rowIndex * rowHeight;
-      positionedNodes.push({
-        ...node,
-        position: { x, y },
-      });
-    });
-  });
-
-  return { nodes: positionedNodes, edges, categorySections: [] };
-}
-
 function testLayout(
   fileNodes: CustomNodeType[],
   edges: Edge[]
@@ -742,7 +640,7 @@ function testLayout(
   let prevWidth = 1
 
 
-  fileNodes.forEach((node, index) => {
+  fileNodes.forEach((node) => {
 
     console.log("folder: ", node.data.folder)
     console.log("path: ", node.data.path)

@@ -1,6 +1,5 @@
-import { X, FileCode, Folder, ArrowRight, Hash, Code, Layers, ChevronsLeftRight } from 'lucide-react';
-import type { ReactFlowNodeData } from '../types';
-import { roleColors, languageColors, roleLabels, categoryColors } from '../types';
+import { X, FileCode, Folder, Hash, Code, Layers, ChevronsLeftRight } from 'lucide-react';
+import { roleColors, roleLabels } from '../types';
 import { CategoryRoleData } from './CategoryNode';
 import type { ArchitecturalRole } from '../types';
 
@@ -62,15 +61,6 @@ export default function CategoryDetailPanel({ data, onClose, setExpand, expanded
 
 
   const roleColor = roleColors[data.role] || roleColors.unknown;
-  // const langColor = languageColors[data.language] || languageColors.unknown;
-  // const categoryColor = categoryColors[data.category] || categoryColors.unknown;
-
-  const formatBytes = (bytes: number): string => {
-    if (bytes < 1024) return `${bytes} B`;
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-  };
-
 
   return (
     <div className="h-full w-full flex flex-col">

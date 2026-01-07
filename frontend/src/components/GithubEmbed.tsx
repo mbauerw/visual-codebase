@@ -1,22 +1,13 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { RichTreeView } from '@mui/x-tree-view/RichTreeView';
-import { TreeItem, TreeItemProps } from '@mui/x-tree-view/TreeItem';
 import { TreeViewBaseItem } from '@mui/x-tree-view/models';
-import AddBoxIcon from '@mui/icons-material/AddBox';
-import IndeterminateCheckBoxIcon from '@mui/icons-material/IndeterminateCheckBox';
-import SvgIcon, { SvgIconProps } from '@mui/material/SvgIcon';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 
-
-// Icons
-import FolderIcon from '@mui/icons-material/Folder';
-import InsertDriveFileIcon from '@mui/icons-material/InsertDriveFile';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import CircularProgress from '@mui/material/CircularProgress';
 import Alert from '@mui/material/Alert';
-import Stack from '@mui/material/Stack';
 import { File } from 'lucide-react';
 
 // --- Types ---
@@ -64,7 +55,6 @@ const GithubEmbed = ({ owner, repo, initialPath = '' }: GithubEmbedProps) => {
   const [items, setItems] = useState<ExtendedTreeItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [newOwner, setNewOwner] = useState(owner);
   const [expandedItems, setExpandedItems] = useState<string[]>([]);
   const [activeOwner, setActiveOwner] = useState(owner);
   const [activeRepo, setActiveRepo] = useState(repo);
@@ -251,7 +241,7 @@ const GithubEmbed = ({ owner, repo, initialPath = '' }: GithubEmbedProps) => {
 
   // Handle Expansion
   const handleItemExpansion = async (
-    event: React.SyntheticEvent | null,
+    _event: React.SyntheticEvent | null,
     itemId: string,
     isExpanded: boolean
   ) => {
@@ -398,7 +388,7 @@ const GithubEmbed = ({ owner, repo, initialPath = '' }: GithubEmbedProps) => {
           items={items}
           expandedItems={expandedItems}
           onItemExpansionToggle={handleItemExpansion}
-          onExpandedItemsChange={(event, itemIds) => setExpandedItems(itemIds)}
+          onExpandedItemsChange={(_event, itemIds) => setExpandedItems(itemIds)}
           sx={{
             width: '100%',
             color: GH_COLORS.textMain,

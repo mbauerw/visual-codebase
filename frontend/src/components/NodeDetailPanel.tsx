@@ -1,4 +1,4 @@
-import { X, FileCode, Folder, ArrowRight, Hash, Code, Layers, ChevronsLeftRight } from 'lucide-react';
+import { X, FileCode, Folder, ArrowRight, Hash, Code, Layers } from 'lucide-react';
 import type { ReactFlowNodeData } from '../types';
 import { roleColors, languageColors, roleLabels, categoryColors } from '../types';
 
@@ -9,14 +9,7 @@ interface NodeDetailPanelProps {
   expanded?: boolean;
 }
 
-export default function NodeDetailPanel({ data, onClose, setExpand, expanded }: NodeDetailPanelProps) {
-  const handleExpandToggle = () => {
-    console.log("Toggling expand state");
-    setExpand(prev => !prev);
-  }
-
-  //  ${expanded ? 'w-full' : 'w-[50px]'} transition-all duration-1000
-
+export default function NodeDetailPanel({ data, onClose, setExpand: _setExpand, expanded }: NodeDetailPanelProps) {
   if (!data) {
     return (
       <div className={`h-full w-full flex flex-col items-center justify-center p-8 text-center`}>

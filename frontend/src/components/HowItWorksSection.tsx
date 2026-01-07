@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef } from 'react';
-import { Play, Pause } from 'lucide-react';
 import { motion, AnimatePresence, useInView } from "motion/react";
 
 const howItWorksSteps = [

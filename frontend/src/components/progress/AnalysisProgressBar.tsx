@@ -1,7 +1,6 @@
 import { Loader2 } from 'lucide-react';
 import { useProgressAnimation } from '../../hooks/useProgressAnimation';
 import type { AnalysisStatus } from '../../types';
-import { useEffect, useState } from 'react';
 
 const STAGES = ['pending', 'cloning', 'parsing', 'analyzing', 'analyzing_functions', 'building_graph', 'generating_summary'] as const;
 
@@ -32,7 +31,6 @@ export function AnalysisProgressBar({
   isGitHub,
 }: AnalysisProgressBarProps) {
   const { progress } = useProgressAnimation(status, { isGitHub });
-  const [fakeProgress, setFakeProgress] = useState(0);
 
   const currentStageIndex = status ? STATUS_TO_STAGE_INDEX[status] ?? -1 : -1;
 
