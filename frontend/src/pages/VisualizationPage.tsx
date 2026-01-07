@@ -1122,8 +1122,8 @@ function VisualizationPageInner() {
   useEffect(() => {
     if (!selectedNodeId) {
       // Reset all edges to default style
-      setEdges((edges) =>
-        edges.map((edge) => ({
+      setEdges((currentEdges) =>
+        currentEdges.map((edge) => ({
           ...edge,
           style: { stroke: '#475569', strokeWidth: 1.5 },
           animated: false,
@@ -1136,8 +1136,8 @@ function VisualizationPageInner() {
         }))
       );
       // Reset all nodes to default style
-      setNodes((nodes) =>
-        nodes.map((node) => ({
+      setNodes((currentNodes) =>
+        currentNodes.map((node) => ({
           ...node,
           className: '',
         }))
@@ -1145,20 +1145,22 @@ function VisualizationPageInner() {
       return;
     }
 
-    // Find all connected node IDs
+    // Highlight edges connected to the selected node and collect connected node IDs
     const connectedNodeIds = new Set<string>();
-    edges.forEach((edge) => {
-      if (edge.source === selectedNodeId) {
-        connectedNodeIds.add(edge.target);
-      }
-      if (edge.target === selectedNodeId) {
-        connectedNodeIds.add(edge.source);
-      }
-    });
 
-    // Highlight edges connected to the selected node
-    setEdges((edges) =>
-      edges.map((edge) => {
+    setEdges((currentEdges) => {
+      // First pass: collect connected node IDs
+      currentEdges.forEach((edge) => {
+        if (edge.source === selectedNodeId) {
+          connectedNodeIds.add(edge.target);
+        }
+        if (edge.target === selectedNodeId) {
+          connectedNodeIds.add(edge.source);
+        }
+      });
+
+      // Second pass: update edge styles
+      return currentEdges.map((edge) => {
         const isConnected =
           edge.source === selectedNodeId || edge.target === selectedNodeId;
 
@@ -1168,7 +1170,7 @@ function VisualizationPageInner() {
             style: {
               stroke: '#fbbf24',
               strokeWidth: 8,
-              strokeDasharray: '20, 20', // Doubled spacing for dots
+              strokeDasharray: '20, 20',
             },
             markerEnd: {
               type: 'arrowclosed',
@@ -1195,25 +1197,27 @@ function VisualizationPageInner() {
             height: 20,
           },
         };
-      })
-    );
+      });
+    });
 
-    // Highlight connected nodes with ring
-    setNodes((nodes) =>
-      nodes.map((node) => {
-        if (connectedNodeIds.has(node.id)) {
+    // Highlight connected nodes with ring (use setTimeout to ensure edges are processed first)
+    setTimeout(() => {
+      setNodes((currentNodes) =>
+        currentNodes.map((node) => {
+          if (connectedNodeIds.has(node.id)) {
+            return {
+              ...node,
+              className: 'ring-2 ring-amber-400',
+            };
+          }
           return {
             ...node,
-            className: 'ring-2 ring-amber-400',
+            className: '',
           };
-        }
-        return {
-          ...node,
-          className: '',
-        };
-      })
-    );
-  }, [selectedNodeId, edges, setEdges, setNodes]);
+        })
+      );
+    }, 0);
+  }, [selectedNodeId, setEdges, setNodes]);
 
   // Handle node selection
   const onNodeClick = useCallback(

@@ -1,4 +1,5 @@
 """LLM-based semantic analysis service using Claude."""
+import asyncio
 import json
 import os
 from typing import Callable, Optional
@@ -304,6 +305,9 @@ class LLMAnalyzer:
     ) -> dict[str, LLMFileAnalysis]:
         """Analyze all files in batches and return a mapping of filename to analysis.
 
+        Uses parallel batch processing to speed up analysis. The number of concurrent
+        batches is controlled by the llm_parallel_batches setting.
+
         Args:
             files: List of parsed files to analyze
             directory_path: Path to the directory being analyzed
@@ -317,10 +321,42 @@ class LLMAnalyzer:
         batch_size = self.settings.max_files_per_batch
         total_batches = (len(files) + batch_size - 1) // batch_size  # Ceiling division
 
-        for batch_num, i in enumerate(range(0, len(files), batch_size), start=1):
-            batch = files[i : i + batch_size]
-            batch_results = await self.analyze_batch(batch, directory_name)
+        # Create all batches
+        batches = []
+        for i in range(0, len(files), batch_size):
+            batches.append(files[i : i + batch_size])
 
+        # Semaphore to limit concurrent API calls
+        max_concurrent = self.settings.llm_parallel_batches
+        semaphore = asyncio.Semaphore(max_concurrent)
+        completed_batches = 0
+        completed_lock = asyncio.Lock()
+
+        async def process_batch_with_semaphore(batch: list[ParsedFile], batch_num: int) -> list[LLMFileAnalysis]:
+            """Process a single batch with semaphore-controlled concurrency."""
+            nonlocal completed_batches
+
+            async with semaphore:
+                batch_results = await self.analyze_batch(batch, directory_name)
+
+                # Update progress in a thread-safe manner
+                async with completed_lock:
+                    completed_batches += 1
+                    if progress_callback:
+                        progress_callback(completed_batches, total_batches, len(batch))
+
+                return batch_results
+
+        # Process all batches in parallel (limited by semaphore)
+        logger.info(f"Processing {total_batches} batches with {max_concurrent} concurrent requests")
+        batch_tasks = [
+            process_batch_with_semaphore(batch, batch_num)
+            for batch_num, batch in enumerate(batches, start=1)
+        ]
+        all_batch_results = await asyncio.gather(*batch_tasks)
+
+        # Combine results from all batches
+        for batch_results in all_batch_results:
             for analysis in batch_results:
                 # Store by both full path and basename for flexible lookup
                 # LLM may return either "App.tsx" or "src/App.tsx"
@@ -328,10 +364,6 @@ class LLMAnalyzer:
                 basename = os.path.basename(analysis.filename)
                 if basename != analysis.filename:
                     results[basename] = analysis
-
-            # Report progress after each batch
-            if progress_callback:
-                progress_callback(batch_num, total_batches, len(batch))
 
         # Add fallback analysis for any files not in results
         for f in files:
@@ -344,8 +376,7 @@ class LLMAnalyzer:
                     category=self._infer_category_from_path(f.relative_path),
                 )
 
-        print(f"LLM Analysis response per file: {results}")
-
+        logger.info(f"LLM analysis complete: {len(results)} files analyzed")
 
         return results
 

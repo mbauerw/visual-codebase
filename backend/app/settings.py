@@ -28,6 +28,7 @@ class Settings(BaseSettings):
     # LLM settings
     llm_model: str = "claude-sonnet-4-20250514"
     llm_max_tokens: int = 4096
+    llm_parallel_batches: int = 4  # Number of batches to process concurrently
 
     # Github settings
     github_token: str = Field(..., description="GitHub API token")

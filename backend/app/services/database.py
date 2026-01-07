@@ -345,7 +345,14 @@ class DatabaseService:
             .execute()
         )
 
-        return result.data or []
+        # Parse github_repo JSON strings if needed (Supabase may return as string)
+        analyses = result.data or []
+        for analysis in analyses:
+            github_repo_data = analysis.get("github_repo")
+            if github_repo_data and isinstance(github_repo_data, str):
+                analysis["github_repo"] = json.loads(github_repo_data)
+
+        return analyses
 
     async def update_analysis_title(
         self,
