@@ -145,41 +145,40 @@ class FileParser:
                 if import_info:
                     imports.append(import_info)
 
-            # require("module")
+            # require("module") or dynamic import()
             elif node.type == "call_expression":
                 callee = node.child_by_field_name("function")
-                if callee and self._get_node_text(callee, content) == "require":
-                    args = node.child_by_field_name("arguments")
-                    if args and args.child_count > 0:
-                        for child in args.children:
-                            if child.type == "string":
-                                module = self._get_string_value(child, content)
-                                if module:
-                                    imports.append(
-                                        ImportInfo(
-                                            module=module,
-                                            import_type=ImportType.REQUIRE,
-                                            is_relative=module.startswith("."),
+                if callee:
+                    # Check for require("module")
+                    if self._get_node_text(callee, content) == "require":
+                        args = node.child_by_field_name("arguments")
+                        if args and args.child_count > 0:
+                            for child in args.children:
+                                if child.type == "string":
+                                    module = self._get_string_value(child, content)
+                                    if module:
+                                        imports.append(
+                                            ImportInfo(
+                                                module=module,
+                                                import_type=ImportType.REQUIRE,
+                                                is_relative=module.startswith("."),
+                                            )
                                         )
-                                    )
-
-            # Dynamic import()
-            elif node.type == "call_expression":
-                callee = node.child_by_field_name("function")
-                if callee and callee.type == "import":
-                    args = node.child_by_field_name("arguments")
-                    if args and args.child_count > 0:
-                        for child in args.children:
-                            if child.type == "string":
-                                module = self._get_string_value(child, content)
-                                if module:
-                                    imports.append(
-                                        ImportInfo(
-                                            module=module,
-                                            import_type=ImportType.DYNAMIC_IMPORT,
-                                            is_relative=module.startswith("."),
+                    # Check for dynamic import()
+                    elif callee.type == "import":
+                        args = node.child_by_field_name("arguments")
+                        if args and args.child_count > 0:
+                            for child in args.children:
+                                if child.type == "string":
+                                    module = self._get_string_value(child, content)
+                                    if module:
+                                        imports.append(
+                                            ImportInfo(
+                                                module=module,
+                                                import_type=ImportType.DYNAMIC_IMPORT,
+                                                is_relative=module.startswith("."),
+                                            )
                                         )
-                                    )
 
             # Recurse into children
             for child in node.children:
@@ -294,9 +293,19 @@ class FileParser:
                 module = None
                 imported_names = []
                 is_relative = False
+                seen_import_keyword = False
 
                 for child in node.children:
-                    if child.type == "dotted_name":
+                    # Track when we've passed the 'import' keyword
+                    if self._get_node_text(child, content) == "import":
+                        seen_import_keyword = True
+                        continue
+
+                    if child.type == "dotted_name" and not seen_import_keyword:
+                        # Module name (multi-part like os.path)
+                        module = self._get_node_text(child, content)
+                    elif child.type == "identifier" and not seen_import_keyword:
+                        # Module name (simple like os in 'from os import path')
                         module = self._get_node_text(child, content)
                     elif child.type == "relative_import":
                         is_relative = True
@@ -304,32 +313,28 @@ class FileParser:
                         for subchild in child.children:
                             if subchild.type == "dotted_name":
                                 module = self._get_node_text(subchild, content)
+                            elif subchild.type == "identifier":
+                                module = self._get_node_text(subchild, content)
                             elif subchild.type == "import_prefix":
                                 # Just dots, module might be empty
                                 if module is None:
                                     module = "."
-                    elif child.type in ("identifier", "dotted_name"):
-                        # This might be the module or imported name
-                        pass
-
-                # Get imported names
-                for child in node.children:
-                    if child.type == "import_list":
+                    elif child.type == "import_list":
+                        # Get imported names from import list
                         for subchild in child.children:
-                            if subchild.type in (
-                                "identifier",
-                                "aliased_import",
-                            ):
-                                if subchild.type == "identifier":
+                            if subchild.type == "identifier":
+                                imported_names.append(
+                                    self._get_node_text(subchild, content)
+                                )
+                            elif subchild.type == "aliased_import":
+                                name = subchild.child_by_field_name("name")
+                                if name:
                                     imported_names.append(
-                                        self._get_node_text(subchild, content)
+                                        self._get_node_text(name, content)
                                     )
-                                else:
-                                    name = subchild.child_by_field_name("name")
-                                    if name:
-                                        imported_names.append(
-                                            self._get_node_text(name, content)
-                                        )
+                    elif child.type == "identifier" and seen_import_keyword:
+                        # Single imported name (from x import y without parentheses)
+                        imported_names.append(self._get_node_text(child, content))
 
                 if module or is_relative:
                     imports.append(
@@ -449,8 +454,16 @@ class FileParser:
         return classes
 
     def _get_node_text(self, node, content: str) -> str:
-        """Get the text content of a node."""
-        return content[node.start_byte : node.end_byte]
+        """Get the text content of a node.
+
+        Uses byte offsets from tree-sitter on the UTF-8 encoded content
+        to correctly handle multi-byte characters.
+        """
+        if not content:
+            return ""
+        content_bytes = content.encode("utf-8")
+        text_bytes = content_bytes[node.start_byte : node.end_byte]
+        return text_bytes.decode("utf-8")
 
     def _get_string_value(self, node, content: str) -> str:
         """Get the string value without quotes."""
@@ -806,7 +819,7 @@ class FileParser:
                         child.type == "async" for child in node.children
                     )
                     params = node.child_by_field_name("parameters")
-                    param_count = self._count_python_parameters(params) if params else 0
+                    param_count = self._count_python_parameters(params, content) if params else 0
 
                     if parent_class:
                         func_type = FunctionType.CONSTRUCTOR if name == "__init__" else FunctionType.METHOD
@@ -858,19 +871,19 @@ class FileParser:
                 count += 1
         return count
 
-    def _count_python_parameters(self, params_node) -> int:
+    def _count_python_parameters(self, params_node, content: str) -> int:
         """Count parameters in Python function (excluding self/cls)."""
         if not params_node:
             return 0
         count = 0
         for child in params_node.children:
             if child.type in ("identifier", "default_parameter", "typed_parameter", "typed_default_parameter"):
-                name = self._get_node_text(child, "")
+                name = self._get_node_text(child, content)
                 # Try to get the name for typed parameters
                 if child.type in ("typed_parameter", "typed_default_parameter"):
                     name_node = child.children[0] if child.children else None
                     if name_node:
-                        name = self._get_node_text(name_node, "")
+                        name = self._get_node_text(name_node, content)
                 if name not in ("self", "cls"):
                     count += 1
         return count
