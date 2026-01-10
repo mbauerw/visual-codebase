@@ -778,6 +778,7 @@ function VisualizationPageInner() {
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const [selectedNode, setSelectedNode] = useState<ReactFlowNodeData | null>(null);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const [selectionSource, setSelectionSource] = useState<'node' | 'tierlist' | null>(null);
   const [selectedCateogry, setSelectedCategory] = useState<CategoryRoleData | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [languageFilter, setLanguageFilter] = useState<Language | 'all'>('all');
@@ -1043,6 +1044,11 @@ function VisualizationPageInner() {
       return;
     }
 
+    // Determine highlight color based on selection source
+    // Blue for tier list selections (function relations), amber for node clicks (dependency relations)
+    const highlightColor = selectionSource === 'tierlist' ? '#60a5fa' : '#fbbf24'; // blue-400 vs amber-400
+    const ringClass = selectionSource === 'tierlist' ? 'ring-4 ring-blue-400' : 'ring-2 ring-amber-400';
+
     // Highlight edges connected to the selected node and collect connected node IDs
     const connectedNodeIds = new Set<string>();
 
@@ -1066,13 +1072,13 @@ function VisualizationPageInner() {
           return {
             ...edge,
             style: {
-              stroke: '#fbbf24',
+              stroke: highlightColor,
               strokeWidth: 8,
               strokeDasharray: '20, 20',
             },
             markerEnd: {
               type: 'arrowclosed',
-              color: '#fbbf24',
+              color: highlightColor,
               width: 14,
               height: 14,
             },
@@ -1105,7 +1111,7 @@ function VisualizationPageInner() {
           if (connectedNodeIds.has(node.id)) {
             return {
               ...node,
-              className: 'ring-2 ring-amber-400',
+              className: ringClass,
             };
           }
           return {
@@ -1115,7 +1121,7 @@ function VisualizationPageInner() {
         })
       );
     }, 0);
-  }, [selectedNodeId, setEdges, setNodes]);
+  }, [selectedNodeId, selectionSource, setEdges, setNodes]);
 
   // Handle node selection
   const onNodeClick = useCallback(
@@ -1125,6 +1131,7 @@ function VisualizationPageInner() {
         setSelectedCategory(null);
         setSelectedNode(nodeData);
         setSelectedNodeId(node.id);
+        setSelectionSource('node');
 
         // Also open source code panel with this file
         setSourceCodeFile({
@@ -1138,6 +1145,7 @@ function VisualizationPageInner() {
       if (node.type === 'category') {
         setSelectedNode(null);
         setSelectedNodeId(null);
+        setSelectionSource(null);
         setSelectedCategory({
           label: node.data.label,
           role: node.data.role,
@@ -1186,6 +1194,7 @@ function VisualizationPageInner() {
   const onPaneClick = useCallback(() => {
     setSelectedNode(null);
     setSelectedNodeId(null);
+    setSelectionSource(null);
   }, []);
 
   // Handle function selection from tier list
@@ -1200,6 +1209,7 @@ function VisualizationPageInner() {
       const nodeData = targetNode.data as ReactFlowNodeData;
       setSelectedNode(nodeData);
       setSelectedNodeId(targetNode.id);
+      setSelectionSource('tierlist');
       setSelectedCategory(null);
 
       // Open source code panel
