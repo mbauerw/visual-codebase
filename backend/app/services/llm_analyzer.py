@@ -168,11 +168,16 @@ class LLMAnalyzer:
             ]
 
     def _infer_role_from_path(self, path: str) -> ArchitecturalRole:
-        """Infer architectural role from file path patterns."""
+        """Infer architectural role from file path patterns.
+
+        Order matters: directory-based patterns are checked before
+        extension/naming patterns to avoid false positives (e.g.,
+        'userStore.ts' matching 'use*' hook pattern).
+        """
         path_lower = path.lower()
         name = os.path.basename(path_lower)
 
-        # Test files
+        # Test files (highest priority)
         if "test" in path_lower or "spec" in path_lower or name.startswith("test_"):
             return ArchitecturalRole.TEST
 
@@ -194,22 +199,14 @@ class LLMAnalyzer:
         ):
             return ArchitecturalRole.CONFIG
 
-        # React components
-        if any(
-            x in path_lower for x in ("components/", "pages/", "views/")
-        ) or name.endswith((".jsx", ".tsx")):
-            return ArchitecturalRole.REACT_COMPONENT
+        # Directory-based patterns (check BEFORE extension/naming patterns)
 
-        # Hooks
-        if "hooks/" in path_lower or name.startswith("use"):
-            return ArchitecturalRole.HOOK
-
-        # Context
-        if "context" in path_lower:
+        # Context - check before React components to catch context/AuthContext.tsx
+        if "context/" in path_lower or "contexts/" in path_lower:
             return ArchitecturalRole.CONTEXT
 
-        # Store/State
-        if any(x in path_lower for x in ("store/", "redux", "zustand", "state/")):
+        # Store/State - check before hooks to catch store/userStore.ts
+        if any(x in path_lower for x in ("store/", "stores/", "redux", "zustand", "state/")):
             return ArchitecturalRole.STORE
 
         # API/Services
@@ -232,9 +229,26 @@ class LLMAnalyzer:
         if "router" in path_lower or "routes/" in path_lower:
             return ArchitecturalRole.ROUTER
 
-        # Utils
+        # Utils - check directory patterns and also filenames like utils.ts, helpers.ts
         if any(x in path_lower for x in ("utils/", "util.", "helpers/", "lib/")):
             return ArchitecturalRole.UTILITY
+        # Also match files named utils.* or helper.* directly
+        name_without_ext = name.rsplit(".", 1)[0] if "." in name else name
+        if name_without_ext in ("utils", "util", "helpers", "helper", "common"):
+            return ArchitecturalRole.UTILITY
+
+        # Extension/naming patterns (check AFTER directory-based patterns)
+
+        # React components - directory or extension based
+        if any(
+            x in path_lower for x in ("components/", "pages/", "views/")
+        ) or name.endswith((".jsx", ".tsx")):
+            return ArchitecturalRole.REACT_COMPONENT
+
+        # Hooks - directory or 'use' prefix (must be after store/api/model checks
+        # since 'userStore' starts with 'use' when lowercased)
+        if "hooks/" in path_lower or name.startswith("use"):
+            return ArchitecturalRole.HOOK
 
         return ArchitecturalRole.UNKNOWN
 
