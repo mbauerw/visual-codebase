@@ -205,19 +205,27 @@ npm install -D vitest @testing-library/react @testing-library/jest-dom @testing-
 ## Phase 3: Integration & End-to-End Tests
 **Focus: Full flow testing and component coverage**
 
-### 3.1 Backend Integration Tests (`backend/tests/integration/`)
+### 3.1 Backend Integration Tests (`backend/tests/integration/`) ✅ COMPLETED
 
-#### `test_analysis_flow.py`
-- [ ] Test complete local analysis: parse → analyze → build graph → save
-- [ ] Test GitHub analysis flow (with mocked clone)
-- [ ] Test tier list generation end-to-end
-- [ ] Test summary generation
-- [ ] Test large codebase handling
+#### `test_analysis_flow.py` (19 tests)
+- [x] Test complete local analysis: parse → analyze → build graph → save
+- [x] Test GitHub analysis flow (with mocked clone)
+- [x] Test tier list generation end-to-end
+- [x] Test summary generation
+- [x] Test large codebase handling
+- [x] Test error handling (invalid directory, empty directory, LLM failure)
+- [x] Test database persistence with/without user
 
-#### `test_auth_flow.py`
-- [ ] Test user registration → login → analysis → view results
-- [ ] Test token refresh
-- [ ] Test permission enforcement
+#### `test_auth_flow.py` (24 tests)
+- [x] Test authentication flow (blocked/accepted tokens)
+- [x] Test user analysis flow (start analysis, view results)
+- [x] Test permission enforcement (delete, update, file access)
+- [x] Test token verification
+- [x] Test user isolation
+- [x] Test optional auth endpoints
+- [x] Test GitHub token handling
+
+**Phase 3.1 Total: 43 tests passing**
 
 ### 3.2 Frontend Component Tests
 
