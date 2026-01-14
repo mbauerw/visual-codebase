@@ -64,25 +64,34 @@ export default function CategoryDetailPanel({ data, onClose, setExpand, expanded
 
   return (
     <div className="h-full w-full flex flex-col bg-neutral-200">
-      
+
       {/* Header with gradient accent */}
       <div className="relative">
-      {/* <button
+        {/* <button
         onClick={onClose}
         className="p-2 absolute right-2 top-0 hover:bg-slate-700 rounded-xl transition-all duration-200 hover:scale-105 flex-shrink-0"
       >
         <X size={18} className="text-slate-400" />
       </button> */}
 
-        <div className="p-6 mt-8 ">
-          <div className="flex items-start justify-center gap-4 relative">
-            <div className="flex items-center gap-4 min-w-0">
-              <div className="min-w-0">
-                <h2 className="text-xl font-bold text-black truncate" title={data.label}>
+        <div className="p-6 ">
+          <div className="flex flex-col items-center justify-center gap-12 relative">
+            <p className="text-xl text-center text-slate-500 mt-1 underline">Category Details</p>
+
+            <div className="flex flex-col items-center gap-4 min-w-0">
+              <span
+                className="px-8 py-4 rounded-full font-semibold border transition-transform hover:scale-105"
+                style={{
+                  backgroundColor: `${roleColor}35`,
+                  color: roleColor,
+                  borderColor: `${roleColor}70`,
+                }}
+              >
+                <h2 className="text-5xl font-bold truncate" title={data.label}>
                   {data.label}
                 </h2>
-                <p className="text-sm text-slate-500 mt-1">Category Details</p>
-              </div>
+
+              </span>
             </div>
 
           </div>
@@ -93,16 +102,6 @@ export default function CategoryDetailPanel({ data, onClose, setExpand, expanded
       <div className="flex-1 overflow-y-auto p-6 space-y-6 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
         {/* Badges Section */}
         <div className="flex flex-wrap gap-2">
-          <span
-            className="text-xs px-3 py-1.5 rounded-full font-semibold border transition-transform hover:scale-105"
-            style={{
-              backgroundColor: `${roleColor}15`,
-              color: roleColor,
-              borderColor: `${roleColor}30`,
-            }}
-          >
-            {roleLabels[data.role]}
-          </span>
 
         </div>
 
@@ -119,7 +118,7 @@ export default function CategoryDetailPanel({ data, onClose, setExpand, expanded
 
         {/* Description */}
         {data.role && (
-          <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700/50">
+          <div className="bg-slate-800/80 rounded-xl p-4 border border-slate-700/50">
             <label className="text-lg text-slate-400 uppercase tracking-wider font-semibold mb-3 block">
               Description
             </label>
@@ -128,7 +127,7 @@ export default function CategoryDetailPanel({ data, onClose, setExpand, expanded
         )}
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-2 gap-4">
+        {/* <div className="grid grid-cols-2 gap-4">
           <div className="bg-gradient-to-br from-slate-800/80 to-slate-800/40 rounded-xl p-5 border border-slate-700/50 hover:border-indigo-500/30 transition-colors">
             <div className="flex items-center gap-2 text-slate-400 mb-3">
               <div className="p-1.5 bg-indigo-500/20 rounded-lg">
@@ -146,11 +145,11 @@ export default function CategoryDetailPanel({ data, onClose, setExpand, expanded
             </div>
 
           </div>
-        </div>
+        </div> */}
 
         {/* Imports Section */}
 
       </div>
-    </div>
+    </div >
   );
 }
