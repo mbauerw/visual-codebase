@@ -54,7 +54,7 @@ const lightTierBgs: Record<TierLevel, string> = {
 };
 
 const lightTierBorders: Record<TierLevel, string> = {
-  S: '#ffe0e9',
+  S: 'rgba(255, 147, 178, 1)',
   A: '#dbeafe',
   B: '#d1fae5',
   C: '#fed7aa',
@@ -123,7 +123,7 @@ export function LightMinimalDesign({
         <Header onClose={onClose} />
         <div className="flex-1 flex items-center justify-center">
           <div className="flex flex-col items-center gap-4 text-gray-500">
-            <div className="p-4 bg-gradient-to-br from-blue-50 to-purple-50 rounded-2xl">
+            <div className="p-4 bg-gradient-to-br from-blue-50 to-purple-50 rounded-xl">
               <Loader2 className="w-10 h-10 animate-spin text-blue-500" />
             </div>
             <span className="text-sm font-medium">Loading functions...</span>
@@ -227,7 +227,7 @@ export function LightMinimalDesign({
       {/* Search and filters - Minimal white design */}
       <div className="relative border-b border-gray-100 bg-white">
         {/* Collapsible content */}
-        <div className={`px-6 transition-all duration-300 ease-in-out overflow-hidden ${expandSearch ? 'max-h-96 py-4 space-y-3 opacity-100' : 'max-h-0 py-0 opacity-0'}`}>
+        <div className={`px-6 transition-all duration-300 ease-in-out overflow-hidden ${expandSearch ? 'max-h-96 py-4 space-y-3 opacity-100' : 'max-h-4 h-4 py-0 opacity-0'}`}>
           {/* Search bar */}
           <div className="relative">
             <Search
@@ -318,14 +318,14 @@ export function LightMinimalDesign({
         {/* Toggle button - always visible */}
         <button
           onClick={handleExpandSearch}
-          className="absolute right-2 bottom-1 p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-all z-10"
+          className="absolute right-2 bottom-0 p-0 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-all z-10"
         >
           <ChevronUp size={16} className={`transition-transform duration-300 ${expandSearch ? '' : 'rotate-180'}`} />
         </button>
       </div>
 
       {/* Tier sections - Light cards with generous spacing */}
-      <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4 bg-gradient-to-b from-white to-gray-50 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-transparent hover:[&::-webkit-scrollbar-thumb]:bg-slate-300 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:transition-colors [scrollbar-width:thin] [scrollbar-color:transparent_transparent] hover:[scrollbar-color:rgb(203,213,225)_transparent]">
+      <div className="flex-1 overflow-y-auto px-3 py-5 space-y-4 bg-gradient-to-b from-neutral-0 to-neutral-0 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-transparent hover:[&::-webkit-scrollbar-thumb]:bg-slate-300 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:transition-colors [scrollbar-width:thin] [scrollbar-color:transparent_transparent] hover:[scrollbar-color:rgb(203,213,225)_transparent]">
         {tierGroups.map((group) => (
           <LightTierSection
             key={group.tier}
@@ -406,7 +406,7 @@ const LightTierSection = memo(function LightTierSection({
 
   return (
     <div
-      className="rounded-2xl overflow-hidden shadow-sm border-2 transition-all hover:shadow-md"
+      className="rounded-lg overflow-hidden shadow-sm border-2 transition-all hover:shadow-md"
       style={{ borderColor: lightTierBorders[group.tier] }}
     >
       {/* Header */}
@@ -462,7 +462,7 @@ const LightTierSection = memo(function LightTierSection({
 
       {/* Content */}
       {isExpanded && (
-        <div className="px-3 py-3 bg-white space-y-2 max-h-96 overflow-y-auto [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-transparent hover:[&::-webkit-scrollbar-thumb]:bg-slate-300 [&::-webkit-scrollbar-thumb]:rounded-full [scrollbar-width:thin] [scrollbar-color:transparent_transparent] hover:[scrollbar-color:rgb(203,213,225)_transparent]">
+        <div className="px-0 py-0 bg-white space-y-0 max-h-96 overflow-y-auto [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-transparent hover:[&::-webkit-scrollbar-thumb]:bg-slate-300 [&::-webkit-scrollbar-thumb]:rounded-full [scrollbar-width:thin] [scrollbar-color:transparent_transparent] hover:[scrollbar-color:rgb(203,213,225)_transparent]">
           {group.functions.map((func) => (
             <LightFunctionRow
               key={func.id}
@@ -493,102 +493,101 @@ const LightFunctionRow = memo(function LightFunctionRow({
   tierColor,
 }: LightFunctionRowProps) {
   return (
-    <button
-      onClick={() => onClick(func)}
-      className={`w-full text-left px-4 py-3 rounded-xl transition-all duration-200 ${isSelected
-          ? 'bg-gradient-to-r from-blue-50 to-purple-50 shadow-md border-2 border-blue-200 scale-[1.02]'
-          : 'bg-gray-50 hover:bg-gray-100 border-2 border-transparent hover:border-gray-200 hover:shadow-sm'
-        }`}
-    >
-      <div className="flex items-start justify-between gap-3">
-        {/* Function name and info */}
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-2">
-            {/* Tier badge */}
-            <span
-              className="text-xs font-bold px-2 py-0.5 rounded-md"
-              style={{
-                backgroundColor: `${tierColor}20`,
-                color: tierColor,
-              }}
-            >
-              {func.tier}
-            </span>
-
-            {/* Function name */}
-            <span className="font-semibold text-gray-900 truncate text-sm">
-              {func.function_name}
-            </span>
-
-            {/* Badges */}
-            <div className="flex items-center gap-1.5">
-              {func.is_async && (
-                <div
-                  className="p-1 rounded-md"
-                  style={{ backgroundColor: '#fef3c7' }}
-                  title="Async"
-                >
-                  <Zap size={11} className="text-amber-600" />
-                </div>
-              )}
-              {func.is_exported && (
-                <div
-                  className="p-1 rounded-md"
-                  style={{ backgroundColor: '#d1fae5' }}
-                  title="Exported"
-                >
-                  <Upload size={11} className="text-green-600" />
-                </div>
-              )}
-              {func.is_entry_point && (
-                <div
-                  className="p-1 rounded-md"
-                  style={{ backgroundColor: '#dbeafe' }}
-                  title="Entry Point"
-                >
-                  <Play size={11} className="text-blue-600" />
-                </div>
-              )}
+    <div className={`w-full h-full border-t-2 py-2 px-2`}
+      style={{ borderColor: tierColor + '20' }}>
+      <button
+        onClick={() => onClick(func)}
+        className={`w-full text-left px-4 py-3 rounded-xl transition-all duration-200 ${isSelected
+            ? 'bg-gradient-to-r from-blue-50 to-purple-50 shadow-md border-2 border-blue-200 scale-[1.02]'
+            : 'bg-gray-50 hover:bg-gray-100 border-2 border-transparent hover:border-gray-200 hover:shadow-sm'
+          }`}
+      >
+        <div className="flex items-start justify-between gap-3">
+          {/* Function name and info */}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-2">
+              {/* Tier badge */}
+              <span
+                className="text-xs font-bold px-2 py-0.5 rounded-md"
+                style={{
+                  backgroundColor: `${tierColor}20`,
+                  color: tierColor,
+                }}
+              >
+                {func.tier}
+              </span>
+              {/* Function name */}
+              <span className="font-semibold text-gray-900 truncate text-sm">
+                {func.function_name}
+              </span>
+              {/* Badges */}
+              <div className="flex items-center gap-1.5">
+                {func.is_async && (
+                  <div
+                    className="p-1 rounded-md"
+                    style={{ backgroundColor: '#fef3c7' }}
+                    title="Async"
+                  >
+                    <Zap size={11} className="text-amber-600" />
+                  </div>
+                )}
+                {func.is_exported && (
+                  <div
+                    className="p-1 rounded-md"
+                    style={{ backgroundColor: '#d1fae5' }}
+                    title="Exported"
+                  >
+                    <Upload size={11} className="text-green-600" />
+                  </div>
+                )}
+                {func.is_entry_point && (
+                  <div
+                    className="p-1 rounded-md"
+                    style={{ backgroundColor: '#dbeafe' }}
+                    title="Entry Point"
+                  >
+                    <Play size={11} className="text-blue-600" />
+                  </div>
+                )}
+              </div>
+            </div>
+            {/* File path and type */}
+            <div className="flex items-center gap-2 text-xs">
+              <span
+                className="px-2 py-0.5 rounded-md font-medium"
+                style={{
+                  backgroundColor: `${functionTypeColors[func.function_type]}15`,
+                  color: functionTypeColors[func.function_type],
+                }}
+              >
+                {functionTypeLabels[func.function_type]}
+              </span>
+              <span className="flex items-center gap-1.5 text-gray-500 truncate">
+                <FileCode size={11} />
+                <span className="font-medium">{func.file_path}</span>
+              </span>
+              <span className="flex items-center gap-1 text-gray-400">
+                <Hash size={11} />
+                L{func.start_line}
+              </span>
             </div>
           </div>
-
-          {/* File path and type */}
-          <div className="flex items-center gap-2 text-xs">
-            <span
-              className="px-2 py-0.5 rounded-md font-medium"
+          {/* Call count */}
+          <div className="flex flex-col items-end">
+            <div
+              className="px-3 py-1 rounded-lg"
               style={{
-                backgroundColor: `${functionTypeColors[func.function_type]}15`,
-                color: functionTypeColors[func.function_type],
+                backgroundColor: `${tierColor}15`,
               }}
             >
-              {functionTypeLabels[func.function_type]}
-            </span>
-            <span className="flex items-center gap-1.5 text-gray-500 truncate">
-              <FileCode size={11} />
-              <span className="font-medium">{func.file_path}</span>
-            </span>
-            <span className="flex items-center gap-1 text-gray-400">
-              <Hash size={11} />
-              L{func.start_line}
-            </span>
+              <span className="text-base font-bold" style={{ color: tierColor }}>
+                {func.internal_call_count}
+              </span>
+            </div>
+            <span className="text-[10px] text-gray-400 font-medium mt-0.5">calls</span>
           </div>
         </div>
-
-        {/* Call count */}
-        <div className="flex flex-col items-end">
-          <div
-            className="px-3 py-1 rounded-lg"
-            style={{
-              backgroundColor: `${tierColor}15`,
-            }}
-          >
-            <span className="text-base font-bold" style={{ color: tierColor }}>
-              {func.internal_call_count}
-            </span>
-          </div>
-          <span className="text-[10px] text-gray-400 font-medium mt-0.5">calls</span>
-        </div>
-      </div>
-    </button>
+      </button>
+    </div>
   );
 });
