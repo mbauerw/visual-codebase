@@ -1356,7 +1356,7 @@ function VisualizationPageInner() {
         {/* Main content */}
         <div
           id="left-content"
-          className={`min-h-full overflow-y-auto flex flex-col ${mainSectionGap} items-center flex-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden`}
+          className={`min-h-full overflow-y-auto flex flex-col ${mainSectionGap} items-center flex-1 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-transparent hover:[&::-webkit-scrollbar-thumb]:bg-slate-300 [&::-webkit-scrollbar-thumb]:rounded-full [scrollbar-width:thin] [scrollbar-color:transparent_transparent] hover:[scrollbar-color:rgb(203,213,225)_transparent]`}
           style={{ width: expanded ? `calc(100% - ${panelWidth}px)` : '100%' }}
         >
 
