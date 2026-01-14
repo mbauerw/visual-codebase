@@ -194,14 +194,14 @@ export function ProfessionalDesign({
       {/* Stats bar - Refined with subtle grid lines */}
       {stats && tierSummary && (
         <div className="px-8 py-5 bg-white border-b border-[#e8e6e3]">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-6">
+          <div className="flex flex-col items-center gap-6 justify-center">
+            <div className="flex items-center  gap-6">
               <div className="flex items-center gap-3 text-sm text-[#4a5568]">
                 <span className="text-2xl font-extralight text-[#2d3748] tabular-nums">{stats.total_functions}</span>
                 <span className="text-xs font-light tracking-wider uppercase text-[#a0aec0]">Functions</span>
               </div>
               <div className="w-px h-8 bg-[#e8e6e3]"></div>
-              <div className="flex items-center gap-3 text-sm text-[#4a5568]">
+              <div className="flex items-center gap-3 px-3 text-sm text-[#4a5568]">
                 <span className="text-2xl font-extralight text-[#2d3748] tabular-nums">{stats.total_calls}</span>
                 <span className="text-xs font-light tracking-wider uppercase text-[#a0aec0]">Total Calls</span>
               </div>
@@ -339,14 +339,14 @@ export function ProfessionalDesign({
       </div>
 
       {/* Tier sections - Grid-like precision */}
-      <div className="flex-1 overflow-y-auto px-6 py-6 space-y-4 bg-[#fafaf9] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-[#e2e0dc] hover:[&::-webkit-scrollbar-thumb]:bg-[#d4d0cb] [&::-webkit-scrollbar-thumb]:rounded-full">
+      <div className="flex-1 overflow-y-auto px-6 py-6 space-y-4 bg-white [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-[#e2e0dc] hover:[&::-webkit-scrollbar-thumb]:bg-[#d4d0cb] [&::-webkit-scrollbar-thumb]:rounded-full">
         {tierGroups.map((group) => (
           <ProfessionalTierSection
             key={group.tier}
             group={group}
             onFunctionClick={handleFunctionClick}
             selectedFunctionId={selectedFunctionId}
-            defaultExpanded={group.tier === 'S' || group.tier === 'A'}
+            defaultExpanded={true}
           />
         ))}
 
@@ -424,20 +424,18 @@ const ProfessionalTierSection = memo(function ProfessionalTierSection({
   const [isExpanded, setIsExpanded] = useState(defaultExpanded);
   const count = group.functions.length;
 
-  if (count === 0) {
-    return null;
-  }
-
   return (
     <div
-      className="overflow-hidden bg-white border transition-all"
+      className="overflow-hidden !bg-white border transition-all"
       style={{ borderColor: professionalTierBorders[group.tier] }}
     >
       {/* Header */}
       <button
-        onClick={() => setIsExpanded(!isExpanded)}
-        className="w-full flex items-center justify-between px-6 py-4 transition-all hover:bg-[#fafaf9]"
-        style={{ backgroundColor: professionalTierBgs[group.tier] }}
+        onClick={() => count > 0 && setIsExpanded(!isExpanded)}
+        className={`w-full flex items-center justify-between px-6 py-4 hover:bg-[#fafaf9] ${isExpanded && count > 0 ? 'border-b border-[#e8e6e3]' : ''} ${count === 0 ? 'opacity-50 cursor-default' : ''}`}
+        style={{ 
+          backgroundColor: professionalTierBgs[group.tier],
+          borderColor: professionalTierBorders[group.tier],}}
       >
         <div className="flex items-center gap-5">
           {/* Tier indicator - Refined monospace */}
@@ -495,7 +493,7 @@ const ProfessionalTierSection = memo(function ProfessionalTierSection({
       </button>
 
       {/* Content */}
-      {isExpanded && (
+      {isExpanded && count > 0 && (
         <div className="bg-white max-h-96 overflow-y-auto [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-[#e8e6e3] hover:[&::-webkit-scrollbar-thumb]:bg-[#d4d0cb] [&::-webkit-scrollbar-thumb]:rounded-full">
           {group.functions.map((func, index) => (
             <ProfessionalFunctionRow
