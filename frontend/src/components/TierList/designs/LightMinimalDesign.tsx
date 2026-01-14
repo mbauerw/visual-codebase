@@ -44,7 +44,7 @@ const lightTierColors: Record<TierLevel, string> = {
 };
 
 const lightTierBgs: Record<TierLevel, string> = {
-  S: '#fff5f7',
+  S: ' #fff5f7',
   A: '#f0f7ff',
   B: '#f0fdf4',
   C: '#fff7ed',

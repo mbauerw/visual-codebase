@@ -36,6 +36,10 @@ import CategoryRolePanel from '../components/CateogoryDetailPanel';
 import UserDashboardModal from '../components/UserDashboardModal';
 import SummaryDisplay from '../components/SummaryDisplay';
 import { FunctionTierList } from '../components/TierList';
+// or
+import { LightMinimalDesign } from '../components/TierList/designs/LightMinimalDesign';
+// or
+import { AnalyticsDashboardDesign } from '../components/TierList/designs/AnalyticsDashboardDesign';
 import type { FunctionTierItem } from '../types/tierList';
 import { BarChart3, FileText } from 'lucide-react';
 import type {
@@ -1604,14 +1608,14 @@ function VisualizationPageInner() {
         {expanded && (
           <div
             onMouseDown={handleResizeMouseDown}
-            className="w-1 bg-slate-800 hover:bg-indigo-500 cursor-ew-resize transition-colors flex-shrink-0 z-10"
+            className="w-[1px] hover:bg-indigo-500 cursor-ew-resize transition-colors z-10"
           />
         )}
 
         {/* Right Panel / NodeDetailPanel */}
         <div
           id="right-content"
-          className="h-full bg-slate-900 border-l border-slate-800 flex-shrink-0 transition-[width] duration-200 flex flex-col"
+          className="h-full bg-slate-900  border-slate-800 flex-shrink-0 transition-[width] duration-200 flex flex-col"
           style={{ width: expanded ? panelWidth : 0 }}
         >
           {expanded && (
@@ -1659,7 +1663,7 @@ function VisualizationPageInner() {
                     )}
                   </>
                 ) : (
-                  <FunctionTierList
+                <LightMinimalDesign
                     analysisId={analysisId}
                     onFunctionSelect={handleFunctionSelect}
                   />
