@@ -493,7 +493,7 @@ const LightFunctionRow = memo(function LightFunctionRow({
   tierColor,
 }: LightFunctionRowProps) {
   return (
-    <div className={`w-full h-full border-t-2 py-2 px-2`}
+    <div className={`w-full h-full min-h-32 flex items-center border-t-2 py-2 px-2`}
       style={{ borderColor: tierColor + '20' }}>
       <button
         onClick={() => onClick(func)}
@@ -508,7 +508,7 @@ const LightFunctionRow = memo(function LightFunctionRow({
             <div className="flex items-center gap-2 mb-2">
               {/* Tier badge */}
               <span
-                className="text-xs font-bold px-2 py-0.5 rounded-md"
+                className="text-sm font-bold px-2 py-0.5 rounded-md"
                 style={{
                   backgroundColor: `${tierColor}20`,
                   color: tierColor,
@@ -517,7 +517,7 @@ const LightFunctionRow = memo(function LightFunctionRow({
                 {func.tier}
               </span>
               {/* Function name */}
-              <span className="font-semibold text-gray-900 truncate text-sm">
+              <span className="font-semibold text-gray-900 truncate text-lg">
                 {func.function_name}
               </span>
               {/* Badges */}

@@ -63,7 +63,7 @@ export default function CategoryDetailPanel({ data, onClose, setExpand, expanded
   const roleColor = roleColors[data.role] || roleColors.unknown;
 
   return (
-    <div className="h-full w-full flex flex-col bg-neutral-200">
+    <div className="h-full w-full flex flex-col ">
 
       {/* Header with gradient accent */}
       <div className="relative">
@@ -75,8 +75,8 @@ export default function CategoryDetailPanel({ data, onClose, setExpand, expanded
       </button> */}
 
         <div className="p-6 ">
-          <div className="flex flex-col items-center justify-center gap-12 relative">
-            <p className="text-xl text-center text-slate-500 mt-1 underline">Category Details</p>
+          <div className="flex flex-col items-center justify-center gap-8 relative">
+            <p className="text-xl text-center text-slate-500">Category Details</p>
 
             <div className="flex flex-col items-center gap-4 min-w-0">
               <span
@@ -87,7 +87,7 @@ export default function CategoryDetailPanel({ data, onClose, setExpand, expanded
                   borderColor: `${roleColor}70`,
                 }}
               >
-                <h2 className="text-5xl font-bold truncate" title={data.label}>
+                <h2 className="text-5xl font-bold text-wrap text-center" title={data.label}>
                   {data.label}
                 </h2>
 
@@ -100,21 +100,6 @@ export default function CategoryDetailPanel({ data, onClose, setExpand, expanded
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto p-6 space-y-6 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-        {/* Badges Section */}
-        <div className="flex flex-wrap gap-2">
-
-        </div>
-
-        {/* Path Section */}
-        {/* <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700/50">
-          <div className="flex items-center gap-2 text-slate-400 mb-3">
-            <Folder size={16} />
-            <span className="text-xs uppercase tracking-wider font-semibold">File Path</span>
-          </div>
-          <code className="text-sm text-slate-300 break-all leading-relaxed block">
-            {data.path}
-          </code>
-        </div> */}
 
         {/* Description */}
         {data.role && (

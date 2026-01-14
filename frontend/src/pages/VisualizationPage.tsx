@@ -36,10 +36,7 @@ import CategoryRolePanel from '../components/CateogoryDetailPanel';
 import UserDashboardModal from '../components/UserDashboardModal';
 import SummaryDisplay from '../components/SummaryDisplay';
 import { FunctionTierList } from '../components/TierList';
-// or
 import { LightMinimalDesign } from '../components/TierList/designs/LightMinimalDesign';
-// or
-import { AnalyticsDashboardDesign } from '../components/TierList/designs/AnalyticsDashboardDesign';
 import type { FunctionTierItem } from '../types/tierList';
 import { BarChart3, FileText } from 'lucide-react';
 import type {
@@ -57,6 +54,7 @@ import { AuthModal } from '../components/AuthModal';
 import { getAnalysisResult } from '../api/client';
 import SourceCodePanel from '../components/SourceCodePanel';
 import { useSourceCode } from '../hooks/useSourceCode';
+import { ProfessionalDesign } from '../components/TierList/designs/ProfessionalDesign';
 
 // Define node types with proper typing for React Flow v12
 const nodeTypes: NodeTypes = {
@@ -1608,7 +1606,7 @@ function VisualizationPageInner() {
         {expanded && (
           <div
             onMouseDown={handleResizeMouseDown}
-            className="w-[1px] hover:bg-indigo-500 cursor-ew-resize transition-colors z-10"
+            className="w-[1px] hover:bg-slate-500 cursor-ew-resize transition-colors z-10"
           />
         )}
 
@@ -1663,7 +1661,7 @@ function VisualizationPageInner() {
                     )}
                   </>
                 ) : (
-                <LightMinimalDesign
+                <ProfessionalDesign
                     analysisId={analysisId}
                     onFunctionSelect={handleFunctionSelect}
                   />
