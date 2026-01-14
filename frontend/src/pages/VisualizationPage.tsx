@@ -1356,7 +1356,7 @@ function VisualizationPageInner() {
         {/* Main content */}
         <div
           id="left-content"
-          className={`min-h-full overflow-y-auto flex flex-col ${mainSectionGap} items-center [scrollbar-width:10] flex-1`}
+          className={`min-h-full overflow-y-auto flex flex-col ${mainSectionGap} items-center flex-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden`}
           style={{ width: expanded ? `calc(100% - ${panelWidth}px)` : '100%' }}
         >
 

@@ -307,7 +307,7 @@ export function LightMinimalDesign({
       </div>
 
       {/* Tier sections - Light cards with generous spacing */}
-      <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4 bg-gradient-to-b from-white to-gray-50">
+      <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4 bg-gradient-to-b from-white to-gray-50 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-transparent hover:[&::-webkit-scrollbar-thumb]:bg-slate-300 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:transition-colors [scrollbar-width:thin] [scrollbar-color:transparent_transparent] hover:[scrollbar-color:rgb(203,213,225)_transparent]">
         {tierGroups.map((group) => (
           <LightTierSection
             key={group.tier}
@@ -444,7 +444,7 @@ const LightTierSection = memo(function LightTierSection({
 
       {/* Content */}
       {isExpanded && (
-        <div className="px-3 py-3 bg-white space-y-2 max-h-96 overflow-y-auto">
+        <div className="px-3 py-3 bg-white space-y-2 max-h-96 overflow-y-auto [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-transparent hover:[&::-webkit-scrollbar-thumb]:bg-slate-300 [&::-webkit-scrollbar-thumb]:rounded-full [scrollbar-width:thin] [scrollbar-color:transparent_transparent] hover:[scrollbar-color:rgb(203,213,225)_transparent]">
           {group.functions.map((func) => (
             <LightFunctionRow
               key={func.id}
