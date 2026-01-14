@@ -11,6 +11,7 @@ import {
   BarChart3,
   ChevronDown,
   ChevronRight,
+  ChevronUp,
   FileCode,
   Hash,
   Zap,
@@ -68,6 +69,7 @@ export function LightMinimalDesign({
 }: LightMinimalDesignProps) {
   const [selectedFunctionId, setSelectedFunctionId] = useState<string | null>(null);
   const [showFilters, setShowFilters] = useState(false);
+  const [expandSearch, setExpandSearch] = useState(true);
 
   const {
     tierGroups,
@@ -89,6 +91,8 @@ export function LightMinimalDesign({
     enabled: !!analysisId,
   });
 
+  
+
   const handleFunctionClick = (func: FunctionTierItem) => {
     setSelectedFunctionId(func.id);
     onFunctionSelect?.(func);
@@ -97,6 +101,11 @@ export function LightMinimalDesign({
   const toggleSortOrder = () => {
     setSortOrder(sortOrder === 'desc' ? 'asc' : 'desc');
   };
+
+  const handleExpandSearch = () => {
+    setExpandSearch(prev => !prev);
+  };
+
 
   const clearFilters = () => {
     setSearchQuery('');
@@ -193,11 +202,10 @@ export function LightMinimalDesign({
                 <button
                   key={tier}
                   onClick={() => setTierFilter(tierFilter === tier ? null : tier)}
-                  className={`min-w-[32px] h-7 px-2 flex items-center justify-center rounded-lg text-xs font-bold transition-all ${
-                    tierFilter === tier
+                  className={`min-w-[32px] h-7 px-2 flex items-center justify-center rounded-lg text-xs font-bold transition-all ${tierFilter === tier
                       ? 'shadow-md scale-105'
                       : 'hover:scale-105 hover:shadow-sm opacity-80 hover:opacity-100'
-                  }`}
+                    }`}
                   style={{
                     backgroundColor: tierFilter === tier ? lightTierColors[tier] : lightTierBgs[tier],
                     color: tierFilter === tier ? '#ffffff' : lightTierColors[tier],
@@ -217,93 +225,103 @@ export function LightMinimalDesign({
       )}
 
       {/* Search and filters - Minimal white design */}
-      <div className="px-6 py-4 border-b border-gray-100 space-y-3 bg-white">
-        {/* Search bar */}
-        <div className="relative">
-          <Search
-            size={18}
-            className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"
-          />
-          <input
-            type="text"
-            placeholder="Search functions by name..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-12 pr-10 py-3 bg-gray-50 border-2 border-gray-100 rounded-xl text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-200 transition-all"
-          />
-          {searchQuery && (
-            <button
-              onClick={() => setSearchQuery('')}
-              className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-all"
-            >
-              <X size={16} />
-            </button>
-          )}
-        </div>
+      <div className="relative border-b border-gray-100 bg-white">
+        {/* Collapsible content */}
+        <div className={`px-6 transition-all duration-300 ease-in-out overflow-hidden ${expandSearch ? 'max-h-96 py-4 space-y-3 opacity-100' : 'max-h-0 py-0 opacity-0'}`}>
+          {/* Search bar */}
+          <div className="relative">
+            <Search
+              size={18}
+              className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"
+            />
+            <input
+              type="text"
+              placeholder="Search functions by name..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-12 pr-10 py-3 bg-gray-50 border-2 border-gray-100 rounded-xl text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-200 transition-all"
+            />
 
-        {/* Filter controls */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setShowFilters(!showFilters)}
-              className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-lg transition-all ${
-                showFilters || hasActiveFilters
-                  ? 'bg-blue-500 text-white shadow-md shadow-blue-200'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              }`}
-            >
-              <Filter size={14} />
-              Filters
-              {hasActiveFilters && (
-                <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
-              )}
-            </button>
-
-            <button
-              onClick={toggleSortOrder}
-              className="flex items-center gap-2 px-4 py-2 text-xs font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200 rounded-lg transition-all"
-            >
-              {sortOrder === 'desc' ? <SortDesc size={14} /> : <SortAsc size={14} />}
-              {sortBy === 'call_count' ? 'Calls' : sortBy === 'name' ? 'Name' : sortBy}
-            </button>
-          </div>
-
-          <button
-            onClick={refresh}
-            className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-all"
-            title="Refresh"
-          >
-            <RefreshCw size={16} className={isLoading ? 'animate-spin' : ''} />
-          </button>
-        </div>
-
-        {/* Expanded filters */}
-        {showFilters && (
-          <div className="pt-3 space-y-3 border-t border-gray-100">
-            <div className="flex items-center gap-3">
-              <span className="text-xs font-semibold text-gray-500 w-16">Sort by</span>
-              <select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
-                className="flex-1 px-3 py-2 text-sm bg-gray-50 border-2 border-gray-100 rounded-lg text-gray-900 font-medium focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-200"
-              >
-                <option value="call_count">Call Count</option>
-                <option value="name">Name</option>
-                <option value="file">File</option>
-                <option value="tier">Tier</option>
-              </select>
-            </div>
-
-            {hasActiveFilters && (
+            {searchQuery && (
               <button
-                onClick={clearFilters}
-                className="w-full py-2.5 text-xs font-semibold text-gray-600 hover:text-gray-900 bg-gray-50 hover:bg-gray-100 border-2 border-gray-100 rounded-lg transition-all"
+                onClick={() => setSearchQuery('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-all"
               >
-                Clear all filters
+                <X size={16} />
               </button>
             )}
           </div>
-        )}
+
+          {/* Filter controls */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setShowFilters(!showFilters)}
+                className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-lg transition-all ${showFilters || hasActiveFilters
+                    ? 'bg-blue-500 text-white shadow-md shadow-blue-200'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+              >
+                <Filter size={14} />
+                Filters
+                {hasActiveFilters && (
+                  <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+                )}
+              </button>
+
+              <button
+                onClick={toggleSortOrder}
+                className="flex items-center gap-2 px-4 py-2 text-xs font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200 rounded-lg transition-all"
+              >
+                {sortOrder === 'desc' ? <SortDesc size={14} /> : <SortAsc size={14} />}
+                {sortBy === 'call_count' ? 'Calls' : sortBy === 'name' ? 'Name' : sortBy}
+              </button>
+            </div>
+
+            <button
+              onClick={refresh}
+              className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-all"
+              title="Refresh"
+            >
+              <RefreshCw size={16} className={isLoading ? 'animate-spin' : ''} />
+            </button>
+          </div>
+
+          {/* Expanded filters */}
+          {showFilters && (
+            <div className="pt-3 space-y-3 border-t border-gray-100">
+              <div className="flex items-center gap-3">
+                <span className="text-xs font-semibold text-gray-500 w-16">Sort by</span>
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
+                  className="flex-1 px-3 py-2 text-sm bg-gray-50 border-2 border-gray-100 rounded-lg text-gray-900 font-medium focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-200"
+                >
+                  <option value="call_count">Call Count</option>
+                  <option value="name">Name</option>
+                  <option value="file">File</option>
+                  <option value="tier">Tier</option>
+                </select>
+              </div>
+
+              {hasActiveFilters && (
+                <button
+                  onClick={clearFilters}
+                  className="w-full py-2.5 text-xs font-semibold text-gray-600 hover:text-gray-900 bg-gray-50 hover:bg-gray-100 border-2 border-gray-100 rounded-lg transition-all"
+                >
+                  Clear all filters
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+        {/* Toggle button - always visible */}
+        <button
+          onClick={handleExpandSearch}
+          className="absolute right-2 bottom-1 p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-all z-10"
+        >
+          <ChevronUp size={16} className={`transition-transform duration-300 ${expandSearch ? '' : 'rotate-180'}`} />
+        </button>
       </div>
 
       {/* Tier sections - Light cards with generous spacing */}
@@ -477,11 +495,10 @@ const LightFunctionRow = memo(function LightFunctionRow({
   return (
     <button
       onClick={() => onClick(func)}
-      className={`w-full text-left px-4 py-3 rounded-xl transition-all duration-200 ${
-        isSelected
+      className={`w-full text-left px-4 py-3 rounded-xl transition-all duration-200 ${isSelected
           ? 'bg-gradient-to-r from-blue-50 to-purple-50 shadow-md border-2 border-blue-200 scale-[1.02]'
           : 'bg-gray-50 hover:bg-gray-100 border-2 border-transparent hover:border-gray-200 hover:shadow-sm'
-      }`}
+        }`}
     >
       <div className="flex items-start justify-between gap-3">
         {/* Function name and info */}
