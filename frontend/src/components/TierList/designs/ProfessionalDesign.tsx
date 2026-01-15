@@ -250,9 +250,6 @@ export function ProfessionalDesign({
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-12 pr-10 py-3 bg-[#fafaf9] border border-[#e8e6e3] text-sm text-[#2d3748] placeholder-[#a0aec0] focus:outline-none focus:border-[#d4d0cb] transition-colors"
-              style={{
-                fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, sans-serif',
-              }}
             />
 
             {searchQuery && (
@@ -340,13 +337,13 @@ export function ProfessionalDesign({
 
       {/* Tier sections - Grid-like precision */}
       <div className="flex-1 overflow-y-auto px-6 py-6 space-y-4 bg-white [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-[#e2e0dc] hover:[&::-webkit-scrollbar-thumb]:bg-[#d4d0cb] [&::-webkit-scrollbar-thumb]:rounded-full">
-        {tierGroups.map((group) => (
+        {tierGroups.map((group, index) => (
           <ProfessionalTierSection
             key={group.tier}
             group={group}
             onFunctionClick={handleFunctionClick}
             selectedFunctionId={selectedFunctionId}
-            defaultExpanded={true}
+            defaultExpanded={index === 0}
           />
         ))}
 
@@ -381,13 +378,7 @@ function Header({ onClose }: { onClose?: () => void }) {
           <Layers size={18} className="text-[#8b7355]" />
         </div>
         <div>
-          <h2
-            className="text-[#2d3748] text-lg tracking-wide"
-            style={{
-              fontFamily: '"Playfair Display", "Georgia", "Times New Roman", serif',
-              fontWeight: 400,
-            }}
-          >
+          <h2 className="text-[#2d3748] text-lg font-semibold">
             Function Analysis
           </h2>
           <p className="text-xs text-[#a0aec0] mt-1 font-light tracking-wider uppercase">
@@ -455,13 +446,7 @@ const ProfessionalTierSection = memo(function ProfessionalTierSection({
           {/* Label */}
           <div className="text-left">
             <div className="flex items-center gap-3">
-              <span
-                className="text-[#2d3748] text-base"
-                style={{
-                  fontFamily: '"Playfair Display", "Georgia", "Times New Roman", serif',
-                  fontWeight: 400,
-                }}
-              >
+              <span className="text-[#2d3748] text-base font-medium">
                 {group.label}
               </span>
               <span

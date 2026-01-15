@@ -1624,7 +1624,7 @@ function VisualizationPageInner() {
         {expanded && (
           <div
             onMouseDown={handleResizeMouseDown}
-            className="w-[2px] hover:bg-gray-800 cursor-ew-resize transition-colors z-10"
+            className="w-[2px] hover:bg-gray-600 cursor-ew-resize transition-colors z-10"
           />
         )}
 
@@ -1656,7 +1656,7 @@ function VisualizationPageInner() {
                     }`}
                 >
                   <BarChart3 size={16} />
-                  Tier List
+                  Function Tier List
                 </button>
                 <div className='absolute top-2 right-2 flex items-center cursor-pointer gap-2 text-slate-400 z-50 ' >
                   <ChevronsLeftRight size={26} onMouseDown={()=>setExpanded(prev => !prev)} className='z-50 pointer-events-all' />
