@@ -55,6 +55,8 @@ import { getAnalysisResult } from '../api/client';
 import SourceCodePanel from '../components/SourceCodePanel';
 import { useSourceCode } from '../hooks/useSourceCode';
 import { ProfessionalDesign } from '../components/TierList/designs/ProfessionalDesign';
+import { ElegantDesign } from '../components/TierList/designs/ElegantDesign';
+import { FreeFormDesign } from '../components/TierList/designs/FreeFormDesign';
 
 // Define node types with proper typing for React Flow v12
 const nodeTypes: NodeTypes = {
@@ -1661,7 +1663,7 @@ function VisualizationPageInner() {
                     )}
                   </>
                 ) : (
-                <ProfessionalDesign
+                <FreeFormDesign
                     analysisId={analysisId}
                     onFunctionSelect={handleFunctionSelect}
                   />
