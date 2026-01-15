@@ -10,7 +10,7 @@ import {
   Folder,
 } from 'lucide-react';
 import { roleColors } from '../types';
-import type { ArchitecturalRole } from '../types';
+import type { ArchitecturalRole, ReactFlowNodeData } from '../types';
 
 export interface CategoryNodeData extends Record<string, unknown> {
   label: string;
@@ -28,6 +28,7 @@ export interface CategoryRoleData extends Record<string, unknown> {
   role: ArchitecturalRole;
   nodeCount: number;
   description: string;
+  files?: ReactFlowNodeData[];
 }
 
 const iconSize = 20;

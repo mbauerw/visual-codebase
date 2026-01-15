@@ -1150,17 +1150,24 @@ function VisualizationPageInner() {
         setSelectedNode(null);
         setSelectedNodeId(null);
         setSelectionSource(null);
+
+        // Filter files for this role from graphData
+        const roleFiles = graphData?.nodes
+          .filter(n => n.data.role === node.data.role)
+          .map(n => n.data) || [];
+
         setSelectedCategory({
           label: node.data.label,
           role: node.data.role,
           nodeCount: node.data.nodeCount,
           description: node.data.description,
+          files: roleFiles,
         } as CategoryRoleData);
         // Close source panel when selecting a category
         setIsSourcePanelOpen(false);
       }
     },
-    []
+    [graphData]
   );
 
   // Handle category node selection

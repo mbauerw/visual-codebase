@@ -1,5 +1,5 @@
-import { X, FileCode, Folder, Hash, Code, Layers, ChevronsLeftRight } from 'lucide-react';
-import { roleColors, roleLabels } from '../types';
+import { X, FileCode, Folder, Hash, Code, Layers, ChevronsLeftRight, File } from 'lucide-react';
+import { roleColors, roleLabels, languageColors } from '../types';
 import { CategoryRoleData } from './CategoryNode';
 import type { ArchitecturalRole } from '../types';
 
@@ -108,6 +108,70 @@ export default function CategoryDetailPanel({ data, onClose, setExpand, expanded
               Description
             </label>
             <p className="text-slate-300 text-md leading-relaxed">{roleDescriptions[data.role]}</p>
+          </div>
+        )}
+
+        {/* Files Table */}
+        {data.files && data.files.length > 0 && (
+          <div className="bg-slate-800/80 rounded-xl p-4 border border-slate-700/50">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2 text-slate-400">
+                <File size={16} />
+                <span className="text-xs uppercase tracking-wider font-semibold">Files</span>
+              </div>
+              <span className="text-xs bg-slate-700/50 text-slate-400 px-2.5 py-1 rounded-full font-medium">
+                {data.files.length}
+              </span>
+            </div>
+
+            {/* Scrollable Table Container */}
+            <div className="max-h-64 overflow-y-auto [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-600 [&::-webkit-scrollbar-thumb]:rounded-full">
+              <table className="w-full text-sm">
+                <thead className="sticky top-0 bg-slate-800">
+                  <tr className="text-xs text-slate-400 uppercase tracking-wider">
+                    <th className="text-left py-2 px-2 font-semibold">File</th>
+                    <th className="text-left py-2 px-2 font-semibold">Language</th>
+                    <th className="text-right py-2 px-2 font-semibold">Lines</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.files.map((file, index) => {
+                    const langColor = languageColors[file.language] || languageColors.unknown;
+                    return (
+                      <tr
+                        key={index}
+                        className="border-t border-slate-700/30 hover:bg-slate-700/30 transition-colors"
+                      >
+                        <td className="py-2.5 px-2">
+                          <div className="flex flex-col gap-0.5">
+                            <span className="text-slate-200 font-medium truncate" title={file.label}>
+                              {file.label}
+                            </span>
+                            <span className="text-xs text-slate-500 truncate" title={file.path}>
+                              {file.folder}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="py-2.5 px-2">
+                          <span
+                            className="text-xs px-2 py-0.5 rounded-full font-medium"
+                            style={{
+                              backgroundColor: `${langColor}15`,
+                              color: langColor,
+                            }}
+                          >
+                            {file.language}
+                          </span>
+                        </td>
+                        <td className="py-2.5 px-2 text-right text-slate-300">
+                          {file.line_count.toLocaleString()}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
 
