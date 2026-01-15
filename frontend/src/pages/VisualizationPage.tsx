@@ -33,9 +33,10 @@ import CategoryNode, { type CategoryNodeType, type CategoryNodeData, CategoryRol
 import CategoryBackground, { type CategorySection } from '../components/Categorybackground'
 import NodeDetailPanel from '../components/NodeDetailPanel';
 import CategoryRolePanel from '../components/CateogoryDetailPanel';
-import UserDashboardModal from '../components/UserDashboardModal';
+import UserDashboard from './UserDashboard';
 import SummaryDisplay from '../components/SummaryDisplay';
 import { FunctionTierList } from '../components/TierList';
+import { LightMinimalDesign } from '../components/TierList/designs/LightMinimalDesign';
 import type { FunctionTierItem } from '../types/tierList';
 import { BarChart3, FileText } from 'lucide-react';
 import type {
@@ -53,6 +54,9 @@ import { AuthModal } from '../components/AuthModal';
 import { getAnalysisResult } from '../api/client';
 import SourceCodePanel from '../components/SourceCodePanel';
 import { useSourceCode } from '../hooks/useSourceCode';
+import { ProfessionalDesign } from '../components/TierList/designs/ProfessionalDesign';
+import { ElegantDesign } from '../components/TierList/designs/ElegantDesign';
+import { FreeFormDesign } from '../components/TierList/designs/FreeFormDesign';
 
 // Define node types with proper typing for React Flow v12
 const nodeTypes: NodeTypes = {
@@ -778,6 +782,7 @@ function VisualizationPageInner() {
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const [selectedNode, setSelectedNode] = useState<ReactFlowNodeData | null>(null);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const [selectionSource, setSelectionSource] = useState<'node' | 'tierlist' | null>(null);
   const [selectedCateogry, setSelectedCategory] = useState<CategoryRoleData | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [languageFilter, setLanguageFilter] = useState<Language | 'all'>('all');
@@ -994,7 +999,10 @@ function VisualizationPageInner() {
     setCategorySections(layoutResult.categorySections);
   }, [graphData, searchQuery, languageFilter, roleFilter, layoutType, setNodes, setEdges]);
 
-  // Handle fitView - only call on initial load or when switching to non-role layouts
+  // Track the last layout type that was fitted
+  const lastFittedLayoutRef = useRef<LayoutType | null>(null);
+
+  // Handle fitView - only call on initial load or when switching layouts
   useEffect(() => {
     if (nodes.length === 0) return;
 
@@ -1003,18 +1011,19 @@ function VisualizationPageInner() {
       setTimeout(() => {
         reactFlowFitView({ padding: 0.1, duration: 200 });
         setIsInitialLoad(false);
+        lastFittedLayoutRef.current = layoutType;
       }, 50);
       return;
     }
 
-    // For non-role layouts, fit view to see all nodes
-    if (layoutType !== 'role') {
+    // Only fit view when layout type changes, not when nodes are dragged
+    if (lastFittedLayoutRef.current !== layoutType) {
       setTimeout(() => {
         reactFlowFitView({ padding: 0.1, duration: 200 });
+        lastFittedLayoutRef.current = layoutType;
       }, 50);
     }
-    // For role layout, do NOT call fitView to preserve alignment with CategoryBackground
-  }, [nodes, layoutType, isInitialLoad, reactFlowFitView]);
+  }, [nodes.length, layoutType, isInitialLoad, reactFlowFitView]);
 
   // Highlight edges and connected nodes when a node is selected
   useEffect(() => {
@@ -1043,6 +1052,11 @@ function VisualizationPageInner() {
       return;
     }
 
+    // Determine highlight color based on selection source
+    // Blue for tier list selections (function relations), amber for node clicks (dependency relations)
+    const highlightColor = selectionSource === 'tierlist' ? '#60a5fa' : '#fbbf24'; // blue-400 vs amber-400
+    const ringClass = selectionSource === 'tierlist' ? 'ring-4 ring-blue-400' : 'ring-2 ring-amber-400';
+
     // Highlight edges connected to the selected node and collect connected node IDs
     const connectedNodeIds = new Set<string>();
 
@@ -1066,13 +1080,13 @@ function VisualizationPageInner() {
           return {
             ...edge,
             style: {
-              stroke: '#fbbf24',
+              stroke: highlightColor,
               strokeWidth: 8,
               strokeDasharray: '20, 20',
             },
             markerEnd: {
               type: 'arrowclosed',
-              color: '#fbbf24',
+              color: highlightColor,
               width: 14,
               height: 14,
             },
@@ -1105,7 +1119,7 @@ function VisualizationPageInner() {
           if (connectedNodeIds.has(node.id)) {
             return {
               ...node,
-              className: 'ring-2 ring-amber-400',
+              className: ringClass,
             };
           }
           return {
@@ -1115,7 +1129,7 @@ function VisualizationPageInner() {
         })
       );
     }, 0);
-  }, [selectedNodeId, setEdges, setNodes]);
+  }, [selectedNodeId, selectionSource, setEdges, setNodes]);
 
   // Handle node selection
   const onNodeClick = useCallback(
@@ -1125,6 +1139,7 @@ function VisualizationPageInner() {
         setSelectedCategory(null);
         setSelectedNode(nodeData);
         setSelectedNodeId(node.id);
+        setSelectionSource('node');
 
         // Also open source code panel with this file
         setSourceCodeFile({
@@ -1138,17 +1153,25 @@ function VisualizationPageInner() {
       if (node.type === 'category') {
         setSelectedNode(null);
         setSelectedNodeId(null);
+        setSelectionSource(null);
+
+        // Filter files for this role from graphData
+        const roleFiles = graphData?.nodes
+          .filter(n => n.data.role === node.data.role)
+          .map(n => n.data) || [];
+
         setSelectedCategory({
           label: node.data.label,
           role: node.data.role,
           nodeCount: node.data.nodeCount,
           description: node.data.description,
+          files: roleFiles,
         } as CategoryRoleData);
         // Close source panel when selecting a category
         setIsSourcePanelOpen(false);
       }
     },
-    []
+    [graphData]
   );
 
   // Handle category node selection
@@ -1186,6 +1209,7 @@ function VisualizationPageInner() {
   const onPaneClick = useCallback(() => {
     setSelectedNode(null);
     setSelectedNodeId(null);
+    setSelectionSource(null);
   }, []);
 
   // Handle function selection from tier list
@@ -1200,6 +1224,7 @@ function VisualizationPageInner() {
       const nodeData = targetNode.data as ReactFlowNodeData;
       setSelectedNode(nodeData);
       setSelectedNodeId(targetNode.id);
+      setSelectionSource('tierlist');
       setSelectedCategory(null);
 
       // Open source code panel
@@ -1342,7 +1367,7 @@ function VisualizationPageInner() {
         {/* Main content */}
         <div
           id="left-content"
-          className={`min-h-full overflow-y-auto flex flex-col ${mainSectionGap} items-center [scrollbar-width:10] flex-1`}
+          className={`min-h-full overflow-y-auto flex flex-col ${mainSectionGap} items-center flex-1 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-transparent hover:[&::-webkit-scrollbar-thumb]:bg-slate-300 [&::-webkit-scrollbar-thumb]:rounded-full [scrollbar-width:thin] [scrollbar-color:transparent_transparent] hover:[scrollbar-color:rgb(203,213,225)_transparent]`}
           style={{ width: expanded ? `calc(100% - ${panelWidth}px)` : '100%' }}
         >
 
@@ -1422,6 +1447,11 @@ function VisualizationPageInner() {
                   type: 'smoothstep',
                   animated: false,
                   style: { stroke: '#475569', strokeWidth: 1.5 },
+                }}
+                onError={(code, message) => {
+                  // Suppress handle-not-found warnings for folder layouts (error code 008)
+                  if (code === '008') return;
+                  console.warn(`[React Flow]: ${message}`);
                 }}
               >
                 <Controls />
@@ -1594,14 +1624,14 @@ function VisualizationPageInner() {
         {expanded && (
           <div
             onMouseDown={handleResizeMouseDown}
-            className="w-1 bg-slate-800 hover:bg-indigo-500 cursor-ew-resize transition-colors flex-shrink-0 z-10"
+            className="w-[2px] hover:bg-gray-600 cursor-ew-resize transition-colors z-10"
           />
         )}
 
         {/* Right Panel / NodeDetailPanel */}
         <div
           id="right-content"
-          className="h-full bg-slate-900 border-l border-slate-800 flex-shrink-0 transition-[width] duration-200 flex flex-col"
+          className="h-full bg-slate-900  border-slate-800 flex-shrink-0 transition-[width] duration-200 flex flex-col"
           style={{ width: expanded ? panelWidth : 0 }}
         >
           {expanded && (
@@ -1626,7 +1656,7 @@ function VisualizationPageInner() {
                     }`}
                 >
                   <BarChart3 size={16} />
-                  Tier List
+                  Function Tier List
                 </button>
                 <div className='absolute top-2 right-2 flex items-center cursor-pointer gap-2 text-slate-400 z-50 ' >
                   <ChevronsLeftRight size={26} onMouseDown={()=>setExpanded(prev => !prev)} className='z-50 pointer-events-all' />
@@ -1649,7 +1679,7 @@ function VisualizationPageInner() {
                     )}
                   </>
                 ) : (
-                  <FunctionTierList
+                <ProfessionalDesign
                     analysisId={analysisId}
                     onFunctionSelect={handleFunctionSelect}
                   />
@@ -1682,7 +1712,7 @@ function VisualizationPageInner() {
       />
 
       {/* User Dashboard Modal */}
-      <UserDashboardModal
+      <UserDashboard
         open={dashboardOpen}
         onClose={() => setDashboardOpen(false)}
       />

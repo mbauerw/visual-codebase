@@ -673,17 +673,38 @@ class DatabaseService:
         # Get tier summary
         tier_summary = await self._get_tier_summary(db_analysis_id)
 
+        # Get node_id -> file path mapping from analysis_nodes
+        node_ids = [row["node_id"] for row in result.data]
+        node_path_map = {}
+        if node_ids:
+            nodes_result = (
+                self.supabase.table("analysis_nodes")
+                .select("node_id, path, name")
+                .eq("analysis_id", db_analysis_id)
+                .in_("node_id", node_ids)
+                .execute()
+            )
+            node_path_map = {
+                node["node_id"]: {"path": node["path"], "name": node["name"]}
+                for node in nodes_result.data
+            }
+
         # Convert to FunctionTierItem objects
         functions = []
         for row in result.data:
+            node_id = row["node_id"]
+            node_info = node_path_map.get(node_id, {})
+            file_path = node_info.get("path", node_id)
+            file_name = node_info.get("name", file_path.split("/")[-1] if file_path else "")
+
             functions.append(FunctionTierItem(
                 id=str(row["id"]),
                 function_name=row["function_name"],
                 qualified_name=row["qualified_name"],
                 function_type=FunctionType(row["function_type"]),
-                file_path=row["node_id"],
-                file_name=row["node_id"].split("/")[-1] if row["node_id"] else "",
-                node_id=row["node_id"],
+                file_path=file_path,
+                file_name=file_name,
+                node_id=node_id,
                 internal_call_count=row["internal_call_count"],
                 external_call_count=row["external_call_count"],
                 is_exported=row["is_exported"],
@@ -771,14 +792,31 @@ class DatabaseService:
             return None
 
         row = func_result.data[0]
+        node_id = row["node_id"]
+
+        # Get file path from analysis_nodes
+        node_result = (
+            self.supabase.table("analysis_nodes")
+            .select("path, name")
+            .eq("analysis_id", db_analysis_id)
+            .eq("node_id", node_id)
+            .execute()
+        )
+        if node_result.data:
+            file_path = node_result.data[0]["path"]
+            file_name = node_result.data[0]["name"]
+        else:
+            file_path = node_id
+            file_name = node_id.split("/")[-1] if node_id else ""
+
         function = FunctionTierItem(
             id=str(row["id"]),
             function_name=row["function_name"],
             qualified_name=row["qualified_name"],
             function_type=FunctionType(row["function_type"]),
-            file_path=row["node_id"],
-            file_name=row["node_id"].split("/")[-1] if row["node_id"] else "",
-            node_id=row["node_id"],
+            file_path=file_path,
+            file_name=file_name,
+            node_id=node_id,
             internal_call_count=row["internal_call_count"],
             external_call_count=row["external_call_count"],
             is_exported=row["is_exported"],
