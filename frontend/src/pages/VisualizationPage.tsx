@@ -1663,7 +1663,7 @@ function VisualizationPageInner() {
                     )}
                   </>
                 ) : (
-                <FreeFormDesign
+                <ProfessionalDesign
                     analysisId={analysisId}
                     onFunctionSelect={handleFunctionSelect}
                   />
