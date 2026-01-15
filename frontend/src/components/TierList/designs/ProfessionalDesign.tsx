@@ -219,7 +219,7 @@ export function ProfessionalDesign({
                       : 'bg-transparent text-[#718096] hover:text-[#4a5568] border border-[#e8e6e3] hover:border-[#d4d0cb]'
                   }`}
                   style={{
-                    fontFamily: '"SF Mono", "Monaco", "Inconsolata", "Roboto Mono", monospace',
+                    fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace',
                     fontWeight: tierFilter === tier ? 500 : 400,
                   }}
                   title={`${tierLabels[tier]}: ${tierSummary[tier]}`}
@@ -445,7 +445,7 @@ const ProfessionalTierSection = memo(function ProfessionalTierSection({
               backgroundColor: 'white',
               color: professionalTierAccents[group.tier],
               borderColor: professionalTierBorders[group.tier],
-              fontFamily: '"SF Mono", "Monaco", "Inconsolata", "Roboto Mono", monospace',
+              fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace',
               fontWeight: 500,
             }}
           >
@@ -470,7 +470,7 @@ const ProfessionalTierSection = memo(function ProfessionalTierSection({
                   backgroundColor: professionalTierBgs[group.tier],
                   color: professionalTierColors[group.tier],
                   border: `1px solid ${professionalTierBorders[group.tier]}`,
-                  fontFamily: '"SF Mono", "Monaco", "Inconsolata", "Roboto Mono", monospace',
+                  fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace',
                 }}
               >
                 {count}
@@ -549,7 +549,7 @@ const ProfessionalFunctionRow = memo(function ProfessionalFunctionRow({
             <span
               className="text-[#2d3748] truncate"
               style={{
-                fontFamily: '"SF Mono", "Monaco", "Inconsolata", "Roboto Mono", monospace',
+                fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace',
                 fontSize: '14px',
                 fontWeight: 500,
               }}
@@ -594,7 +594,7 @@ const ProfessionalFunctionRow = memo(function ProfessionalFunctionRow({
               style={{
                 borderColor: '#e8e6e3',
                 backgroundColor: '#fafaf9',
-                fontFamily: '"SF Mono", "Monaco", "Inconsolata", "Roboto Mono", monospace',
+                fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace',
                 fontSize: '10px',
               }}
             >
@@ -616,7 +616,7 @@ const ProfessionalFunctionRow = memo(function ProfessionalFunctionRow({
             className="text-xl tabular-nums"
             style={{
               color: tierAccent,
-              fontFamily: '"SF Mono", "Monaco", "Inconsolata", "Roboto Mono", monospace',
+              fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace',
               fontWeight: 300,
             }}
           >
