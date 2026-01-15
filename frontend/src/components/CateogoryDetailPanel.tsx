@@ -63,7 +63,7 @@ export default function CategoryDetailPanel({ data, onClose, setExpand, expanded
   const roleColor = roleColors[data.role] || roleColors.unknown;
 
   return (
-    <div className="h-full w-full flex flex-col ">
+    <div className="h-full w-full flex flex-col overflow-y-auto">
 
       {/* Header with gradient accent */}
       <div className="relative">
@@ -99,7 +99,7 @@ export default function CategoryDetailPanel({ data, onClose, setExpand, expanded
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto p-6 space-y-6 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+      <div className="flex-1 p-6 space-y-6  [-ms-overflow-style:none] [scrollbar-width:none]">
 
         {/* Description */}
         {data.role && (
@@ -125,7 +125,7 @@ export default function CategoryDetailPanel({ data, onClose, setExpand, expanded
             </div>
 
             {/* Scrollable Table Container */}
-            <div className="max-h-64 overflow-y-auto [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-600 [&::-webkit-scrollbar-thumb]:rounded-full">
+            <div className="max-h-64 overflow-y-auto [&::-webkit-scrollbar]:hidden [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-600 [&::-webkit-scrollbar-thumb]:rounded-full">
               <table className="w-full text-sm">
                 <thead className="sticky top-0 bg-slate-800">
                   <tr className="text-xs text-slate-400 uppercase tracking-wider">

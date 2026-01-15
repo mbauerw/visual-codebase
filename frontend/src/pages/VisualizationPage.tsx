@@ -33,7 +33,7 @@ import CategoryNode, { type CategoryNodeType, type CategoryNodeData, CategoryRol
 import CategoryBackground, { type CategorySection } from '../components/Categorybackground'
 import NodeDetailPanel from '../components/NodeDetailPanel';
 import CategoryRolePanel from '../components/CateogoryDetailPanel';
-import UserDashboardModal from '../components/UserDashboardModal';
+import UserDashboard from './UserDashboard';
 import SummaryDisplay from '../components/SummaryDisplay';
 import { FunctionTierList } from '../components/TierList';
 import { LightMinimalDesign } from '../components/TierList/designs/LightMinimalDesign';
@@ -999,7 +999,10 @@ function VisualizationPageInner() {
     setCategorySections(layoutResult.categorySections);
   }, [graphData, searchQuery, languageFilter, roleFilter, layoutType, setNodes, setEdges]);
 
-  // Handle fitView - only call on initial load or when switching to non-role layouts
+  // Track the last layout type that was fitted
+  const lastFittedLayoutRef = useRef<LayoutType | null>(null);
+
+  // Handle fitView - only call on initial load or when switching layouts
   useEffect(() => {
     if (nodes.length === 0) return;
 
@@ -1008,18 +1011,19 @@ function VisualizationPageInner() {
       setTimeout(() => {
         reactFlowFitView({ padding: 0.1, duration: 200 });
         setIsInitialLoad(false);
+        lastFittedLayoutRef.current = layoutType;
       }, 50);
       return;
     }
 
-    // For non-role layouts, fit view to see all nodes
-    if (layoutType !== 'role') {
+    // Only fit view when layout type changes, not when nodes are dragged
+    if (lastFittedLayoutRef.current !== layoutType) {
       setTimeout(() => {
         reactFlowFitView({ padding: 0.1, duration: 200 });
+        lastFittedLayoutRef.current = layoutType;
       }, 50);
     }
-    // For role layout, do NOT call fitView to preserve alignment with CategoryBackground
-  }, [nodes, layoutType, isInitialLoad, reactFlowFitView]);
+  }, [nodes.length, layoutType, isInitialLoad, reactFlowFitView]);
 
   // Highlight edges and connected nodes when a node is selected
   useEffect(() => {
@@ -1444,6 +1448,11 @@ function VisualizationPageInner() {
                   animated: false,
                   style: { stroke: '#475569', strokeWidth: 1.5 },
                 }}
+                onError={(code, message) => {
+                  // Suppress handle-not-found warnings for folder layouts (error code 008)
+                  if (code === '008') return;
+                  console.warn(`[React Flow]: ${message}`);
+                }}
               >
                 <Controls />
                 <MiniMap
@@ -1615,7 +1624,7 @@ function VisualizationPageInner() {
         {expanded && (
           <div
             onMouseDown={handleResizeMouseDown}
-            className="w-[1px] hover:bg-slate-500 cursor-ew-resize transition-colors z-10"
+            className="w-[2px] hover:bg-gray-800 cursor-ew-resize transition-colors z-10"
           />
         )}
 
@@ -1703,7 +1712,7 @@ function VisualizationPageInner() {
       />
 
       {/* User Dashboard Modal */}
-      <UserDashboardModal
+      <UserDashboard
         open={dashboardOpen}
         onClose={() => setDashboardOpen(false)}
       />

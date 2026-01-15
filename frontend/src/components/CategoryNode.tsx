@@ -1,5 +1,5 @@
 import { memo } from 'react';
-import { type NodeProps, type Node } from '@xyflow/react';
+import { type NodeProps, type Node, Handle, Position } from '@xyflow/react';
 import {
   Layers,
   Cog,
@@ -87,6 +87,10 @@ function CategoryNode({ data, selected }: NodeProps<CategoryNodeType>) {
           boxShadow: `0 0 20px 3px ${baseColor}10`,
         }}
       >
+        {/* Hidden handles for edge connections */}
+        <Handle type="target" position={Position.Top} style={{ visibility: 'hidden' }} />
+        <Handle type="source" position={Position.Bottom} style={{ visibility: 'hidden' }} />
+
         {/* Folder header label */}
         <div
           className="absolute -top-3 left-1/2 -translate-x-1/2 flex items-center gap-2 rounded-full px-3 py-1 hover:scale-[1.1] cursor-pointer"

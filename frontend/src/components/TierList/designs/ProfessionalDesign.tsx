@@ -617,6 +617,7 @@ const ProfessionalFunctionRow = memo(function ProfessionalFunctionRow({
             style={{
               color: tierAccent,
               fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace',
+
               fontWeight: 300,
             }}
           >
