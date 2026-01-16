@@ -6,6 +6,7 @@ import { useAuth } from '../hooks/useAuth';
 import { AuthModal } from '../components/AuthModal';
 import GitHubRepoForm from '../components/GitHubRepoForm';
 import UserDashboard from './UserDashboard';
+import ProfileSettingsPage from './ProfileSettingsPage';
 import { AnalysisProgressBar } from '../components/progress';
 import { GitHubRepoInfo } from '../types';
 import FeaturesSection from '../components/FeaturesSection';
@@ -24,6 +25,7 @@ export default function UploadPage() {
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [authModalTab, setAuthModalTab] = useState(0);
   const [dashboardOpen, setDashboardOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const lastScrollY = useRef(0);
   const navigate = useNavigate();
   const { isLoading, status, result, error, analyze } = useAnalysis();
@@ -133,10 +135,14 @@ export default function UploadPage() {
                 >
                   My Analyses
                 </button>
-                <div className="flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-lg">
+                <button
+                  onClick={() => setSettingsOpen(true)}
+                  className="flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
+                  title="Account Settings"
+                >
                   <User size={16} className="text-gray-500" />
                   <span className="text-sm text-gray-700 font-medium">{user.email?.split('@')[0]}</span>
-                </div>
+                </button>
                 <button
                   onClick={signOut}
                   className="text-gray-600 hover:text-gray-900 font-medium transition-colors px-4 py-2 rounded-lg hover:bg-gray-50"
@@ -197,10 +203,16 @@ export default function UploadPage() {
                   >
                     My Analyses
                   </button>
-                  <div className="flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-lg">
+                  <button
+                    onClick={() => {
+                      setSettingsOpen(true);
+                      setMobileMenuOpen(false);
+                    }}
+                    className="flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors w-full"
+                  >
                     <User size={16} className="text-gray-500" />
                     <span className="text-sm text-gray-700 font-medium">{user.email?.split('@')[0]}</span>
-                  </div>
+                  </button>
                   <button
                     onClick={() => {
                       signOut();
@@ -468,6 +480,12 @@ export default function UploadPage() {
       <UserDashboard
         open={dashboardOpen}
         onClose={() => setDashboardOpen(false)}
+      />
+
+      {/* Profile Settings Modal */}
+      <ProfileSettingsPage
+        open={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
       />
 
       {/* Animation keyframes via style tag */}

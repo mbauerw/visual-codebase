@@ -638,3 +638,197 @@ class FunctionCalleesResponse(BaseModel):
     page: int = Field(..., description="Current page")
     per_page: int = Field(..., description="Items per page")
     has_next: bool = Field(..., description="Whether there are more pages")
+
+
+# ==================== User Profile Schemas ====================
+
+class AuthProvider(str, Enum):
+    """Authentication providers."""
+
+    EMAIL = "email"
+    GITHUB = "github"
+    GOOGLE = "google"
+
+
+class NotificationPreferences(BaseModel):
+    """User notification preferences."""
+
+    email_analysis_complete: bool = Field(default=True, description="Email when analysis completes")
+    email_weekly_digest: bool = Field(default=False, description="Weekly digest email")
+
+
+class UserPreferences(BaseModel):
+    """User preference settings."""
+
+    theme: str = Field(default="system", description="UI theme: light, dark, or system")
+    default_view: str = Field(default="graph", description="Default view: graph or list")
+    graph_layout: str = Field(default="hierarchical", description="Graph layout: hierarchical or force")
+    notifications: NotificationPreferences = Field(default_factory=NotificationPreferences)
+
+
+class ProfileResponse(BaseModel):
+    """User profile data response."""
+
+    id: str = Field(..., description="User ID")
+    email: str = Field(..., description="User email")
+    display_name: Optional[str] = Field(None, description="Display name")
+    full_name: Optional[str] = Field(None, description="Full name")
+    avatar_url: Optional[str] = Field(None, description="Avatar URL")
+    preferences: UserPreferences = Field(default_factory=UserPreferences)
+    auth_provider: str = Field(default="email", description="Auth provider used")
+    created_at: datetime = Field(..., description="Account creation date")
+    updated_at: datetime = Field(..., description="Last update date")
+
+
+class ProfileUpdateRequest(BaseModel):
+    """Request to update profile information."""
+
+    display_name: Optional[str] = Field(None, max_length=50, description="Display name")
+    avatar_url: Optional[str] = Field(None, max_length=500, description="Avatar URL")
+    preferences: Optional[UserPreferences] = Field(None, description="User preferences")
+
+
+class EmailChangeRequest(BaseModel):
+    """Request to change email address."""
+
+    new_email: str = Field(..., description="New email address")
+    password: str = Field(..., min_length=1, description="Current password for verification")
+
+
+class PasswordChangeRequest(BaseModel):
+    """Request to change password."""
+
+    current_password: str = Field(..., min_length=1, description="Current password")
+    new_password: str = Field(..., min_length=8, description="New password")
+
+
+# ==================== Password Validation Schemas ====================
+
+class PasswordPolicy(BaseModel):
+    """Password policy configuration."""
+
+    min_length: int = Field(default=8, description="Minimum password length")
+    require_uppercase: bool = Field(default=True, description="Require uppercase letter")
+    require_lowercase: bool = Field(default=True, description="Require lowercase letter")
+    require_number: bool = Field(default=True, description="Require number")
+    require_special: bool = Field(default=True, description="Require special character")
+    history_count: int = Field(default=5, description="Number of previous passwords to check")
+
+
+class PasswordValidationCriteria(BaseModel):
+    """Single password validation criterion."""
+
+    criterion: str = Field(..., description="Criterion name")
+    passed: bool = Field(..., description="Whether criterion is met")
+    message: str = Field(..., description="User-friendly message")
+
+
+class PasswordValidationResult(BaseModel):
+    """Result of password validation."""
+
+    valid: bool = Field(..., description="Whether password meets all requirements")
+    score: int = Field(..., description="Strength score 0-100")
+    criteria: list[PasswordValidationCriteria] = Field(default_factory=list, description="Individual criteria results")
+    suggestions: list[str] = Field(default_factory=list, description="Improvement suggestions")
+
+
+class PasswordValidationRequest(BaseModel):
+    """Request to validate password strength."""
+
+    password: str = Field(..., min_length=1, description="Password to validate")
+
+
+class PasswordUpdateResponse(BaseModel):
+    """Response for password update."""
+
+    success: bool = Field(..., description="Whether update was successful")
+    message: str = Field(..., description="Status message")
+
+
+# ==================== Account Deletion Schemas ====================
+
+class DeletionStatus(str, Enum):
+    """Account deletion status."""
+
+    PENDING = "pending"
+    CANCELLED = "cancelled"
+    COMPLETED = "completed"
+
+
+class AccountDeletionRequest(BaseModel):
+    """Request to initiate account deletion."""
+
+    reason: Optional[str] = Field(None, max_length=500, description="Reason for deletion")
+    export_data: bool = Field(default=False, description="Request data export before deletion")
+
+
+class AccountDeletionResponse(BaseModel):
+    """Response for account deletion request."""
+
+    deletion_id: str = Field(..., description="Deletion request ID")
+    scheduled_deletion_at: datetime = Field(..., description="Scheduled deletion date")
+    status: DeletionStatus = Field(..., description="Deletion status")
+    export_requested: bool = Field(..., description="Whether data export was requested")
+    export_id: Optional[str] = Field(None, description="Export ID if requested")
+    message: str = Field(..., description="Status message")
+
+
+class AccountDeletionStatusResponse(BaseModel):
+    """Response for deletion status check."""
+
+    deletion_id: str = Field(..., description="Deletion request ID")
+    scheduled_deletion_at: datetime = Field(..., description="Scheduled deletion date")
+    status: DeletionStatus = Field(..., description="Deletion status")
+    days_remaining: int = Field(..., description="Days until permanent deletion")
+    can_cancel: bool = Field(..., description="Whether deletion can be cancelled")
+
+
+class CancelDeletionResponse(BaseModel):
+    """Response for cancelling account deletion."""
+
+    message: str = Field(..., description="Status message")
+    account_restored: bool = Field(..., description="Whether account was restored")
+
+
+# ==================== Data Export Schemas ====================
+
+class ExportType(str, Enum):
+    """Data export types."""
+
+    FULL = "full"
+    ANALYSES_ONLY = "analyses_only"
+    PROFILE_ONLY = "profile_only"
+
+
+class ExportStatus(str, Enum):
+    """Data export status."""
+
+    PENDING = "pending"
+    PROCESSING = "processing"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    EXPIRED = "expired"
+
+
+class DataExportRequest(BaseModel):
+    """Request to export user data."""
+
+    export_type: ExportType = Field(default=ExportType.FULL, description="Type of export")
+
+
+class DataExportResponse(BaseModel):
+    """Response for data export request."""
+
+    export_id: str = Field(..., description="Export ID")
+    status: ExportStatus = Field(..., description="Export status")
+    estimated_time_seconds: Optional[int] = Field(None, description="Estimated completion time")
+
+
+class DataExportStatusResponse(BaseModel):
+    """Response for export status check."""
+
+    export_id: str = Field(..., description="Export ID")
+    status: ExportStatus = Field(..., description="Export status")
+    download_url: Optional[str] = Field(None, description="Download URL if completed")
+    expires_at: Optional[datetime] = Field(None, description="URL expiry time")
+    file_size_bytes: Optional[int] = Field(None, description="Export file size")

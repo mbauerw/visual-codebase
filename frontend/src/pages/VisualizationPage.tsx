@@ -34,6 +34,7 @@ import CategoryBackground, { type CategorySection } from '../components/Category
 import NodeDetailPanel from '../components/NodeDetailPanel';
 import CategoryRolePanel from '../components/CateogoryDetailPanel';
 import UserDashboard from './UserDashboard';
+import ProfileSettingsPage from './ProfileSettingsPage';
 import SummaryDisplay from '../components/SummaryDisplay';
 import { FunctionTierList } from '../components/TierList';
 import { LightMinimalDesign } from '../components/TierList/designs/LightMinimalDesign';
@@ -793,6 +794,7 @@ function VisualizationPageInner() {
   const [expanded, setExpanded] = useState<boolean>(true);
   const [styles, setStyles] = useState<stylesType>();
   const [dashboardOpen, setDashboardOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [authModalTab, setAuthModalTab] = useState(0);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
@@ -1317,10 +1319,14 @@ function VisualizationPageInner() {
               >
                 My Analyses
               </button>
-              <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-700 rounded">
+              <button
+                onClick={() => setSettingsOpen(true)}
+                className="flex items-center gap-2 px-3 py-1.5 bg-slate-700 rounded hover:bg-slate-600 transition-colors cursor-pointer"
+                title="Account Settings"
+              >
                 <User size={14} className="text-slate-400" />
                 <span className="text-sm text-slate-300">{user.email?.split('@')[0]}</span>
-              </div>
+              </button>
               <button
                 onClick={signOut}
                 className="text-slate-400 hover:text-white transition-colors text-sm font-medium px-3 py-1.5 rounded hover:bg-slate-700"
@@ -1715,6 +1721,12 @@ function VisualizationPageInner() {
       <UserDashboard
         open={dashboardOpen}
         onClose={() => setDashboardOpen(false)}
+      />
+
+      {/* Profile Settings Modal */}
+      <ProfileSettingsPage
+        open={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
       />
     </div>
   );

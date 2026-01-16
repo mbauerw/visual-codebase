@@ -34,12 +34,18 @@ export default function AuthCallback() {
         if (session) {
           setStatus('success');
 
-          // Debug: Log provider token
+          // Debug: Log provider info
+          const provider = session.user?.app_metadata?.provider;
+          console.log('OAuth callback - Provider:', provider);
           console.log('OAuth callback - Provider token:', session.provider_token);
 
-          // Store GitHub provider token in localStorage for persistence
+          // Store provider token in localStorage based on provider type
           if (session.provider_token) {
-            localStorage.setItem('github_provider_token', session.provider_token);
+            if (provider === 'github') {
+              localStorage.setItem('github_provider_token', session.provider_token);
+            } else if (provider === 'google') {
+              localStorage.setItem('google_provider_token', session.provider_token);
+            }
           }
 
           // Get the intended redirect URL from sessionStorage or default to home

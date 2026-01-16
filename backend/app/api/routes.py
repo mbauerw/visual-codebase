@@ -642,3 +642,231 @@ async def get_function_detail(
 async def health_check():
     """Health check endpoint."""
     return {"status": "healthy"}
+
+
+# ==================== Profile Management Endpoints ====================
+
+from ..models.schemas import (
+    ProfileResponse,
+    ProfileUpdateRequest,
+    PasswordPolicy,
+    PasswordValidationRequest,
+    PasswordValidationResult,
+    PasswordChangeRequest,
+    PasswordUpdateResponse,
+    AccountDeletionRequest,
+    AccountDeletionResponse,
+    AccountDeletionStatusResponse,
+    CancelDeletionResponse,
+    DataExportRequest,
+    DataExportResponse,
+    DataExportStatusResponse,
+)
+from ..services.profile import ProfileService, PasswordService
+from ..services.account_deletion import AccountDeletionService, DataExportService
+
+
+@router.get("/user/profile", response_model=ProfileResponse)
+async def get_user_profile(current_user = Depends(get_current_user)):
+    """Get current user's profile."""
+    profile_service = ProfileService()
+    profile = await profile_service.get_profile(current_user.id)
+
+    if not profile:
+        raise HTTPException(status_code=404, detail="Profile not found")
+
+    return ProfileResponse(
+        id=profile["id"],
+        email=profile["email"],
+        display_name=profile.get("display_name"),
+        full_name=profile.get("full_name"),
+        avatar_url=profile.get("avatar_url"),
+        preferences=profile.get("preferences", {}),
+        auth_provider=profile.get("auth_provider", "email"),
+        created_at=profile["created_at"],
+        updated_at=profile["updated_at"],
+    )
+
+
+@router.patch("/user/profile", response_model=ProfileResponse)
+async def update_user_profile(
+    request: ProfileUpdateRequest,
+    current_user = Depends(get_current_user),
+):
+    """Update current user's profile."""
+    profile_service = ProfileService()
+
+    await profile_service.update_profile(
+        user_id=current_user.id,
+        display_name=request.display_name,
+        avatar_url=request.avatar_url,
+        preferences=request.preferences.model_dump() if request.preferences else None,
+    )
+
+    # Get updated profile
+    profile = await profile_service.get_profile(current_user.id)
+
+    return ProfileResponse(
+        id=profile["id"],
+        email=profile["email"],
+        display_name=profile.get("display_name"),
+        full_name=profile.get("full_name"),
+        avatar_url=profile.get("avatar_url"),
+        preferences=profile.get("preferences", {}),
+        auth_provider=profile.get("auth_provider", "email"),
+        created_at=profile["created_at"],
+        updated_at=profile["updated_at"],
+    )
+
+
+@router.post("/user/profile/password", response_model=PasswordUpdateResponse)
+async def change_user_password(
+    request: PasswordChangeRequest,
+    current_user = Depends(get_current_user),
+):
+    """Change user password (email/password users only)."""
+    # First validate the new password strength
+    password_service = PasswordService()
+    validation = await password_service.validate_strength(request.new_password)
+
+    if not validation.valid:
+        raise HTTPException(
+            status_code=400,
+            detail="New password does not meet strength requirements"
+        )
+
+    # Check password history
+    is_safe = await password_service.check_history(current_user.id, request.new_password)
+    if not is_safe:
+        raise HTTPException(
+            status_code=400,
+            detail="This password was recently used. Please choose a different password."
+        )
+
+    # Change the password
+    profile_service = ProfileService()
+    result = await profile_service.change_password(current_user.id, request.new_password)
+
+    if not result.get("success"):
+        raise HTTPException(status_code=400, detail=result.get("message", "Failed to update password"))
+
+    return PasswordUpdateResponse(
+        success=True,
+        message="Password updated successfully."
+    )
+
+
+# ==================== Password Validation Endpoints ====================
+
+@router.get("/auth/password-policy", response_model=PasswordPolicy)
+async def get_password_policy():
+    """Get current password policy requirements (public endpoint)."""
+    password_service = PasswordService()
+    return await password_service.get_policy()
+
+
+@router.post("/auth/validate-password", response_model=PasswordValidationResult)
+async def validate_password(request: PasswordValidationRequest):
+    """Validate password strength (public endpoint for real-time validation)."""
+    password_service = PasswordService()
+    return await password_service.validate_strength(request.password)
+
+
+# ==================== Account Deletion Endpoints ====================
+
+@router.post("/user/account/delete", response_model=AccountDeletionResponse)
+async def request_account_deletion(
+    request: AccountDeletionRequest,
+    current_user = Depends(get_current_user),
+):
+    """Request account deletion with 30-day grace period."""
+    deletion_service = AccountDeletionService()
+    result = await deletion_service.request_deletion(
+        user_id=current_user.id,
+        reason=request.reason,
+        export_data=request.export_data,
+    )
+
+    if result.get("error"):
+        raise HTTPException(status_code=400, detail=result.get("message"))
+
+    return AccountDeletionResponse(
+        deletion_id=result["deletion_id"],
+        scheduled_deletion_at=result["scheduled_deletion_at"],
+        status=result["status"],
+        export_requested=result["export_requested"],
+        export_id=result.get("export_id"),
+        message=result["message"],
+    )
+
+
+@router.get("/user/account/deletion-status", response_model=AccountDeletionStatusResponse)
+async def get_deletion_status(current_user = Depends(get_current_user)):
+    """Get current deletion request status."""
+    deletion_service = AccountDeletionService()
+    result = await deletion_service.get_deletion_status(current_user.id)
+
+    if not result:
+        raise HTTPException(status_code=404, detail="No pending deletion request")
+
+    return AccountDeletionStatusResponse(
+        deletion_id=result["deletion_id"],
+        scheduled_deletion_at=result["scheduled_deletion_at"],
+        status=result["status"],
+        days_remaining=result["days_remaining"],
+        can_cancel=result["can_cancel"],
+    )
+
+
+@router.post("/user/account/cancel-deletion", response_model=CancelDeletionResponse)
+async def cancel_account_deletion(current_user = Depends(get_current_user)):
+    """Cancel pending account deletion."""
+    deletion_service = AccountDeletionService()
+    result = await deletion_service.cancel_deletion(current_user.id)
+
+    return CancelDeletionResponse(
+        message=result["message"],
+        account_restored=result["account_restored"],
+    )
+
+
+# ==================== Data Export Endpoints ====================
+
+@router.post("/user/data/export", response_model=DataExportResponse)
+async def request_data_export(
+    request: DataExportRequest,
+    current_user = Depends(get_current_user),
+):
+    """Request user data export (async generation)."""
+    export_service = DataExportService()
+    result = await export_service.create_export(
+        user_id=current_user.id,
+        export_type=request.export_type,
+    )
+
+    return DataExportResponse(
+        export_id=result["export_id"],
+        status=result["status"],
+        estimated_time_seconds=result.get("estimated_time_seconds"),
+    )
+
+
+@router.get("/user/data/export/{export_id}", response_model=DataExportStatusResponse)
+async def get_export_status(
+    export_id: str,
+    current_user = Depends(get_current_user),
+):
+    """Get data export status and download URL if ready."""
+    export_service = DataExportService()
+    result = await export_service.get_export_status(current_user.id, export_id)
+
+    if not result:
+        raise HTTPException(status_code=404, detail="Export not found")
+
+    return DataExportStatusResponse(
+        export_id=result["export_id"],
+        status=result["status"],
+        download_url=result.get("download_url"),
+        expires_at=result.get("expires_at"),
+        file_size_bytes=result.get("file_size_bytes"),
+    )

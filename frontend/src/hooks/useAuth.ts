@@ -7,6 +7,7 @@ interface AuthState {
   session: Session | null
   loading: boolean
   githubToken: string | null
+  authProvider: 'email' | 'github' | 'google' | null
 }
 
 export function useAuth() {
@@ -14,7 +15,8 @@ export function useAuth() {
     user: null,
     session: null,
     loading: true,
-    githubToken: null
+    githubToken: null,
+    authProvider: null
   })
 
   useEffect(() => {
@@ -41,11 +43,15 @@ export function useAuth() {
         }
       }
 
+      // Detect auth provider
+      const authProvider = (session?.user?.app_metadata?.provider as 'email' | 'github' | 'google') || null
+
       setAuthState({
         user: session?.user || null,
         session: session,
         loading: false,
-        githubToken: githubToken
+        githubToken: githubToken,
+        authProvider: authProvider
       })
     }
 
@@ -68,16 +74,21 @@ export function useAuth() {
           }
         }
 
-        // Clear stored token on sign out
+        // Clear stored tokens on sign out
         if (event === 'SIGNED_OUT') {
           localStorage.removeItem('github_provider_token')
+          localStorage.removeItem('google_provider_token')
         }
+
+        // Detect auth provider
+        const authProvider = (session?.user?.app_metadata?.provider as 'email' | 'github' | 'google') || null
 
         setAuthState({
           user: session?.user || null,
           session: session,
           loading: false,
-          githubToken: githubToken
+          githubToken: githubToken,
+          authProvider: authProvider
         })
       }
     )
@@ -116,7 +127,9 @@ export function useAuth() {
   }
 
   const resetPassword = async (email: string) => {
-    const { error } = await supabase.auth.resetPasswordForEmail(email)
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/auth/reset-password`,
+    })
     return { error }
   }
 
@@ -131,12 +144,23 @@ export function useAuth() {
     return { data, error }
   }
 
+  const signInWithGoogle = async () => {
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback`,
+      },
+    })
+    return { data, error }
+  }
+
   return {
     ...authState,
     signUp,
     signIn,
     signOut,
     resetPassword,
-    signInWithGitHub
+    signInWithGitHub,
+    signInWithGoogle
   }
 }

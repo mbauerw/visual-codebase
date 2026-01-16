@@ -2,6 +2,7 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import UploadPage from './pages/UploadPage';
 import VisualizationPage from './pages/VisualizationPage';
 import AuthCallback from './pages/AuthCallback';
+import ResetPasswordPage from './pages/ResetPasswordPage';
 import { useAuth } from './hooks/useAuth';
 import { Loader2 } from 'lucide-react';
 
@@ -24,6 +25,7 @@ export default function App() {
       <Route path="/" element={<UploadPage />} />
       <Route path="/visualize" element={<VisualizationPage />} />
       <Route path="/auth/callback" element={<AuthCallback />} />
+      <Route path="/auth/reset-password" element={<ResetPasswordPage />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
