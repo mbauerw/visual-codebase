@@ -3,7 +3,7 @@ import { FolderOpen, Play, Loader2, AlertCircle, GitBranch } from 'lucide-react'
 import { User } from '@supabase/supabase-js';
 import GitHubRepoForm from './GitHubRepoForm';
 import { AnalysisProgressBar } from './progress';
-import { MediumAnalyzeBackground } from './backgrounds';
+import { VideoAnalyzeBackground } from './backgrounds';
 import type { GitHubRepoInfo, AnalysisStatusResponse } from '../types';
 
 export type AnalyzeMode = 'local' | 'github';
@@ -57,7 +57,7 @@ export default function AnalyzeSection({
   onAnalyzeLocal,
   onAnalyzeGitHub,
   onOpenAuthModal,
-  BackgroundComponent = MediumAnalyzeBackground,
+  BackgroundComponent = VideoAnalyzeBackground,
 }: AnalyzeSectionProps) {
   // Local form state
   const [analyzeMode, setAnalyzeMode] = useState<AnalyzeMode>('local');
@@ -84,7 +84,6 @@ export default function AnalyzeSection({
     <section id="analyze" className="relative py-20 md:py-32 px-4">
       {/* Animated background */}
       <BackgroundComponent />
-
       <div className="relative max-w-2xl mx-auto">
         <div className="bg-white rounded-[2rem] p-8 md:p-12 shadow-xl border border-gray-100">
           {/* Header */}

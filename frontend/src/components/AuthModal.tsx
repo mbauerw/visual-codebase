@@ -257,7 +257,7 @@ export function AuthModal({ open, onClose, initialTab = 0 }: AuthModalProps) {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full bg-gray-900 hover:bg-gray-800 disabled:bg-gray-300 disabled:cursor-not-allowed text-white py-3 rounded-full font-semibold transition-all hover:scale-[1.02] shadow-lg shadow-gray-900/20 flex items-center justify-center gap-2 mt-6"
+                className="w-full bg-blue-600/90 hover:bg-blue-500/90 disabled:bg-gray-300 disabled:cursor-not-allowed text-white py-3 rounded-full font-semibold transition-all hover:scale-[1.02] shadow-lg shadow-gray-900/20 flex items-center justify-center gap-2 mt-6"
               >
                 {loading ? (
                   <>
