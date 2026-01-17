@@ -1,12 +1,12 @@
 -~~ Add onClick listener to category nodes. Include descriptions for each role~~
 -~~ clean up category node width changing when cycling layouts~~
-- add drag and slide for NodeDetailPanel
+- ~~add drag and slide for NodeDetailPanel~~
 - ~~Change summary for project overview~~
 - ~~Change visualize page header to include nav bar info~~
 - ~~add title change for stored analysis~~
 - custom layouts
 - adjust file layout
-- add function relations (Function tier list)
+- ~~ add function relations (Function tier list)~~
 - do testing
 - add payment options for users
 - change vis page github stuff
