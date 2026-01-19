@@ -14,7 +14,7 @@ export default function BlueVideoBackground() {
   useEffect(() => {
     if (videoRef.current) {
       // Slow down to 1/3 speed (3x longer duration)
-      videoRef.current.playbackRate = .2;
+      videoRef.current.playbackRate = .5;
     }
   }, []);
 

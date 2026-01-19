@@ -1,11 +1,13 @@
 import { GitBranch, Zap, Eye } from 'lucide-react';
 import { motion } from "motion/react";
+import { BlueVideoBackground } from './backgrounds';
 
 export default function FeaturesSection() {
   return (
     <section id="features" className="py-20 md:py-14 min-h-[95vh] flex flex-col justify-end px-4 relative overflow-hidden">
-      <img className="absolute top-0 left-0 w-full h-full opacity-[0.6] z-0  scale-108 pointer-events-none" src="/hills-grey.jpeg" />
+      {/* <img className="absolute top-0 left-0 w-full h-full opacity-[0.6] z-0  scale-108 pointer-events-none" src="/hills-grey.jpeg" /> */}
       {/* Dome-shaped fade overlay - fades top corners, reveals image in dome shape */}
+      <BlueVideoBackground />
       <div
         className="absolute top-0 left-0 w-full h-[100%] z-[1] pointer-events-none"
         style={{
