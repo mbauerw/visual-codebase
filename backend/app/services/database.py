@@ -167,6 +167,8 @@ class DatabaseService:
                 "target_node_id": edge.target,
                 "import_type": edge.import_type.value,
                 "label": edge.label,
+                "imported_names": edge.imported_names,
+                "module_path": edge.module_path,
             }
             edge_data.append(edge_record)
 
@@ -329,6 +331,8 @@ class DatabaseService:
                 target=edge_data["target_node_id"],
                 import_type=ImportType(edge_data["import_type"]),
                 label=edge_data["label"],
+                imported_names=edge_data.get("imported_names") or [],
+                module_path=edge_data.get("module_path"),
             )
             edges.append(edge)
 
