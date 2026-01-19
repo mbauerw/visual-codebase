@@ -172,7 +172,27 @@ export function useTierList({
     await fetchStats();
   }, [queryParams, fetchTierList, fetchStats]);
 
-  // Group functions by tier
+  // Helper to check if a file is a test file
+  const isTestFile = (filePath: string, fileName: string): boolean => {
+    const lowerPath = filePath.toLowerCase();
+    const lowerName = fileName.toLowerCase();
+
+    // Common test file patterns
+    return (
+      lowerName.includes('.test.') ||
+      lowerName.includes('.spec.') ||
+      lowerName.startsWith('test_') ||
+      lowerName.endsWith('_test.js') ||
+      lowerName.endsWith('_test.ts') ||
+      lowerName.endsWith('_test.py') ||
+      lowerPath.includes('__tests__') ||
+      lowerPath.includes('/tests/') ||
+      lowerPath.includes('/test/') ||
+      lowerPath.includes('/__mocks__/')
+    );
+  };
+
+  // Group functions by tier (excluding test files)
   const tierGroups = useMemo((): TierGroup[] => {
     const groups: Record<TierLevel, FunctionTierItem[]> = {
       S: [],
@@ -184,6 +204,11 @@ export function useTierList({
     };
 
     functions.forEach(func => {
+      // Skip functions from test files
+      if (isTestFile(func.file_path, func.file_name)) {
+        return;
+      }
+
       if (groups[func.tier]) {
         groups[func.tier].push(func);
       }
