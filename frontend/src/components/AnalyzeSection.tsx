@@ -83,7 +83,7 @@ export default function AnalyzeSection({
   return (
     <section id="analyze" className="relative py-20 md:py-32 px-4">
       {/* Animated background */}
-      <BackgroundComponent />
+      
       <div className="relative max-w-2xl mx-auto">
         <div className="bg-white rounded-[2rem] p-8 md:p-12 shadow-xl border border-gray-100">
           {/* Header */}
