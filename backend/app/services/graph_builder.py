@@ -13,6 +13,7 @@ from ..models.schemas import (
     LLMFileAnalysis,
     ParsedFile,
     ReactFlowEdge,
+    ReactFlowEdgeData,
     ReactFlowGraph,
     ReactFlowNode,
     ReactFlowNodeData,
@@ -135,19 +136,34 @@ class GraphBuilder:
 
         return nodes
 
+    def _format_import_label(self, imported_names: list[str]) -> str:
+        """Format imported names into a display label with truncation."""
+        if not imported_names:
+            return ""
+
+        if len(imported_names) == 1:
+            name = imported_names[0]
+            return name if len(name) <= 20 else name[:17] + "..."
+        elif len(imported_names) == 2:
+            return ", ".join(imported_names[:2])
+        else:
+            # Show first two and count
+            return f"{imported_names[0]}, +{len(imported_names) - 1}"
+
     def build_edges(
         self,
         parsed_files: list[ParsedFile],
         base_path: str,
     ) -> list[DependencyEdge]:
         """Build dependency edges from parsed files."""
-        edges = []
-        seen_edges: set[tuple[str, str]] = set()
-
         # Build a lookup of relative path to parsed file
         files_by_path: dict[str, ParsedFile] = {
             pf.relative_path: pf for pf in parsed_files
         }
+
+        # Aggregate imports by edge (source-target pair)
+        # This combines multiple import statements between the same files
+        edge_data: dict[tuple[str, str], dict] = {}
 
         for pf in parsed_files:
             source_id = self._generate_node_id(pf.relative_path)
@@ -161,23 +177,46 @@ class GraphBuilder:
                 if target_path and target_path in files_by_path:
                     target_id = self._generate_node_id(target_path)
 
-                    # Avoid duplicate edges
                     # Edge direction: from imported file -> to importing file
                     # This shows the flow of dependencies (what provides to what consumes)
                     edge_key = (target_id, source_id)
-                    if edge_key not in seen_edges:
-                        seen_edges.add(edge_key)
 
-                        edge_id = f"e-{target_id}-{source_id}"
-                        edges.append(
-                            DependencyEdge(
-                                id=edge_id,
-                                source=target_id,
-                                target=source_id,
-                                import_type=imp.import_type,
-                                label=imp.module if len(imp.module) < 30 else None,
-                            )
-                        )
+                    if edge_key not in edge_data:
+                        edge_data[edge_key] = {
+                            "import_type": imp.import_type,
+                            "imported_names": [],
+                            "module_path": imp.module,
+                        }
+
+                    # Aggregate imported names from multiple import statements
+                    for name in imp.imported_names:
+                        if name and name not in edge_data[edge_key]["imported_names"]:
+                            edge_data[edge_key]["imported_names"].append(name)
+
+        # Build edges from aggregated data
+        edges = []
+        for (target_id, source_id), data in edge_data.items():
+            edge_id = f"e-{target_id}-{source_id}"
+            imported_names = data["imported_names"]
+
+            # Create label from imported names, fallback to module path
+            if imported_names:
+                label = self._format_import_label(imported_names)
+            else:
+                module = data["module_path"]
+                label = module if len(module) < 30 else None
+
+            edges.append(
+                DependencyEdge(
+                    id=edge_id,
+                    source=target_id,
+                    target=source_id,
+                    import_type=data["import_type"],
+                    label=label,
+                    imported_names=imported_names,
+                    module_path=data["module_path"],
+                )
+            )
 
         return edges
 
@@ -246,10 +285,15 @@ class GraphBuilder:
                 id=edge.id,
                 source=edge.source,
                 target=edge.target,
-                type="smoothstep",
+                type="import",  # Use custom import edge type
                 animated=False,
                 label=edge.label,
                 style={"stroke": "#888", "strokeWidth": 1.5},
+                data=ReactFlowEdgeData(
+                    imported_names=edge.imported_names,
+                    module_path=edge.module_path,
+                    import_type=edge.import_type,
+                ),
             )
             rf_edges.append(rf_edge)
 

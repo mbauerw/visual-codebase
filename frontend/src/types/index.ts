@@ -133,6 +133,12 @@ export interface ReactFlowNode {
   data: ReactFlowNodeData;
 }
 
+export interface ReactFlowEdgeData {
+  imported_names: string[];
+  module_path: string | null;
+  import_type: ImportType;
+}
+
 export interface ReactFlowEdge {
   id: string;
   source: string;
@@ -141,6 +147,7 @@ export interface ReactFlowEdge {
   animated: boolean;
   label?: string;
   style?: Record<string, unknown>;
+  data?: ReactFlowEdgeData;
 }
 
 // Codebase summary types

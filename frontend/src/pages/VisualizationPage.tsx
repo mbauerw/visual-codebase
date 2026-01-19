@@ -11,6 +11,7 @@ import {
   type Edge,
   type Node,
   type NodeTypes,
+  type EdgeTypes,
   Panel,
   type Viewport,
 } from '@xyflow/react';
@@ -30,6 +31,8 @@ import {
 
 import CustomNode, { type CustomNodeType } from '../components/CustomNode';
 import CategoryNode, { type CategoryNodeType, type CategoryNodeData, CategoryRoleData } from '../components/CategoryNode';
+import ImportEdge from '../components/ImportEdge';
+import EdgeDetailPopover from '../components/EdgeDetailPopover';
 import CategoryBackground, { type CategorySection } from '../components/Categorybackground'
 import NodeDetailPanel from '../components/NodeDetailPanel';
 import CategoryRolePanel from '../components/CateogoryDetailPanel';
@@ -63,6 +66,11 @@ import { FreeFormDesign } from '../components/TierList/designs/FreeFormDesign';
 const nodeTypes: NodeTypes = {
   custom: CustomNode,
   category: CategoryNode,
+};
+
+// Define edge types with custom import edge
+const edgeTypes: EdgeTypes = {
+  import: ImportEdge,
 };
 
 // Combined node type for all nodes in the graph
@@ -800,6 +808,10 @@ function VisualizationPageInner() {
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [loading, setLoading] = useState(true);
 
+  // Edge popover state
+  const [selectedEdge, setSelectedEdge] = useState<Edge | null>(null);
+  const [edgePopoverPosition, setEdgePopoverPosition] = useState<{ x: number; y: number } | null>(null);
+
   // Right panel tab state
   type RightPanelTab = 'details' | 'tierlist';
   const [rightPanelTab, setRightPanelTab] = useState<RightPanelTab>('details');
@@ -1027,15 +1039,16 @@ function VisualizationPageInner() {
     }
   }, [nodes.length, layoutType, isInitialLoad, reactFlowFitView]);
 
-  // Highlight edges and connected nodes when a node is selected
+  // Highlight edges and connected nodes when a node or edge is selected
   useEffect(() => {
-    if (!selectedNodeId) {
+    if (!selectedNodeId && !selectedEdge) {
       // Reset all edges to default style
       setEdges((currentEdges) =>
         currentEdges.map((edge) => ({
           ...edge,
           style: { stroke: '#475569', strokeWidth: 1.5 },
           animated: false,
+          selected: false,
           markerEnd: {
             type: 'arrowclosed',
             color: '#475569',
@@ -1053,6 +1066,67 @@ function VisualizationPageInner() {
       );
       return;
     }
+
+    // If an edge is directly selected (clicked)
+    if (selectedEdge && !selectedNodeId) {
+      const highlightColor = '#60a5fa'; // blue-400 for edge selection
+
+      setEdges((currentEdges) =>
+        currentEdges.map((edge) => {
+          if (edge.id === selectedEdge.id) {
+            return {
+              ...edge,
+              selected: true,
+              style: {
+                stroke: highlightColor,
+                strokeWidth: 4,
+              },
+              markerEnd: {
+                type: 'arrowclosed',
+                color: highlightColor,
+                width: 16,
+                height: 16,
+              },
+            };
+          }
+          return {
+            ...edge,
+            selected: false,
+            style: {
+              stroke: '#475569',
+              strokeWidth: 1.5,
+              opacity: 0.4,
+            },
+            markerEnd: {
+              type: 'arrowclosed',
+              color: '#475569',
+              width: 20,
+              height: 20,
+            },
+          };
+        })
+      );
+
+      // Highlight connected nodes
+      setNodes((currentNodes) =>
+        currentNodes.map((node) => {
+          if (node.id === selectedEdge.source || node.id === selectedEdge.target) {
+            return {
+              ...node,
+              className: 'ring-2 ring-blue-400',
+            };
+          }
+          return {
+            ...node,
+            className: '',
+          };
+        })
+      );
+      return;
+    }
+
+    // Node is selected (existing logic)
+    if (!selectedNodeId) return;
 
     // Determine highlight color based on selection source
     // Blue for tier list selections (function relations), amber for node clicks (dependency relations)
@@ -1131,11 +1205,15 @@ function VisualizationPageInner() {
         })
       );
     }, 0);
-  }, [selectedNodeId, selectionSource, setEdges, setNodes]);
+  }, [selectedNodeId, selectedEdge, selectionSource, setEdges, setNodes]);
 
   // Handle node selection
   const onNodeClick = useCallback(
     (_: React.MouseEvent, node: Node) => {
+      // Close edge popover when clicking a node
+      setSelectedEdge(null);
+      setEdgePopoverPosition(null);
+
       if (node.type === 'custom') {
         const nodeData = node.data as ReactFlowNodeData;
         setSelectedCategory(null);
@@ -1212,6 +1290,29 @@ function VisualizationPageInner() {
     setSelectedNode(null);
     setSelectedNodeId(null);
     setSelectionSource(null);
+    // Close edge popover on pane click
+    setSelectedEdge(null);
+    setEdgePopoverPosition(null);
+  }, []);
+
+  // Handle edge click to show popover with import details
+  const onEdgeClick = useCallback(
+    (event: React.MouseEvent, edge: Edge) => {
+      event.stopPropagation();
+      setSelectedEdge(edge);
+      setEdgePopoverPosition({ x: event.clientX, y: event.clientY });
+      // Clear node selection when clicking edge
+      setSelectedNode(null);
+      setSelectedNodeId(null);
+      setSelectionSource(null);
+    },
+    []
+  );
+
+  // Close edge popover
+  const closeEdgePopover = useCallback(() => {
+    setSelectedEdge(null);
+    setEdgePopoverPosition(null);
   }, []);
 
   // Handle function selection from tier list
@@ -1443,14 +1544,16 @@ function VisualizationPageInner() {
                 onEdgesChange={onEdgesChange}
                 onNodeClick={onNodeClick}
                 onNodeDoubleClick={onNodeDoubleClick}
+                onEdgeClick={onEdgeClick}
                 onPaneClick={onPaneClick}
                 onMove={onMove}
                 nodeTypes={nodeTypes}
+                edgeTypes={edgeTypes}
                 style={styles}
                 minZoom={0.1}
                 maxZoom={2}
                 defaultEdgeOptions={{
-                  type: 'smoothstep',
+                  type: 'import',
                   animated: false,
                   style: { stroke: '#475569', strokeWidth: 1.5 },
                 }}
@@ -1727,6 +1830,14 @@ function VisualizationPageInner() {
       <ProfileSettingsPage
         open={settingsOpen}
         onClose={() => setSettingsOpen(false)}
+      />
+
+      {/* Edge Detail Popover */}
+      <EdgeDetailPopover
+        edge={selectedEdge}
+        position={edgePopoverPosition}
+        onClose={closeEdgePopover}
+        nodes={graphData?.nodes || []}
       />
     </div>
   );

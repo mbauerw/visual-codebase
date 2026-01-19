@@ -413,6 +413,12 @@ class DependencyEdge(BaseModel):
     target: str = Field(..., description="Target node ID (imported file)")
     import_type: ImportType = Field(..., description="Type of import")
     label: Optional[str] = Field(default=None, description="Edge label")
+    imported_names: list[str] = Field(
+        default_factory=list, description="Actual symbol names imported"
+    )
+    module_path: Optional[str] = Field(
+        default=None, description="Original module path from import statement"
+    )
 
 
 # Codebase summary schemas
@@ -568,6 +574,18 @@ class ReactFlowNode(BaseModel):
     data: ReactFlowNodeData
 
 
+class ReactFlowEdgeData(BaseModel):
+    """Data payload for React Flow edges."""
+
+    imported_names: list[str] = Field(
+        default_factory=list, description="Actual symbol names imported"
+    )
+    module_path: Optional[str] = Field(
+        default=None, description="Original module path"
+    )
+    import_type: ImportType = Field(..., description="Type of import")
+
+
 class ReactFlowEdge(BaseModel):
     """Edge formatted for React Flow."""
 
@@ -578,6 +596,7 @@ class ReactFlowEdge(BaseModel):
     animated: bool = False
     label: Optional[str] = None
     style: Optional[dict] = None
+    data: Optional[ReactFlowEdgeData] = None
 
 
 class ReactFlowGraph(BaseModel):
