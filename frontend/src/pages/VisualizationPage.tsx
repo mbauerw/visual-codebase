@@ -974,7 +974,7 @@ function VisualizationPageInner() {
     const visibleNodeIds = new Set(filteredNodes.map((n) => n.id));
 
     // Filter edges to only show those between visible nodes
-    const filteredEdges: Edge[] = graphData.edges.filter(
+    const filteredEdges: Edge[] = (graphData.edges as Edge[]).filter(
       (edge) => visibleNodeIds.has(edge.source) && visibleNodeIds.has(edge.target)
     );
 
@@ -1189,9 +1189,22 @@ function VisualizationPageInner() {
     });
 
     // Highlight connected nodes with ring (use setTimeout to ensure edges are processed first)
+    // Also highlight the selected node (source file) with a distinct style for tier list selections
+    const selectedNodeClass = selectionSource === 'tierlist'
+      ? 'ring-4 ring-blue-500 scale-[1.04]'
+      : 'ring-2 ring-amber-500';
+
     setTimeout(() => {
       setNodes((currentNodes) =>
         currentNodes.map((node) => {
+          // Highlight the selected node (source file)
+          if (node.id === selectedNodeId) {
+            return {
+              ...node,
+              className: selectedNodeClass,
+            };
+          }
+          // Highlight connected nodes
           if (connectedNodeIds.has(node.id)) {
             return {
               ...node,
@@ -1474,7 +1487,7 @@ function VisualizationPageInner() {
         {/* Main content */}
         <div
           id="left-content"
-          className={`min-h-full overflow-y-auto flex flex-col ${mainSectionGap} items-center flex-1 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-transparent hover:[&::-webkit-scrollbar-thumb]:bg-slate-300 [&::-webkit-scrollbar-thumb]:rounded-full [scrollbar-width:thin] [scrollbar-color:transparent_transparent] hover:[scrollbar-color:rgb(203,213,225)_transparent]`}
+          className={`min-h-full overflow-y-auto pb-4 flex flex-col ${mainSectionGap} items-center flex-1 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-transparent hover:[&::-webkit-scrollbar-thumb]:bg-slate-300 [&::-webkit-scrollbar-thumb]:rounded-full [scrollbar-width:thin] [scrollbar-color:transparent_transparent] hover:[scrollbar-color:rgb(203,213,225)_transparent]`}
           style={{ width: expanded ? `calc(100% - ${panelWidth}px)` : '100%' }}
         >
 
@@ -1710,7 +1723,7 @@ function VisualizationPageInner() {
 
           {/* Source Code Panel - appears below React Flow when a file is selected */}
           {isSourcePanelOpen && sourceCodeFile && (
-            <div className="w-full max-w-[1400px] h-[900px] min-h-[800px] pb-2  rounded-md ">
+            <div className="w-full max-w-[1400px] h-[1200px] min-h-[1000px] pb-2  rounded-md ">
               <SourceCodePanel
                 sourceCode={sourceCode}
                 fileName={sourceCodeFile.fileName}
