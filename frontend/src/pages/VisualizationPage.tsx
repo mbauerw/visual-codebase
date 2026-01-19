@@ -1191,7 +1191,7 @@ function VisualizationPageInner() {
     // Highlight connected nodes with ring (use setTimeout to ensure edges are processed first)
     // Also highlight the selected node (source file) with a distinct style for tier list selections
     const selectedNodeClass = selectionSource === 'tierlist'
-      ? 'ring-4 ring-blue-500 scale-[1.04]'
+      ? 'ring-8 ring-blue-500 scale-[1.1]'
       : 'ring-2 ring-amber-500';
 
     setTimeout(() => {

@@ -115,7 +115,7 @@ export default function SourceCodePanel({
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [panelHeight, setPanelHeight] = useState(800);
+  const [panelHeight, setPanelHeight] = useState(1000);
   const panelRef = useRef<HTMLDivElement>(null);
   const resizeRef = useRef<HTMLDivElement>(null);
 
@@ -193,7 +193,7 @@ export default function SourceCodePanel({
 
   if (!isOpen) return null;
 
-  const effectiveHeight = isCollapsed ? 56 : isExpanded ? '900px' : panelHeight;
+  const effectiveHeight = isCollapsed ? 56 : isExpanded ? '1200px' : panelHeight;
 
   return (
     <div
