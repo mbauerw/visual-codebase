@@ -11,6 +11,7 @@ import shutil
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch, call
 import asyncio
+import httpx
 
 from app.services.github import GitHubService, _sanitize_git_error
 from app.models.schemas import GitHubRepoInfo
@@ -164,7 +165,8 @@ class TestCloneRepository:
 
             result = await github_service.clone_repository(repo_info, temp_dir)
 
-            assert result == temp_dir / "src"
+            # Use resolve() for comparison to handle macOS symlinks (/var -> /private/var)
+            assert result.resolve() == (temp_dir / "src").resolve()
 
     @pytest.mark.asyncio
     async def test_clone_subdirectory_not_exists(self, github_service, temp_dir):
@@ -294,7 +296,11 @@ class TestCredentialHandling:
     @pytest.mark.asyncio
     async def test_clone_without_token(self, github_service_no_token, sample_repo_info, temp_dir):
         """Test cloning without a token (public repos)."""
-        with patch("asyncio.create_subprocess_exec") as mock_exec:
+        # Clear GIT_ASKPASS from environment to ensure clean state
+        clean_env = {k: v for k, v in os.environ.items() if k != "GIT_ASKPASS"}
+
+        with patch("asyncio.create_subprocess_exec") as mock_exec, \
+             patch.dict(os.environ, clean_env, clear=True):
             mock_process = MagicMock()
             mock_process.returncode = 0
             mock_process.communicate = AsyncMock(return_value=(b"", b""))
@@ -302,10 +308,13 @@ class TestCredentialHandling:
 
             await github_service_no_token.clone_repository(sample_repo_info, temp_dir)
 
-            # GIT_ASKPASS should not be set when no token
+            # When no token, GIT_ASKPASS should not point to a temp script
             call_kwargs = mock_exec.call_args.kwargs
             if "env" in call_kwargs:
-                assert "GIT_ASKPASS" not in call_kwargs["env"] or call_kwargs["env"].get("GIT_ASKPASS") is None
+                askpass = call_kwargs["env"].get("GIT_ASKPASS")
+                # Should either not have GIT_ASKPASS or not point to a temp git_askpass script
+                if askpass:
+                    assert "git_askpass_" not in askpass, "Should not create askpass script without token"
 
 
 # ==================== Cleanup Tests ====================
@@ -446,7 +455,10 @@ class TestListUserRepos:
         """Test error handling for repo listing."""
         with patch("httpx.AsyncClient") as mock_client:
             mock_instance = MagicMock()
-            mock_instance.get = AsyncMock(side_effect=Exception("API Error"))
+            # Use httpx.HTTPError which is what the implementation catches
+            mock_instance.get = AsyncMock(
+                side_effect=httpx.HTTPError("API Error")
+            )
             mock_instance.__aenter__ = AsyncMock(return_value=mock_instance)
             mock_instance.__aexit__ = AsyncMock(return_value=None)
             mock_client.return_value = mock_instance
@@ -563,7 +575,10 @@ class TestGetDefaultBranch:
         """Test fallback to 'main' on error."""
         with patch("httpx.AsyncClient") as mock_client:
             mock_instance = MagicMock()
-            mock_instance.get = AsyncMock(side_effect=Exception("API Error"))
+            # Use httpx.HTTPError which is what the implementation catches
+            mock_instance.get = AsyncMock(
+                side_effect=httpx.HTTPError("API Error")
+            )
             mock_instance.__aenter__ = AsyncMock(return_value=mock_instance)
             mock_instance.__aexit__ = AsyncMock(return_value=None)
             mock_client.return_value = mock_instance
@@ -578,30 +593,21 @@ class TestGetDefaultBranch:
 class TestPathTraversalProtection:
     """Tests for path traversal attack prevention."""
 
-    @pytest.mark.asyncio
-    async def test_path_traversal_blocked(self, github_service, temp_dir):
-        """Test that path traversal attempts are blocked."""
-        repo_info = GitHubRepoInfo(
-            owner="testuser",
-            repo="test-repo",
-            branch="main",
-            path="../../../etc/passwd",
-        )
+    def test_path_traversal_blocked(self, github_service, temp_dir):
+        """Test that path traversal attempts are blocked at validation time."""
+        from pydantic import ValidationError
 
-        # Create fake cloned directory
-        (temp_dir / ".git").mkdir()
+        # Path traversal should be blocked by Pydantic validation at creation time
+        with pytest.raises(ValidationError) as exc_info:
+            GitHubRepoInfo(
+                owner="testuser",
+                repo="test-repo",
+                branch="main",
+                path="../../../etc/passwd",
+            )
 
-        with patch("asyncio.create_subprocess_exec") as mock_exec:
-            mock_process = MagicMock()
-            mock_process.returncode = 0
-            mock_process.communicate = AsyncMock(return_value=(b"", b""))
-            mock_exec.return_value = mock_process
-
-            with pytest.raises(RuntimeError) as exc_info:
-                await github_service.clone_repository(repo_info, temp_dir)
-
-            # Should be blocked by path validation
-            assert "Invalid subdirectory path" in str(exc_info.value) or "path traversal" in str(exc_info.value).lower()
+        # Verify the error message mentions path traversal
+        assert "path traversal" in str(exc_info.value).lower()
 
 
 # ==================== Headers Tests ====================

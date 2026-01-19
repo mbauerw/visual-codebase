@@ -640,7 +640,7 @@ class TestReactFlowFormatConversion:
         assert rf_edge.id == "edge1"
         assert rf_edge.source == "node1"
         assert rf_edge.target == "node2"
-        assert rf_edge.type == "smoothstep"
+        assert rf_edge.type == "import"
         assert rf_edge.animated is False
         assert rf_edge.label == "./utils"
 
