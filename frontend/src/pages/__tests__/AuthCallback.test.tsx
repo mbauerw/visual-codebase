@@ -114,7 +114,11 @@ describe('AuthCallback', () => {
         data: {
           session: {
             access_token: 'test-token',
-            user: { id: 'test-user', email: 'test@example.com' },
+            user: {
+              id: 'test-user',
+              email: 'test@example.com',
+              app_metadata: { provider: 'github' },
+            },
             provider_token: 'github-token',
           },
         },

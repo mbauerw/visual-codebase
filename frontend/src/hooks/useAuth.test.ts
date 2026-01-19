@@ -339,7 +339,13 @@ describe('useAuth', () => {
   });
 
   describe('resetPassword', () => {
-    it('should call supabase.auth.resetPasswordForEmail', async () => {
+    it('should call supabase.auth.resetPasswordForEmail with redirectTo option', async () => {
+      // Mock window.location.origin
+      Object.defineProperty(window, 'location', {
+        value: { origin: 'http://localhost:3000' },
+        writable: true,
+      });
+
       const { result } = renderHook(() => useAuth());
 
       await waitFor(() => {
@@ -350,7 +356,10 @@ describe('useAuth', () => {
         await result.current.resetPassword('test@example.com');
       });
 
-      expect(mockSupabase.auth.resetPasswordForEmail).toHaveBeenCalledWith('test@example.com');
+      expect(mockSupabase.auth.resetPasswordForEmail).toHaveBeenCalledWith(
+        'test@example.com',
+        { redirectTo: 'http://localhost:3000/auth/reset-password' }
+      );
     });
   });
 
