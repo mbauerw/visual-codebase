@@ -36,3 +36,28 @@ export interface ChatState {
   error: string | null;
   highlightedText: string | null;
 }
+
+export type StreamEventType =
+  | 'text_delta'
+  | 'tool_use_start'
+  | 'tool_use_end'
+  | 'message_complete'
+  | 'error';
+
+export interface StreamEvent {
+  type: StreamEventType;
+  content?: string;
+  tool_name?: string;
+  conversation_id?: string;
+  tools_used?: string[];
+  error?: string;
+}
+
+export interface SuggestedQuestion {
+  question: string;
+  category: string;
+}
+
+export interface SuggestedQuestionsResponse {
+  questions: SuggestedQuestion[];
+}

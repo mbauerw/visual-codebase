@@ -1,11 +1,15 @@
 """Chat API endpoints for the chatbot feature."""
+import json
 import logging
 from fastapi import APIRouter, HTTPException, Depends
+from fastapi.responses import StreamingResponse
 
 from ..models.chat_schemas import (
     ChatRequest,
     ChatResponse,
     ChatHistoryResponse,
+    SuggestedQuestionsResponse,
+    StreamEventType,
 )
 from ..services.chatbot import get_chatbot_service
 from ..services.database import get_database_service
@@ -167,3 +171,120 @@ async def delete_chat_history(
         )
 
     return {"message": "Conversation deleted successfully"}
+
+
+@router.post("/{analysis_id}/stream")
+async def stream_chat_message(
+    analysis_id: str,
+    request: ChatRequest,
+    current_user=Depends(get_current_user),
+):
+    """
+    Send a message to the chatbot and receive a streaming response.
+
+    This endpoint uses Server-Sent Events (SSE) to stream the response
+    as it's being generated.
+
+    Args:
+        analysis_id: ID of the analysis to discuss
+        request: Chat request with message and optional highlighted text
+
+    Returns:
+        StreamingResponse with SSE events
+    """
+    db_service = get_database_service()
+    chatbot_service = get_chatbot_service()
+
+    # Verify user has access to this analysis
+    graph = await db_service.get_analysis_result(analysis_id)
+    if not graph:
+        raise HTTPException(
+            status_code=404,
+            detail="Analysis not found or not owned by user"
+        )
+
+    # Get tier list data if available
+    tier_list = None
+    try:
+        tier_data = await db_service.get_tier_list(
+            analysis_id=analysis_id,
+            user_id=current_user.id,
+            page=1,
+            per_page=1000
+        )
+        if tier_data:
+            tier_list = [
+                {
+                    "function_name": f.function_name,
+                    "qualified_name": f.qualified_name,
+                    "file_path": f.file_path,
+                    "tier": f.tier.value if hasattr(f.tier, 'value') else f.tier,
+                    "internal_call_count": f.internal_call_count,
+                    "external_call_count": f.external_call_count,
+                    "is_exported": f.is_exported,
+                    "is_entry_point": f.is_entry_point,
+                    "function_type": f.function_type.value if hasattr(f.function_type, 'value') else f.function_type,
+                    "start_line": f.start_line,
+                    "is_async": f.is_async
+                }
+                for f in tier_data.functions
+            ]
+    except Exception as e:
+        logger.warning(f"Could not load tier list for chatbot: {e}")
+
+    async def event_generator():
+        """Generate SSE events from the chat stream."""
+        async for event in chatbot_service.chat_stream(
+            analysis_id=analysis_id,
+            message=request.message,
+            graph=graph,
+            highlighted_text=request.highlighted_text,
+            conversation_id=request.conversation_id,
+            tier_list=tier_list
+        ):
+            # Format as SSE
+            data = json.dumps(event.model_dump())
+            yield f"data: {data}\n\n"
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        }
+    )
+
+
+@router.get("/{analysis_id}/suggestions", response_model=SuggestedQuestionsResponse)
+async def get_suggested_questions(
+    analysis_id: str,
+    current_user=Depends(get_current_user),
+) -> SuggestedQuestionsResponse:
+    """
+    Get suggested questions based on the analysis data.
+
+    These questions are generated based on the codebase structure,
+    common patterns, and the analysis results.
+
+    Args:
+        analysis_id: ID of the analysis
+
+    Returns:
+        SuggestedQuestionsResponse with a list of suggested questions
+    """
+    db_service = get_database_service()
+    chatbot_service = get_chatbot_service()
+
+    # Verify user has access to this analysis
+    graph = await db_service.get_analysis_result(analysis_id)
+    if not graph:
+        raise HTTPException(
+            status_code=404,
+            detail="Analysis not found or not owned by user"
+        )
+
+    questions = chatbot_service.get_suggested_questions(graph)
+
+    return SuggestedQuestionsResponse(questions=questions)

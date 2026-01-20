@@ -16,6 +16,8 @@ import type {
   ChatRequest,
   ChatResponse,
   ChatHistoryResponse,
+  StreamEvent,
+  SuggestedQuestionsResponse,
 } from '../types/chat';
 
 const API_BASE_URL = '/api';
@@ -374,6 +376,78 @@ export async function deleteChatHistory(
 ): Promise<{ message: string }> {
   const response = await client.delete<{ message: string }>(
     `/chat/${analysisId}/history/${conversationId}`
+  );
+  return response.data;
+}
+
+export async function streamChatMessage(
+  analysisId: string,
+  request: ChatRequest,
+  onEvent: (event: StreamEvent) => void,
+  signal?: AbortSignal
+): Promise<void> {
+  const { data: { session } } = await supabase.auth.getSession();
+
+  const response = await fetch(`${API_BASE_URL}/chat/${analysisId}/stream`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(session?.access_token && {
+        Authorization: `Bearer ${session.access_token}`,
+      }),
+    },
+    body: JSON.stringify(request),
+    signal,
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ detail: 'Unknown error' }));
+    throw new Error(error.detail || `HTTP ${response.status}`);
+  }
+
+  const reader = response.body?.getReader();
+  if (!reader) {
+    throw new Error('No response body');
+  }
+
+  const decoder = new TextDecoder();
+  let buffer = '';
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+
+      // Process complete SSE events
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || ''; // Keep incomplete line in buffer
+
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          const data = line.slice(6);
+          if (data) {
+            try {
+              const event: StreamEvent = JSON.parse(data);
+              onEvent(event);
+            } catch (e) {
+              console.error('Failed to parse SSE event:', e);
+            }
+          }
+        }
+      }
+    }
+  } finally {
+    reader.releaseLock();
+  }
+}
+
+export async function getSuggestedQuestions(
+  analysisId: string
+): Promise<SuggestedQuestionsResponse> {
+  const response = await client.get<SuggestedQuestionsResponse>(
+    `/chat/${analysisId}/suggestions`
   );
   return response.data;
 }

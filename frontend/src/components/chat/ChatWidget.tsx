@@ -9,6 +9,9 @@ import {
   Minimize2,
   Maximize2,
   Highlighter,
+  Sparkles,
+  StopCircle,
+  Wrench,
 } from 'lucide-react';
 import { useChat } from '../../hooks/useChat';
 import { useTextSelection } from '../../hooks/useTextSelection';
@@ -35,7 +38,11 @@ export function ChatWidget({ analysisId }: ChatWidgetProps) {
     clearHighlightedText,
     clearConversation,
     clearError,
-  } = useChat({ analysisId });
+    suggestedQuestions,
+    loadSuggestedQuestions,
+    currentToolName,
+    cancelStream,
+  } = useChat({ analysisId, enableStreaming: true });
 
   // Text selection hook - updates highlighted text when user selects text
   const { selectedText, clearSelection } = useTextSelection({
@@ -46,6 +53,13 @@ export function ChatWidget({ analysisId }: ChatWidgetProps) {
       setHighlightedText(text);
     },
   });
+
+  // Load suggested questions when opening the chat for the first time
+  useEffect(() => {
+    if (isOpen && messages.length === 0 && suggestedQuestions.length === 0) {
+      loadSuggestedQuestions();
+    }
+  }, [isOpen, messages.length, suggestedQuestions.length, loadSuggestedQuestions]);
 
   // Scroll to bottom when new messages arrive
   useEffect(() => {
@@ -70,6 +84,11 @@ export function ChatWidget({ analysisId }: ChatWidgetProps) {
     await sendMessage(message);
     clearSelection();
   }, [inputValue, isLoading, sendMessage, clearSelection]);
+
+  const handleSuggestedQuestion = useCallback(async (question: string) => {
+    if (isLoading) return;
+    await sendMessage(question);
+  }, [isLoading, sendMessage]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -111,7 +130,7 @@ export function ChatWidget({ analysisId }: ChatWidgetProps) {
     <div
       data-chat-widget
       className={`fixed bottom-6 right-6 bg-slate-800 border border-slate-700 rounded-xl shadow-2xl flex flex-col transition-all duration-200 z-50 ${
-        isMinimized ? 'w-80 h-14' : 'w-96 h-[500px]'
+        isMinimized ? 'w-80 h-14' : 'w-96 h-[540px]'
       }`}
     >
       {/* Header */}
@@ -146,19 +165,51 @@ export function ChatWidget({ analysisId }: ChatWidgetProps) {
           {/* Messages area */}
           <div className="flex-1 overflow-y-auto p-4 space-y-4">
             {messages.length === 0 ? (
-              <div className="text-center text-slate-500 py-8">
-                <MessageSquare size={40} className="mx-auto mb-3 opacity-50" />
-                <p className="text-sm">Ask me anything about this codebase!</p>
-                <p className="text-xs mt-2 text-slate-600">
+              <div className="text-center py-4">
+                <MessageSquare size={32} className="mx-auto mb-3 text-slate-500 opacity-50" />
+                <p className="text-sm text-slate-400 mb-1">Ask me anything about this codebase!</p>
+                <p className="text-xs text-slate-600 mb-4">
                   Highlight text in the visualization to ask about specific elements.
                 </p>
+
+                {/* Suggested Questions */}
+                {suggestedQuestions.length > 0 && (
+                  <div className="mt-4">
+                    <div className="flex items-center justify-center gap-1 text-xs text-slate-500 mb-3">
+                      <Sparkles size={12} />
+                      <span>Suggested questions</span>
+                    </div>
+                    <div className="space-y-2">
+                      {suggestedQuestions.slice(0, 4).map((q, index) => (
+                        <button
+                          key={index}
+                          onClick={() => handleSuggestedQuestion(q.question)}
+                          disabled={isLoading}
+                          className="w-full text-left text-xs px-3 py-2 bg-slate-700/50 hover:bg-slate-700 rounded-lg text-slate-300 transition-colors disabled:opacity-50"
+                        >
+                          {q.question}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             ) : (
               messages.map((message, index) => (
                 <ChatMessage key={index} message={message} />
               ))
             )}
-            {isLoading && (
+
+            {/* Tool use indicator */}
+            {currentToolName && (
+              <div className="flex items-center gap-2 text-amber-400 text-sm animate-pulse">
+                <Wrench size={14} />
+                <span>Using {currentToolName}...</span>
+              </div>
+            )}
+
+            {/* Loading indicator (when not streaming) */}
+            {isLoading && !currentToolName && messages[messages.length - 1]?.content === '' && (
               <div className="flex items-center gap-2 text-slate-400">
                 <Loader2 size={16} className="animate-spin" />
                 <span className="text-sm">Thinking...</span>
@@ -172,7 +223,7 @@ export function ChatWidget({ analysisId }: ChatWidgetProps) {
             <div className="px-4 py-2 bg-red-900/30 border-t border-red-800">
               <div className="flex items-center gap-2 text-red-400 text-sm">
                 <AlertCircle size={14} />
-                <span>{error}</span>
+                <span className="flex-1 truncate">{error}</span>
                 <button
                   onClick={clearError}
                   className="ml-auto text-red-400 hover:text-red-300"
@@ -218,15 +269,26 @@ export function ChatWidget({ analysisId }: ChatWidgetProps) {
                 />
               </div>
               <div className="flex flex-col gap-1">
-                <button
-                  type="submit"
-                  disabled={isLoading || !inputValue.trim() || !analysisId}
-                  className="p-2 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-700 disabled:cursor-not-allowed rounded-lg transition-colors"
-                  title="Send message"
-                >
-                  <Send size={16} className="text-white" />
-                </button>
-                {messages.length > 0 && (
+                {isLoading ? (
+                  <button
+                    type="button"
+                    onClick={cancelStream}
+                    className="p-2 bg-red-600 hover:bg-red-700 rounded-lg transition-colors"
+                    title="Stop generating"
+                  >
+                    <StopCircle size={16} className="text-white" />
+                  </button>
+                ) : (
+                  <button
+                    type="submit"
+                    disabled={!inputValue.trim() || !analysisId}
+                    className="p-2 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-700 disabled:cursor-not-allowed rounded-lg transition-colors"
+                    title="Send message"
+                  >
+                    <Send size={16} className="text-white" />
+                  </button>
+                )}
+                {messages.length > 0 && !isLoading && (
                   <button
                     type="button"
                     onClick={clearConversation}

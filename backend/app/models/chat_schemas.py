@@ -105,3 +105,37 @@ class ExplainHighlightedInput(BaseModel):
     """Input schema for explain_highlighted tool."""
 
     text: str = Field(..., description="The highlighted text to explain")
+
+
+class StreamEventType(str, Enum):
+    """Types of streaming events."""
+
+    TEXT_DELTA = "text_delta"
+    TOOL_USE_START = "tool_use_start"
+    TOOL_USE_END = "tool_use_end"
+    MESSAGE_COMPLETE = "message_complete"
+    ERROR = "error"
+
+
+class StreamEvent(BaseModel):
+    """A single streaming event."""
+
+    type: StreamEventType = Field(..., description="Type of the event")
+    content: Optional[str] = Field(None, description="Text content for text_delta events")
+    tool_name: Optional[str] = Field(None, description="Tool name for tool events")
+    conversation_id: Optional[str] = Field(None, description="Conversation ID")
+    tools_used: list[str] = Field(default_factory=list, description="Tools used (for complete event)")
+    error: Optional[str] = Field(None, description="Error message for error events")
+
+
+class SuggestedQuestion(BaseModel):
+    """A suggested question for the user."""
+
+    question: str = Field(..., description="The suggested question text")
+    category: str = Field(..., description="Category of the question (overview, files, functions, dependencies)")
+
+
+class SuggestedQuestionsResponse(BaseModel):
+    """Response containing suggested questions."""
+
+    questions: list[SuggestedQuestion] = Field(..., description="List of suggested questions")
