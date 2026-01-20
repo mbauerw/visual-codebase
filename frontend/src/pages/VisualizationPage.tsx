@@ -27,6 +27,7 @@ import {
   Network,
   User,
   ChevronsLeftRight,
+  MessageSquare,
 } from 'lucide-react';
 
 import CustomNode, { type CustomNodeType } from '../components/CustomNode';
@@ -61,7 +62,7 @@ import { useSourceCode } from '../hooks/useSourceCode';
 import { ProfessionalDesign } from '../components/TierList/designs/ProfessionalDesign';
 import { ElegantDesign } from '../components/TierList/designs/ElegantDesign';
 import { FreeFormDesign } from '../components/TierList/designs/FreeFormDesign';
-import { ChatWidget } from '../components/chat';
+import { ChatPanel } from '../components/chat';
 
 // Define node types with proper typing for React Flow v12
 const nodeTypes: NodeTypes = {
@@ -814,7 +815,7 @@ function VisualizationPageInner() {
   const [edgePopoverPosition, setEdgePopoverPosition] = useState<{ x: number; y: number } | null>(null);
 
   // Right panel tab state
-  type RightPanelTab = 'details' | 'tierlist';
+  type RightPanelTab = 'details' | 'tierlist' | 'chat';
   const [rightPanelTab, setRightPanelTab] = useState<RightPanelTab>('details');
 
   // Resize state for right panel
@@ -1779,17 +1780,26 @@ function VisualizationPageInner() {
                     }`}
                 >
                   <BarChart3 size={16} />
-                  Function Tier List
+                  Functions
+                </button>
+                <button
+                  onClick={() => setRightPanelTab('chat')}
+                  className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium transition-colors ${rightPanelTab === 'chat'
+                      ? 'bg-slate-800 text-white border-b-2 border-amber-500'
+                      : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
+                    }`}
+                >
+                  <MessageSquare size={16} />
+                  AI Chat
                 </button>
                 <div className='absolute top-2 right-2 flex items-center cursor-pointer gap-2 text-slate-400 z-50 ' >
                   <ChevronsLeftRight size={26} onMouseDown={()=>setExpanded(prev => !prev)} className='z-50 pointer-events-all' />
-                  {/* <span className="text-sm uppercase tracking-wider font-semibold">Node Details</span> */}
                 </div>
               </div>
 
               {/* Tab Content */}
               <div className="flex-1 overflow-hidden">
-                {rightPanelTab === 'details' ? (
+                {rightPanelTab === 'details' && (
                   <>
                     {selectedNode && (
                       <NodeDetailPanel data={selectedNode} onClose={() => setSelectedNode(null)} setExpand={setExpanded} expanded={expanded} />
@@ -1801,10 +1811,17 @@ function VisualizationPageInner() {
                       <NodeDetailPanel data={null} onClose={() => setSelectedNode(null)} setExpand={setExpanded} expanded={expanded} />
                     )}
                   </>
-                ) : (
-                <ProfessionalDesign
+                )}
+                {rightPanelTab === 'tierlist' && (
+                  <ProfessionalDesign
                     analysisId={analysisId}
                     onFunctionSelect={handleFunctionSelect}
+                  />
+                )}
+                {rightPanelTab === 'chat' && (
+                  <ChatPanel
+                    analysisId={analysisId}
+                    expanded={expanded}
                   />
                 )}
               </div>
@@ -1853,9 +1870,6 @@ function VisualizationPageInner() {
         onClose={closeEdgePopover}
         nodes={graphData?.nodes || []}
       />
-
-      {/* AI Chat Widget */}
-      <ChatWidget analysisId={analysisId} />
     </div>
   );
 }
