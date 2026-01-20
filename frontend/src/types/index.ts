@@ -1,4 +1,4 @@
-// Types for the Visual Codebase application
+// Types for the Codebase Remap application
 
 export type Language = 'javascript' | 'typescript' | 'python' | 'unknown';
 

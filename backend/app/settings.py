@@ -17,7 +17,7 @@ class Settings(BaseSettings):
     supabase_service_role_key: str = ""
 
     # Application settings
-    app_name: str = "Visual Codebase API"
+    app_name: str = "Codebase Remap API"
     debug: bool = False
 
     # Analysis settings

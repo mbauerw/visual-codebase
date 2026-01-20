@@ -1,4 +1,4 @@
-"""Main FastAPI application for Visual Codebase."""
+"""Main FastAPI application for Codebase Remap."""
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 import httpx

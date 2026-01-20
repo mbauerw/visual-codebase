@@ -1553,7 +1553,7 @@ function VisualizationPageInner() {
 
                 <h2 className='text-3xl text-red-500 text-center '>SOURCE CODE</h2>
               </div>
-              <div className='h-[900px] w-full p-8 flex items-start justify-start overflow-hidden'>
+              <div className='h-[900px] w-full py-8 overflow-hidden'>
                 {isSourcePanelOpen && sourceCodeFile && (
                   <SourceCodePanel
                     sourceCode={sourceCode}

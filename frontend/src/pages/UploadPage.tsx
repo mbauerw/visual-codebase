@@ -136,7 +136,7 @@ export default function UploadPage() {
                 </button>
                 <button
                   onClick={signOut}
-                  className="text-gray-600 hover:text-gray-900 font-medium transition-colors px-4 py-2 rounded-lg hover:bg-gray-50"
+                  className="text-white font-medium transition-colors px-4 py-2 rounded-full bg-neutral-800 hover:scale-[1.05]"
                 >
                   Sign Out
                 </button>

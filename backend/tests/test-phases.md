@@ -1,6 +1,6 @@
 # Test Suite Implementation Plan
 
-This document outlines the three-phase plan for implementing a comprehensive test suite for the Visual Codebase application.
+This document outlines the three-phase plan for implementing a comprehensive test suite for the Codebase Remap application.
 
 ---
 

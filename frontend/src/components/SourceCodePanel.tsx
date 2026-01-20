@@ -200,18 +200,20 @@ export default function SourceCodePanel({
     <div
       ref={panelRef}
       className="bg-slate-900 border-t border-slate-700/50 flex flex-col transition-all duration-200"
-      style={{ height: effectiveHeight }}
+      style={{ 
+        height: effectiveHeight,
+        width: '100%',}}
     >
       {/* Resize handle */}
       {!isCollapsed && !isExpanded && (
         <div
           ref={resizeRef}
-          className="h-1 bg-slate-800 hover:bg-indigo-500/50 cursor-ns-resize transition-colors flex-shrink-0"
+          className="h-1 bg-slate-800 hover:bg-indigo-500/50 cursor-ns-resize transition-colors "
         />
       )}
 
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 bg-slate-800/50 border-b border-slate-700/50 flex-shrink-0">
+      <div className="flex items-center justify-between px-4 py-3 bg-slate-800/50 border-b border-slate-700/50 ">
         <div className="flex items-center gap-3 min-w-0">
           <div className="p-1.5 bg-indigo-500/20 rounded-lg flex-shrink-0">
             <FileCode size={16} className="text-indigo-400" />

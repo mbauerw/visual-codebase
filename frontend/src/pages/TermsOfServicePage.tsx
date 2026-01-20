@@ -11,7 +11,7 @@ export default function TermsOfServicePage() {
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#8FBCFA] via-[#FF9A9D] to-[#F6D785] flex items-center justify-center">
               <GitBranch size={20} className="text-white" />
             </div>
-            <span className="text-xl font-bold text-gray-900">Visual Codebase</span>
+            <span className="text-xl font-bold text-gray-900">Codebase Remap</span>
           </Link>
           <Link
             to="/"
@@ -35,7 +35,7 @@ export default function TermsOfServicePage() {
             <section className="mb-8">
               <h2 className="text-xl font-semibold text-gray-900 mb-4">1. Acceptance of Terms</h2>
               <p className="text-gray-600 mb-4">
-                By accessing or using Visual Codebase ("the Service"), you agree to be bound by these
+                By accessing or using Codebase Remap ("the Service"), you agree to be bound by these
                 Terms of Service. If you do not agree to these terms, please do not use the Service.
               </p>
             </section>
@@ -43,7 +43,7 @@ export default function TermsOfServicePage() {
             <section className="mb-8">
               <h2 className="text-xl font-semibold text-gray-900 mb-4">2. Description of Service</h2>
               <p className="text-gray-600 mb-4">
-                Visual Codebase is an AI-powered codebase visualization tool that:
+                Codebase Remap is an AI-powered codebase visualization tool that:
               </p>
               <ul className="list-disc list-inside text-gray-600 space-y-2 mb-4">
                 <li>Analyzes source code repositories to extract structural information</li>
@@ -109,7 +109,7 @@ export default function TermsOfServicePage() {
               <h2 className="text-xl font-semibold text-gray-900 mb-4">7. Intellectual Property</h2>
               <p className="text-gray-600 mb-4">
                 The Service, including its original content, features, and functionality, is owned by
-                Visual Codebase and is protected by international copyright, trademark, and other
+                Codebase Remap and is protected by international copyright, trademark, and other
                 intellectual property laws.
               </p>
             </section>
@@ -184,7 +184,7 @@ export default function TermsOfServicePage() {
       <footer className="border-t border-gray-200 py-6">
         <div className="max-w-4xl mx-auto px-4 flex flex-col md:flex-row items-center justify-between gap-4">
           <p className="text-sm text-gray-500">
-            &copy; {new Date().getFullYear()} Visual Codebase. All rights reserved.
+            &copy; {new Date().getFullYear()} Codebase Remap. All rights reserved.
           </p>
           <div className="flex items-center gap-6">
             <Link to="/terms" className="text-sm text-gray-600 hover:text-gray-900">

@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Visual Codebase is an AI-powered codebase visualization tool that analyzes repositories and generates interactive dependency graphs. It uses AST parsing (Tree-sitter) and Claude AI to understand code structure and architectural roles, then visualizes file-level dependencies using React Flow.
+Codebase Remap is an AI-powered codebase visualization tool that analyzes repositories and generates interactive dependency graphs. It uses AST parsing (Tree-sitter) and Claude AI to understand code structure and architectural roles, then visualizes file-level dependencies using React Flow.
 
 **Stack**: FastAPI (Python) backend + React (TypeScript) frontend + Supabase (PostgreSQL + Auth)
 

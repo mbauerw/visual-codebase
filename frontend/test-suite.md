@@ -1,4 +1,4 @@
-Please help me build a comprehensive test suite for my Visual Codebase application. Here's what I need:
+Please help me build a comprehensive test suite for my Codebase Remap application. Here's what I need:
 
 ## Backend Tests (Python/FastAPI)
 

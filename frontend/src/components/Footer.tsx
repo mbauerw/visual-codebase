@@ -15,7 +15,7 @@ export default function Footer() {
               <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#8FBCFA] via-[#FF9A9D] to-[#F6D785] flex items-center justify-center shadow-lg">
                 <GitBranch size={20} className="text-white" />
               </div>
-              <span className="text-xl font-bold text-gray-900">Visual Codebase</span>
+              <span className="text-xl font-bold text-gray-900">Codebase Remap</span>
             </div>
             <p className="text-gray-600 text-sm max-w-md mb-4">
               AI-powered codebase visualization tool that analyzes your repositories
@@ -109,7 +109,7 @@ export default function Footer() {
         {/* Bottom Bar */}
         <div className="pt-8 border-t border-gray-200 flex flex-col md:flex-row items-center justify-between gap-4">
           <p className="text-sm text-gray-500">
-            &copy; {currentYear} Visual Codebase. All rights reserved.
+            &copy; {currentYear} Codebase Remap. All rights reserved.
           </p>
           <p className="text-sm text-gray-400">
             Built with AI-powered analysis

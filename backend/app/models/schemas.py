@@ -1,4 +1,4 @@
-"""Pydantic schemas for the Visual Codebase API."""
+"""Pydantic schemas for the Codebase Remap API."""
 import re
 from datetime import datetime
 from enum import Enum

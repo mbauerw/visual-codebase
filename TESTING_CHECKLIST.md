@@ -1,4 +1,4 @@
-# Visual Codebase Testing Checklist
+# Codebase Remap Testing Checklist
 
 Run these tests when adding new features or making changes to ensure nothing breaks.
 

@@ -11,7 +11,7 @@ export default function PrivacyPolicyPage() {
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#8FBCFA] via-[#FF9A9D] to-[#F6D785] flex items-center justify-center">
               <GitBranch size={20} className="text-white" />
             </div>
-            <span className="text-xl font-bold text-gray-900">Visual Codebase</span>
+            <span className="text-xl font-bold text-gray-900">Codebase Remap</span>
           </Link>
           <Link
             to="/"
@@ -35,7 +35,7 @@ export default function PrivacyPolicyPage() {
             <section className="mb-8">
               <h2 className="text-xl font-semibold text-gray-900 mb-4">1. Introduction</h2>
               <p className="text-gray-600 mb-4">
-                Visual Codebase ("we," "our," or "us") is committed to protecting your privacy.
+                Codebase Remap ("we," "our," or "us") is committed to protecting your privacy.
                 This Privacy Policy explains how we collect, use, disclose, and safeguard your
                 information when you use our codebase visualization service.
               </p>
@@ -258,7 +258,7 @@ export default function PrivacyPolicyPage() {
       <footer className="border-t border-gray-200 py-6">
         <div className="max-w-4xl mx-auto px-4 flex flex-col md:flex-row items-center justify-between gap-4">
           <p className="text-sm text-gray-500">
-            &copy; {new Date().getFullYear()} Visual Codebase. All rights reserved.
+            &copy; {new Date().getFullYear()} Codebase Remap. All rights reserved.
           </p>
           <div className="flex items-center gap-6">
             <Link to="/terms" className="text-sm text-gray-600 hover:text-gray-900">

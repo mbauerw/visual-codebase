@@ -1,4 +1,4 @@
-# Visual Codebase
+# Codebase Remap
 
 A codebase visualization tool that analyzes code repositories and generates interactive dependency graphs. This MVP focuses on file-level dependencies for JavaScript/TypeScript and Python projects.
 
