@@ -9,7 +9,6 @@ import {
   Sparkles,
   StopCircle,
   Wrench,
-  RefreshCw,
 } from 'lucide-react';
 import { useChat } from '../../hooks/useChat';
 import { useTextSelection } from '../../hooks/useTextSelection';
@@ -103,12 +102,15 @@ export function ChatWidget({ analysisId }: ChatWidgetProps) {
     return (
       <button
         onClick={toggleOpen}
-        className="fixed bottom-6 right-6 w-12 h-12 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg shadow-lg flex items-center justify-center transition-all duration-200 hover:border-slate-600 z-50"
+        className="fixed bottom-6 right-6 w-12 h-12 bg-white hover:bg-[#fafaf9] border border-[#e8e6e3] hover:border-[#d4d0cb] shadow-lg flex items-center justify-center transition-all duration-200 z-50"
         title="Open AI Assistant"
       >
-        <MessageSquare size={20} className="text-amber-400" />
+        <MessageSquare size={20} className="text-[#8b7355]" />
         {messages.length > 0 && (
-          <span className="absolute -top-1 -right-1 w-4 h-4 bg-amber-500 rounded-full text-[10px] text-white flex items-center justify-center font-medium">
+          <span
+            className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-[#8b7355] text-white text-[10px] flex items-center justify-center font-medium"
+            style={{ fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace' }}
+          >
             {messages.length > 9 ? '9+' : messages.length}
           </span>
         )}
@@ -119,20 +121,24 @@ export function ChatWidget({ analysisId }: ChatWidgetProps) {
   return (
     <div
       data-chat-widget
-      className="fixed bottom-6 right-6 w-96 h-[560px] bg-slate-900 border border-slate-700 rounded-lg shadow-2xl flex flex-col z-50"
+      className="fixed bottom-6 right-6 w-[400px] h-[580px] bg-[#fafaf9] border border-[#e8e6e3] shadow-2xl flex flex-col z-50"
     >
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-slate-700">
-        <div className="flex items-center gap-2">
-          <MessageSquare size={18} className="text-amber-400" />
-          <h2 className="font-semibold text-white">AI Assistant</h2>
-          {isLoading && (
-            <Loader2 size={14} className="text-slate-400 animate-spin" />
-          )}
+      <div className="flex items-center justify-between px-6 py-4 border-b border-[#e8e6e3] bg-white">
+        <div className="flex items-center gap-4">
+          <div className="p-2 border border-[#e8e6e3]">
+            <MessageSquare size={16} className="text-[#8b7355]" />
+          </div>
+          <div>
+            <h2 className="text-[#2d3748] text-base font-semibold">AI Assistant</h2>
+            <p className="text-[10px] text-[#a0aec0] font-light tracking-wider uppercase mt-0.5">
+              {isLoading ? 'Processing...' : 'Codebase Analysis'}
+            </p>
+          </div>
         </div>
         <button
           onClick={toggleOpen}
-          className="p-1 text-slate-400 hover:text-white transition-colors"
+          className="p-2 text-[#a0aec0] hover:text-[#718096] transition-colors"
         >
           <X size={18} />
         </button>
@@ -140,24 +146,34 @@ export function ChatWidget({ analysisId }: ChatWidgetProps) {
 
       {/* Context indicator bar */}
       {(highlightedText || currentToolName) && (
-        <div className="px-4 py-2 border-b border-slate-700 bg-slate-800/50">
+        <div className="px-6 py-3 border-b border-[#e8e6e3] bg-white">
           <div className="flex items-center justify-between text-xs">
             {highlightedText && (
-              <div className="flex items-center gap-2 text-slate-400 flex-1 min-w-0">
-                <span className="text-amber-400 shrink-0">Context:</span>
-                <span className="truncate">"{highlightedText}"</span>
+              <div className="flex items-center gap-2 flex-1 min-w-0">
+                <span className="text-[#8b7355] font-light tracking-wider uppercase shrink-0">Context</span>
+                <span
+                  className="text-[#718096] truncate px-2 py-1 bg-[#fafaf9] border border-[#e8e6e3]"
+                  style={{ fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace', fontSize: '11px' }}
+                >
+                  {highlightedText}
+                </span>
                 <button
                   onClick={clearHighlightedText}
-                  className="p-0.5 text-slate-500 hover:text-white transition-colors shrink-0"
+                  className="p-1 text-[#a0aec0] hover:text-[#718096] transition-colors shrink-0"
                 >
                   <X size={12} />
                 </button>
               </div>
             )}
             {currentToolName && (
-              <div className="flex items-center gap-1.5 text-amber-400">
+              <div className="flex items-center gap-2 text-[#8b7355]">
                 <Wrench size={12} className="animate-pulse" />
-                <span>{currentToolName}</span>
+                <span
+                  className="font-light"
+                  style={{ fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace', fontSize: '11px' }}
+                >
+                  {currentToolName}
+                </span>
               </div>
             )}
           </div>
@@ -165,28 +181,30 @@ export function ChatWidget({ analysisId }: ChatWidgetProps) {
       )}
 
       {/* Messages area */}
-      <div className="flex-1 overflow-y-auto px-4 py-3 space-y-4">
+      <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4 bg-white [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-[#e2e0dc] hover:[&::-webkit-scrollbar-thumb]:bg-[#d4d0cb] [&::-webkit-scrollbar-thumb]:rounded-full">
         {messages.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center text-center">
-            <MessageSquare size={32} className="text-slate-600 mb-3" />
-            <p className="text-sm text-slate-400 mb-1">Ask me about this codebase</p>
-            <p className="text-xs text-slate-600 mb-6">
+            <div className="p-6 border border-[#e8e6e3] bg-[#fafaf9] mb-6">
+              <MessageSquare size={28} className="text-[#cbd5e0]" />
+            </div>
+            <p className="text-sm text-[#4a5568] font-medium mb-1">Ask About This Codebase</p>
+            <p className="text-xs text-[#a0aec0] font-light mb-8">
               Select text in the visualization for context
             </p>
 
             {/* Suggested Questions */}
             {suggestedQuestions.length > 0 && (
               <div className="w-full space-y-2">
-                <div className="flex items-center justify-center gap-1.5 text-xs text-slate-500 mb-2">
-                  <Sparkles size={12} className="text-amber-400" />
-                  <span>Suggested questions</span>
+                <div className="flex items-center justify-center gap-2 text-xs text-[#a0aec0] mb-3">
+                  <Sparkles size={12} className="text-[#8b7355]" />
+                  <span className="font-light tracking-wider uppercase">Suggested Questions</span>
                 </div>
                 {suggestedQuestions.slice(0, 4).map((q, index) => (
                   <button
                     key={index}
                     onClick={() => handleSuggestedQuestion(q.question)}
                     disabled={isLoading}
-                    className="w-full text-left text-xs px-3 py-2.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 hover:border-slate-600 rounded-lg text-slate-300 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full text-left text-xs px-4 py-3 bg-[#fafaf9] hover:bg-[#f7f6f5] border border-[#e8e6e3] hover:border-[#d4d0cb] text-[#4a5568] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {q.question}
                   </button>
@@ -202,9 +220,9 @@ export function ChatWidget({ analysisId }: ChatWidgetProps) {
 
             {/* Loading indicator */}
             {isLoading && messages[messages.length - 1]?.content === '' && (
-              <div className="flex items-center gap-2 text-slate-500 text-sm">
-                <Loader2 size={14} className="animate-spin" />
-                <span>Thinking...</span>
+              <div className="flex items-center gap-3 text-[#a0aec0] text-sm">
+                <Loader2 size={14} className="animate-spin text-[#8b7355]" />
+                <span className="font-light">Processing request...</span>
               </div>
             )}
           </>
@@ -214,13 +232,13 @@ export function ChatWidget({ analysisId }: ChatWidgetProps) {
 
       {/* Error message */}
       {error && (
-        <div className="mx-4 mb-3 px-3 py-2 bg-red-900/20 border border-red-800/50 rounded-lg">
-          <div className="flex items-center gap-2 text-red-400 text-xs">
+        <div className="mx-6 mb-3 px-4 py-3 bg-[#fdf2f2] border border-[#fecaca]">
+          <div className="flex items-center gap-3 text-[#dc2626] text-xs">
             <AlertCircle size={14} />
-            <span className="flex-1 truncate">{error}</span>
+            <span className="flex-1 truncate font-light">{error}</span>
             <button
               onClick={clearError}
-              className="text-red-400 hover:text-red-300 transition-colors"
+              className="text-[#dc2626] hover:text-[#b91c1c] transition-colors"
             >
               <X size={12} />
             </button>
@@ -229,8 +247,8 @@ export function ChatWidget({ analysisId }: ChatWidgetProps) {
       )}
 
       {/* Input area */}
-      <div className="px-4 py-3 border-t border-slate-700">
-        <form onSubmit={handleSubmit} className="flex gap-2">
+      <div className="px-6 py-4 border-t border-[#e8e6e3] bg-white">
+        <form onSubmit={handleSubmit} className="flex gap-3">
           <div className="flex-1 relative">
             <textarea
               ref={inputRef}
@@ -238,46 +256,47 @@ export function ChatWidget({ analysisId }: ChatWidgetProps) {
               onChange={(e) => setInputValue(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder="Ask a question..."
-              className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-amber-500/50 focus:border-amber-500/50 resize-none transition-all"
+              className="w-full px-4 py-3 bg-[#fafaf9] border border-[#e8e6e3] text-sm text-[#2d3748] placeholder-[#a0aec0] focus:outline-none focus:border-[#d4d0cb] resize-none transition-colors"
+              style={{ fontFamily: 'inherit' }}
               rows={1}
               disabled={isLoading || !analysisId}
             />
           </div>
-          <div className="flex flex-col gap-1">
+          <div className="flex flex-col gap-2">
             {isLoading ? (
               <button
                 type="button"
                 onClick={cancelStream}
-                className="p-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg transition-colors"
+                className="p-3 bg-[#fafaf9] hover:bg-[#f7f6f5] border border-[#e8e6e3] hover:border-[#d4d0cb] transition-colors"
                 title="Stop generating"
               >
-                <StopCircle size={16} className="text-red-400" />
+                <StopCircle size={16} className="text-[#dc2626]" />
               </button>
             ) : (
               <button
                 type="submit"
                 disabled={!inputValue.trim() || !analysisId}
-                className="p-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors group"
+                className="p-3 bg-[#2d3748] hover:bg-[#4a5568] disabled:bg-[#e8e6e3] disabled:cursor-not-allowed transition-colors"
                 title="Send message"
               >
-                <Send size={16} className="text-slate-400 group-hover:text-amber-400 group-disabled:text-slate-600 transition-colors" />
+                <Send size={16} className="text-white disabled:text-[#a0aec0]" />
               </button>
             )}
             {messages.length > 0 && !isLoading && (
               <button
                 type="button"
                 onClick={clearConversation}
-                className="p-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg transition-colors group"
+                className="p-3 bg-[#fafaf9] hover:bg-[#f7f6f5] border border-[#e8e6e3] hover:border-[#d4d0cb] transition-colors"
                 title="Clear conversation"
               >
-                <Trash2 size={16} className="text-slate-500 group-hover:text-slate-300 transition-colors" />
+                <Trash2 size={16} className="text-[#a0aec0]" />
               </button>
             )}
           </div>
         </form>
         {!analysisId && (
-          <p className="text-xs text-slate-600 mt-2">
-            Waiting for analysis to load...
+          <p className="text-[10px] text-[#a0aec0] mt-2 font-light tracking-wider uppercase">
+            Waiting for analysis...
           </p>
         )}
       </div>

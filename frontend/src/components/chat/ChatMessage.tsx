@@ -9,19 +9,19 @@ export function ChatMessage({ message }: ChatMessageProps) {
   const isUser = message.role === 'user';
 
   return (
-    <div className={`flex gap-3 ${isUser ? 'flex-row-reverse' : 'flex-row'}`}>
+    <div className={`flex gap-4 ${isUser ? 'flex-row-reverse' : 'flex-row'}`}>
       {/* Avatar */}
       <div
-        className={`flex-shrink-0 w-7 h-7 rounded-md flex items-center justify-center border ${
+        className={`flex-shrink-0 w-8 h-8 flex items-center justify-center border ${
           isUser
-            ? 'bg-slate-700 border-slate-600'
-            : 'bg-amber-500/10 border-amber-500/20'
+            ? 'bg-[#2d3748] border-[#2d3748]'
+            : 'bg-[#fafaf9] border-[#e8e6e3]'
         }`}
       >
         {isUser ? (
-          <User size={14} className="text-slate-300" />
+          <User size={14} className="text-white" />
         ) : (
-          <Bot size={14} className="text-amber-400" />
+          <Bot size={14} className="text-[#8b7355]" />
         )}
       </div>
 
@@ -31,23 +31,31 @@ export function ChatMessage({ message }: ChatMessageProps) {
           isUser ? 'items-end' : 'items-start'
         }`}
       >
+        {/* Role label */}
+        <span className="text-[10px] text-[#a0aec0] font-light tracking-wider uppercase mb-1.5 px-1">
+          {isUser ? 'You' : 'Assistant'}
+        </span>
+
         <div
-          className={`px-3 py-2 rounded-lg text-sm ${
+          className={`px-4 py-3 text-sm leading-relaxed ${
             isUser
-              ? 'bg-slate-700 text-slate-100 border border-slate-600'
-              : 'bg-slate-800 text-slate-200 border border-slate-700'
+              ? 'bg-[#2d3748] text-white'
+              : 'bg-[#fafaf9] text-[#4a5568] border border-[#e8e6e3]'
           }`}
         >
-          <p className="whitespace-pre-wrap break-words leading-relaxed">
+          <p className="whitespace-pre-wrap break-words">
             {message.content}
           </p>
         </div>
 
         {/* Tools used indicator */}
         {!isUser && message.tools_used && message.tools_used.length > 0 && (
-          <div className="flex items-center gap-1.5 mt-1.5 px-1">
-            <Wrench size={10} className="text-slate-600" />
-            <span className="text-[10px] text-slate-600">
+          <div className="flex items-center gap-2 mt-2 px-1">
+            <Wrench size={10} className="text-[#cbd5e0]" />
+            <span
+              className="text-[10px] text-[#a0aec0] font-light"
+              style={{ fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace' }}
+            >
               {message.tools_used.join(', ')}
             </span>
           </div>
