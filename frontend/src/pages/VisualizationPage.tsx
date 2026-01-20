@@ -63,6 +63,7 @@ import { ProfessionalDesign } from '../components/TierList/designs/ProfessionalD
 import { ElegantDesign } from '../components/TierList/designs/ElegantDesign';
 import { FreeFormDesign } from '../components/TierList/designs/FreeFormDesign';
 import { ChatPanel } from '../components/chat';
+import GithubEmbed from '../components/GithubEmbed';
 
 // Define node types with proper typing for React Flow v12
 const nodeTypes: NodeTypes = {
@@ -1489,7 +1490,7 @@ function VisualizationPageInner() {
         {/* Main content */}
         <div
           id="left-content"
-          className={`min-h-full overflow-y-auto pb-4 flex flex-col ${mainSectionGap} items-center flex-1 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-transparent hover:[&::-webkit-scrollbar-thumb]:bg-slate-300 [&::-webkit-scrollbar-thumb]:rounded-full [scrollbar-width:thin] [scrollbar-color:transparent_transparent] hover:[scrollbar-color:rgb(203,213,225)_transparent]`}
+          className={`min-h-full overflow-y-auto pb-4 flex flex-col space-y-[10px] ${mainSectionGap} items-center flex-1 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-transparent hover:[&::-webkit-scrollbar-thumb]:bg-slate-300 [&::-webkit-scrollbar-thumb]:rounded-full [scrollbar-width:thin] [scrollbar-color:transparent_transparent] hover:[scrollbar-color:rgb(203,213,225)_transparent]`}
           style={{ width: expanded ? `calc(100% - ${panelWidth}px)` : '100%' }}
         >
 
@@ -1534,13 +1535,52 @@ function VisualizationPageInner() {
             </div>
           </div>
 
+          {/* Files Section */}
+          <div className='h-[1000px] w-full flex items-center justify-start px-8'>
+            <div className='flex flex-col w-2/5 h-full items-start justify-center px-2'>
+              <div className='flex w-full items-center justify-center relative h-16'>
+
+                <h2 className='text-3xl text-red-500 text-center '>FILES</h2>
+              </div>
+              <div className='h-[900px] w-full p-8 flex items-start justify-start rounded-2xl overflow-hidden'>
+                <GithubEmbed owner='mbauerw' repo='visual-codebase' />
+              </div>
+            </div>
+            {/* Source Code Panel - appears below React Flow when a file is selected */}
+
+            <div className="w-3/5 h-full flex flex-col items-start justify-center">
+              <div className='flex w-full items-center justify-center relative h-16'>
+
+                <h2 className='text-3xl text-red-500 text-center '>SOURCE CODE</h2>
+              </div>
+              <div className='h-[900px] w-full p-8 flex items-start justify-start overflow-hidden'>
+                {isSourcePanelOpen && sourceCodeFile && (
+                  <SourceCodePanel
+                    sourceCode={sourceCode}
+                    fileName={sourceCodeFile.fileName}
+                    language={sourceCodeFile.language}
+                    lineCount={sourceCodeFile.lineCount}
+                    isLoading={isSourceCodeLoading}
+                    error={sourceCodeError}
+                    isOpen={isSourcePanelOpen}
+                    onClose={() => {
+                      setIsSourcePanelOpen(false);
+                      setSourceCodeFile(null);
+                    }}
+                  />
+
+                )}
+              </div>
+            </div>
+          </div>
+
           {/* React Flow Container */}
           <div className='w-full px-8 pb-12 justify-center flex flex-col gap-10 items-center'>
-            <div className='flex w-full items-center justify-center relative h-16'>
+            <div className='flex w-full items-center justify-center relative h-12'>
               {/* <div className='p-4 absolute left-0 top-0 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl shadow-lg'>
                     <FileCode size={32} className='text-white' />
                   </div> */}
-              <h2 className='text-2xl text-red-500 text-center '>VISUALIZATION</h2>
+              <h2 className='text-3xl text-red-500 text-center '>VISUALIZATION</h2>
             </div>
             <div className='h-[900px] max-w-[1200px] w-full rounded-2xl overflow-hidden border border-4 border-neutral-700 outline outline-2 outline-neutral-500 shadow-2xl shadow-black bg-slate-300 relative'>
 
@@ -1724,7 +1764,7 @@ function VisualizationPageInner() {
           </div>
 
           {/* Source Code Panel - appears below React Flow when a file is selected */}
-          {isSourcePanelOpen && sourceCodeFile && (
+          {/* {isSourcePanelOpen && sourceCodeFile && (
             <div className="w-full max-w-[1400px] h-[1200px] min-h-[1000px] pb-2  rounded-md ">
               <SourceCodePanel
                 sourceCode={sourceCode}
@@ -1740,7 +1780,7 @@ function VisualizationPageInner() {
                 }}
               />
             </div>
-          )}
+          )} */}
 
         </div>
 
@@ -1765,8 +1805,8 @@ function VisualizationPageInner() {
                 <button
                   onClick={() => setRightPanelTab('details')}
                   className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium transition-colors ${rightPanelTab === 'details'
-                      ? 'bg-slate-800 text-white border-b-2 border-blue-500'
-                      : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
+                    ? 'bg-slate-800 text-white border-b-2 border-blue-500'
+                    : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
                     }`}
                 >
                   <FileText size={16} />
@@ -1775,8 +1815,8 @@ function VisualizationPageInner() {
                 <button
                   onClick={() => setRightPanelTab('tierlist')}
                   className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium transition-colors ${rightPanelTab === 'tierlist'
-                      ? 'bg-slate-800 text-white border-b-2 border-amber-500'
-                      : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
+                    ? 'bg-slate-800 text-white border-b-2 border-amber-500'
+                    : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
                     }`}
                 >
                   <BarChart3 size={16} />
@@ -1785,15 +1825,15 @@ function VisualizationPageInner() {
                 <button
                   onClick={() => setRightPanelTab('chat')}
                   className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium transition-colors ${rightPanelTab === 'chat'
-                      ? 'bg-slate-800 text-white border-b-2 border-amber-500'
-                      : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
+                    ? 'bg-slate-800 text-white border-b-2 border-amber-500'
+                    : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
                     }`}
                 >
                   <MessageSquare size={16} />
                   AI Chat
                 </button>
                 <div className='absolute top-2 right-2 flex items-center cursor-pointer gap-2 text-slate-400 z-50 ' >
-                  <ChevronsLeftRight size={26} onMouseDown={()=>setExpanded(prev => !prev)} className='z-50 pointer-events-all' />
+                  <ChevronsLeftRight size={26} onMouseDown={() => setExpanded(prev => !prev)} className='z-50 pointer-events-all' />
                 </div>
               </div>
 

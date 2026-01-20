@@ -277,6 +277,7 @@ const GithubEmbed = ({ owner, repo, initialPath = '' }: GithubEmbedProps) => {
         maxWidth: 1200,
         minHeight: '100%',
         height: '100%',
+        width: '100%',
         border: `2px solid ${GH_COLORS.border}`,
         borderRadius: '12px',
         bgcolor: GH_COLORS.bg,
