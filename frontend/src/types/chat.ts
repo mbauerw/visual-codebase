@@ -1,6 +1,7 @@
 /**
  * Types for the chatbot feature
  */
+import type { ContextInfo } from './devtools';
 
 export type MessageRole = 'user' | 'assistant';
 
@@ -49,7 +50,8 @@ export type StreamEventType =
   | 'tool_use_start'
   | 'tool_use_end'
   | 'message_complete'
-  | 'error';
+  | 'error'
+  | 'context_update';
 
 export interface StreamEvent {
   type: StreamEventType;
@@ -59,6 +61,16 @@ export interface StreamEvent {
   tools_used?: string[];
   error?: string;
   token_usage?: TokenUsage;
+
+  // Developer tools fields
+  tool_call_id?: string;
+  tool_input?: Record<string, unknown>;
+  tool_input_preview?: string;
+  tool_output?: string;
+  tool_output_preview?: string;
+  tool_duration_ms?: number;
+  context_info?: ContextInfo;
+  model_id?: string;
 }
 
 export interface SuggestedQuestion {

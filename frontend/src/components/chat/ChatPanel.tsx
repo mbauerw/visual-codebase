@@ -11,9 +11,11 @@ import {
   RefreshCw,
   X,
   Layers,
+  Terminal,
 } from 'lucide-react';
 import { useChat } from '../../hooks/useChat';
 import { ChatMessage } from './ChatMessage';
+import { DevToolsPanel } from './devtools';
 
 interface ChatPanelProps {
   analysisId: string | null;
@@ -41,6 +43,12 @@ export function ChatPanel({ analysisId, expanded }: ChatPanelProps) {
     retryLastMessage,
     canRetry,
     tokenUsage,
+    // Dev tools
+    devToolsExpanded,
+    toggleDevTools,
+    toolCallLogs,
+    contextInfo,
+    modelInfo,
   } = useChat({ analysisId, enableStreaming: true });
 
   // Load suggested questions on mount
@@ -63,6 +71,19 @@ export function ChatPanel({ analysisId, expanded }: ChatPanelProps) {
       inputRef.current.focus();
     }
   }, [expanded]);
+
+  // Keyboard shortcut for dev tools (Cmd/Ctrl + Shift + D)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === 'd') {
+        e.preventDefault();
+        toggleDevTools();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [toggleDevTools]);
 
   const handleSubmit = useCallback(async (e?: React.FormEvent) => {
     e?.preventDefault();
@@ -131,6 +152,17 @@ export function ChatPanel({ analysisId, expanded }: ChatPanelProps) {
                   {tokenUsage.total_tokens.toLocaleString()} tokens
                 </span>
               )}
+              <button
+                onClick={toggleDevTools}
+                className={`p-1.5 rounded-lg transition-colors ${
+                  devToolsExpanded
+                    ? 'bg-amber-500/20 text-amber-400'
+                    : 'hover:bg-slate-700 text-slate-500 hover:text-slate-300'
+                }`}
+                title="Toggle dev tools (Cmd+Shift+D)"
+              >
+                <Terminal size={14} />
+              </button>
               {messages.length > 0 && !isLoading && (
                 <button
                   onClick={clearConversation}
@@ -144,6 +176,18 @@ export function ChatPanel({ analysisId, expanded }: ChatPanelProps) {
           </div>
         </div>
       </div>
+
+      {/* Developer Tools Panel */}
+      <DevToolsPanel
+        isExpanded={devToolsExpanded}
+        onToggle={toggleDevTools}
+        tokenUsage={tokenUsage}
+        contextInfo={contextInfo}
+        toolCallLogs={toolCallLogs}
+        modelInfo={modelInfo}
+        messageCount={messages.length}
+        isLoading={isLoading}
+      />
 
       {/* Context indicator bar */}
       {(highlightedText || currentToolName) && (

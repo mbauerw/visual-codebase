@@ -41,6 +41,32 @@ class TokenUsage(BaseModel):
     total_tokens: int = Field(0, description="Total tokens (input + output)")
 
 
+class ContextInfo(BaseModel):
+    """Context window information for debugging."""
+
+    pre_request_tokens: int = Field(0, description="Estimated tokens before request")
+    post_request_tokens: int = Field(0, description="Actual tokens after request (from API)")
+    system_prompt_tokens: int = Field(0, description="Tokens in system prompt")
+    conversation_tokens: int = Field(0, description="Tokens in conversation history")
+    tools_tokens: int = Field(0, description="Tokens in tool definitions")
+    context_window_limit: int = Field(200000, description="Model context window limit")
+    utilization_percent: float = Field(0.0, description="Percentage of context used")
+
+
+class ToolCallInfo(BaseModel):
+    """Information about a single tool call for debugging."""
+
+    id: str = Field(..., description="Unique identifier for this tool call")
+    name: str = Field(..., description="Name of the tool")
+    input_preview: Optional[str] = Field(None, description="Truncated input for display (first 200 chars)")
+    input_full: Optional[dict] = Field(None, description="Full input parameters")
+    output_preview: Optional[str] = Field(None, description="Truncated output for display (first 500 chars)")
+    output_full: Optional[str] = Field(None, description="Full output (JSON string)")
+    duration_ms: Optional[int] = Field(None, description="Execution time in milliseconds")
+    status: str = Field("pending", description="Status: pending, running, completed, error")
+    error: Optional[str] = Field(None, description="Error message if failed")
+
+
 class ChatResponse(BaseModel):
     """Response from the chatbot."""
 
@@ -124,6 +150,7 @@ class StreamEventType(str, Enum):
     TOOL_USE_END = "tool_use_end"
     MESSAGE_COMPLETE = "message_complete"
     ERROR = "error"
+    CONTEXT_UPDATE = "context_update"
 
 
 class StreamEvent(BaseModel):
@@ -136,6 +163,16 @@ class StreamEvent(BaseModel):
     tools_used: list[str] = Field(default_factory=list, description="Tools used (for complete event)")
     error: Optional[str] = Field(None, description="Error message for error events")
     token_usage: Optional[TokenUsage] = Field(None, description="Token usage (for complete event)")
+
+    # Developer tools fields
+    tool_call_id: Optional[str] = Field(None, description="Tool call ID for tool events")
+    tool_input: Optional[dict] = Field(None, description="Tool input parameters (for tool_use_start)")
+    tool_input_preview: Optional[str] = Field(None, description="Truncated tool input for display")
+    tool_output: Optional[str] = Field(None, description="Tool output (for tool_use_end)")
+    tool_output_preview: Optional[str] = Field(None, description="Truncated tool output for display")
+    tool_duration_ms: Optional[int] = Field(None, description="Tool execution time in ms")
+    context_info: Optional[ContextInfo] = Field(None, description="Context window info (for context_update/message_complete)")
+    model_id: Optional[str] = Field(None, description="Model identifier used")
 
 
 class SuggestedQuestion(BaseModel):

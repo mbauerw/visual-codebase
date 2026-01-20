@@ -12,6 +12,13 @@ import type {
   SuggestedQuestion,
   TokenUsage,
 } from '../types/chat';
+import type {
+  ToolCallLog,
+  ContextInfo,
+  ModelInfo,
+  DevToolsState,
+} from '../types/devtools';
+import { DEV_TOOLS_STORAGE_KEY, DEFAULT_DEV_TOOLS_STATE } from '../types/devtools';
 
 interface UseChatOptions {
   analysisId: string | null;
@@ -31,6 +38,12 @@ interface UseChatReturn extends ChatState {
   retryLastMessage: () => Promise<void>;
   canRetry: boolean;
   tokenUsage: TokenUsage;
+  // Dev tools
+  devToolsExpanded: boolean;
+  toggleDevTools: () => void;
+  toolCallLogs: ToolCallLog[];
+  contextInfo: ContextInfo | null;
+  modelInfo: ModelInfo;
 }
 
 export function useChat({
@@ -51,6 +64,18 @@ export function useChat({
     total_tokens: 0,
   });
 
+  // Dev tools state
+  const [devToolsExpanded, setDevToolsExpanded] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem(DEV_TOOLS_STORAGE_KEY) === 'true';
+    } catch {
+      return false;
+    }
+  });
+  const [toolCallLogs, setToolCallLogs] = useState<ToolCallLog[]>([]);
+  const [contextInfo, setContextInfo] = useState<ContextInfo | null>(null);
+  const [modelInfo, setModelInfo] = useState<ModelInfo>(DEFAULT_DEV_TOOLS_STATE.modelInfo);
+
   const abortControllerRef = useRef<AbortController | null>(null);
   const streamingMessageRef = useRef<string>('');
 
@@ -59,6 +84,19 @@ export function useChat({
     return () => {
       abortControllerRef.current?.abort();
     };
+  }, []);
+
+  // Toggle dev tools and persist to localStorage
+  const toggleDevTools = useCallback(() => {
+    setDevToolsExpanded(prev => {
+      const newValue = !prev;
+      try {
+        localStorage.setItem(DEV_TOOLS_STORAGE_KEY, String(newValue));
+      } catch {
+        // Ignore localStorage errors
+      }
+      return newValue;
+    });
   }, []);
 
   const loadSuggestedQuestions = useCallback(async () => {
@@ -92,6 +130,8 @@ export function useChat({
     setIsLoading(true);
     setError(null);
     streamingMessageRef.current = '';
+    // Reset tool call logs for new message
+    setToolCallLogs([]);
 
     // Add user message immediately
     const userMessage: ChatMessage = {
@@ -139,15 +179,51 @@ export function useChat({
               }
               break;
 
+            case 'context_update':
+              if (event.context_info) {
+                setContextInfo(event.context_info);
+              }
+              if (event.model_id) {
+                setModelInfo(prev => ({ ...prev, modelId: event.model_id! }));
+              }
+              break;
+
             case 'tool_use_start':
               setCurrentToolName(event.tool_name || null);
               if (event.tool_name) {
                 toolsUsed.push(event.tool_name);
               }
+              // Add tool call to logs
+              if (event.tool_call_id && event.tool_name) {
+                const newToolCall: ToolCallLog = {
+                  id: event.tool_call_id,
+                  name: event.tool_name,
+                  input: event.tool_input,
+                  inputPreview: event.tool_input_preview,
+                  status: 'running',
+                  startTime: Date.now(),
+                };
+                setToolCallLogs(prev => [...prev, newToolCall]);
+              }
               break;
 
             case 'tool_use_end':
               setCurrentToolName(null);
+              // Update tool call in logs with result
+              if (event.tool_call_id) {
+                setToolCallLogs(prev => prev.map(log =>
+                  log.id === event.tool_call_id
+                    ? {
+                        ...log,
+                        status: 'completed' as const,
+                        endTime: Date.now(),
+                        durationMs: event.tool_duration_ms,
+                        output: event.tool_output,
+                        outputPreview: event.tool_output_preview,
+                      }
+                    : log
+                ));
+              }
               break;
 
             case 'message_complete':
@@ -164,6 +240,13 @@ export function useChat({
                   output_tokens: prev.output_tokens + event.token_usage!.output_tokens,
                   total_tokens: prev.total_tokens + event.token_usage!.total_tokens,
                 }));
+              }
+              // Update context info with final values
+              if (event.context_info) {
+                setContextInfo(event.context_info);
+              }
+              if (event.model_id) {
+                setModelInfo(prev => ({ ...prev, modelId: event.model_id! }));
               }
               // Update final message with tools used
               setMessages(prev => {
@@ -302,6 +385,9 @@ export function useChat({
     setHighlightedText(null);
     setCurrentToolName(null);
     setTokenUsage({ input_tokens: 0, output_tokens: 0, total_tokens: 0 });
+    // Reset dev tools state
+    setToolCallLogs([]);
+    setContextInfo(null);
     streamingMessageRef.current = '';
   }, [analysisId, conversationId]);
 
@@ -327,5 +413,11 @@ export function useChat({
     retryLastMessage,
     canRetry: !!lastFailedMessage,
     tokenUsage,
+    // Dev tools
+    devToolsExpanded,
+    toggleDevTools,
+    toolCallLogs,
+    contextInfo,
+    modelInfo,
   };
 }

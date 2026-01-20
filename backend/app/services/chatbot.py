@@ -1,6 +1,7 @@
 """Core chatbot service with tool execution loop."""
 import json
 import logging
+import time
 import uuid
 from datetime import datetime
 from typing import Optional, AsyncGenerator
@@ -17,9 +18,16 @@ from ..models.chat_schemas import (
     StreamEventType,
     SuggestedQuestion,
     TokenUsage,
+    ContextInfo,
 )
 from .chat_tools import CHAT_TOOLS, ChatToolExecutor
 from .chat_context import build_base_context, format_user_message
+from .token_counter import (
+    count_message_tokens,
+    count_system_prompt_tokens,
+    count_tools_tokens,
+    CLAUDE_SONNET_CONTEXT_WINDOW,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -169,6 +177,52 @@ class ChatbotService:
         executor = ChatToolExecutor(graph, tier_list)
         self._tool_executors[analysis_id] = executor
         return executor
+
+    def _compute_context_info(
+        self,
+        system_context: str,
+        messages: list[dict],
+        actual_input_tokens: int = 0
+    ) -> ContextInfo:
+        """Compute context window information for debugging.
+
+        Args:
+            system_context: The system prompt
+            messages: Conversation messages
+            actual_input_tokens: Actual input tokens from API response (if available)
+
+        Returns:
+            ContextInfo with token counts and utilization
+        """
+        system_tokens = count_system_prompt_tokens(system_context)
+        conversation_tokens = count_message_tokens(messages)
+        tools_tokens = count_tools_tokens(CHAT_TOOLS)
+
+        # Pre-request estimate
+        pre_request_tokens = system_tokens + conversation_tokens + tools_tokens
+
+        # Use actual tokens if available, otherwise use estimate
+        post_request_tokens = actual_input_tokens if actual_input_tokens > 0 else pre_request_tokens
+
+        # Calculate utilization
+        utilization = (post_request_tokens / CLAUDE_SONNET_CONTEXT_WINDOW) * 100
+
+        return ContextInfo(
+            pre_request_tokens=pre_request_tokens,
+            post_request_tokens=post_request_tokens,
+            system_prompt_tokens=system_tokens,
+            conversation_tokens=conversation_tokens,
+            tools_tokens=tools_tokens,
+            context_window_limit=CLAUDE_SONNET_CONTEXT_WINDOW,
+            utilization_percent=round(utilization, 2)
+        )
+
+    @staticmethod
+    def _truncate_string(s: str, max_length: int) -> str:
+        """Truncate a string to max_length, adding ellipsis if truncated."""
+        if len(s) <= max_length:
+            return s
+        return s[:max_length - 3] + "..."
 
     async def chat(
         self,
@@ -366,6 +420,17 @@ class ChatbotService:
         total_input_tokens = 0
         total_output_tokens = 0
 
+        # Send initial context info before first request
+        initial_context_info = self._compute_context_info(
+            system_context, conversation.messages
+        )
+        yield StreamEvent(
+            type=StreamEventType.CONTEXT_UPDATE,
+            conversation_id=conversation.conversation_id,
+            context_info=initial_context_info,
+            model_id=self.settings.llm_model
+        )
+
         for iteration in range(max_iterations):
             try:
                 # First, do non-streaming call to handle tools
@@ -397,18 +462,29 @@ class ChatbotService:
                         elif block.type == "tool_use":
                             tools_used.append(block.name)
 
-                            # Notify about tool use
+                            # Prepare tool input preview
+                            input_str = json.dumps(block.input, default=str)
+                            input_preview = self._truncate_string(input_str, 200)
+
+                            # Notify about tool use with input details
                             yield StreamEvent(
                                 type=StreamEventType.TOOL_USE_START,
                                 tool_name=block.name,
+                                tool_call_id=block.id,
+                                tool_input=block.input,
+                                tool_input_preview=input_preview,
                                 conversation_id=conversation.conversation_id
                             )
 
                             logger.info(f"Executing tool: {block.name} with input: {block.input}")
 
-                            # Execute the tool
+                            # Execute the tool with timing
+                            start_time = time.time()
                             result = tool_executor.execute_tool(block.name, block.input)
+                            duration_ms = int((time.time() - start_time) * 1000)
+
                             result_str = json.dumps(result, default=str)
+                            output_preview = self._truncate_string(result_str, 500)
 
                             assistant_content.append({
                                 "type": "tool_use",
@@ -426,6 +502,10 @@ class ChatbotService:
                             yield StreamEvent(
                                 type=StreamEventType.TOOL_USE_END,
                                 tool_name=block.name,
+                                tool_call_id=block.id,
+                                tool_output=result_str,
+                                tool_output_preview=output_preview,
+                                tool_duration_ms=duration_ms,
                                 conversation_id=conversation.conversation_id
                             )
 
@@ -463,6 +543,13 @@ class ChatbotService:
 
                 conversation.add_assistant_message(final_text)
 
+                # Compute final context info with actual token counts
+                final_context_info = self._compute_context_info(
+                    system_context,
+                    conversation.messages,
+                    actual_input_tokens=total_input_tokens
+                )
+
                 yield StreamEvent(
                     type=StreamEventType.MESSAGE_COMPLETE,
                     conversation_id=conversation.conversation_id,
@@ -471,7 +558,9 @@ class ChatbotService:
                         input_tokens=total_input_tokens,
                         output_tokens=total_output_tokens,
                         total_tokens=total_input_tokens + total_output_tokens
-                    )
+                    ),
+                    context_info=final_context_info,
+                    model_id=self.settings.llm_model
                 )
                 return
 
