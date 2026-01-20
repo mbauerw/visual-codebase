@@ -12,6 +12,11 @@ import type {
   FunctionStats,
   TierListQueryParams,
 } from '../types/tierList';
+import type {
+  ChatRequest,
+  ChatResponse,
+  ChatHistoryResponse,
+} from '../types/chat';
 
 const API_BASE_URL = '/api';
 
@@ -336,6 +341,39 @@ export async function getDataExportStatus(
 ): Promise<DataExportStatus> {
   const response = await client.get<DataExportStatus>(
     `/user/data/export/${exportId}`
+  );
+  return response.data;
+}
+
+// ==================== Chat API ====================
+
+export async function sendChatMessage(
+  analysisId: string,
+  request: ChatRequest
+): Promise<ChatResponse> {
+  const response = await client.post<ChatResponse>(
+    `/chat/${analysisId}`,
+    request
+  );
+  return response.data;
+}
+
+export async function getChatHistory(
+  analysisId: string,
+  conversationId: string
+): Promise<ChatHistoryResponse> {
+  const response = await client.get<ChatHistoryResponse>(
+    `/chat/${analysisId}/history/${conversationId}`
+  );
+  return response.data;
+}
+
+export async function deleteChatHistory(
+  analysisId: string,
+  conversationId: string
+): Promise<{ message: string }> {
+  const response = await client.delete<{ message: string }>(
+    `/chat/${analysisId}/history/${conversationId}`
   );
   return response.data;
 }

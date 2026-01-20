@@ -61,6 +61,7 @@ import { useSourceCode } from '../hooks/useSourceCode';
 import { ProfessionalDesign } from '../components/TierList/designs/ProfessionalDesign';
 import { ElegantDesign } from '../components/TierList/designs/ElegantDesign';
 import { FreeFormDesign } from '../components/TierList/designs/FreeFormDesign';
+import { ChatWidget } from '../components/chat';
 
 // Define node types with proper typing for React Flow v12
 const nodeTypes: NodeTypes = {
@@ -1852,6 +1853,9 @@ function VisualizationPageInner() {
         onClose={closeEdgePopover}
         nodes={graphData?.nodes || []}
       />
+
+      {/* AI Chat Widget */}
+      <ChatWidget analysisId={analysisId} />
     </div>
   );
 }
