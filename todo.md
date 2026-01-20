@@ -4,6 +4,9 @@
 - ~~Change summary for project overview~~
 - ~~Change visualize page header to include nav bar info~~
 - ~~add title change for stored analysis~~
+- Add actual file display so users can search through their code and sync it up with the visualization
+- Add AI chatbot with analysis context
+- ~~Change edges so they display the actual import name, not the file source~~
 - custom layouts
 - adjust file layout
 - ~~ add function relations (Function tier list)~~

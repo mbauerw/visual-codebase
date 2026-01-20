@@ -52,8 +52,8 @@ export function useTextSelection({
         if (tagName === 'input' || tagName === 'textarea') {
           return;
         }
-        // Also check if inside the chat widget itself (don't capture chat messages)
-        if (parentElement.closest('[data-chat-widget]')) {
+        // Also check if inside the chat widget or panel (don't capture chat messages)
+        if (parentElement.closest('[data-chat-widget]') || parentElement.closest('[data-chat-panel]')) {
           return;
         }
       }

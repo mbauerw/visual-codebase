@@ -14,6 +14,7 @@ import {
   Terminal,
 } from 'lucide-react';
 import { useChat } from '../../hooks/useChat';
+import { useTextSelection } from '../../hooks/useTextSelection';
 import { ChatMessage } from './ChatMessage';
 import { DevToolsPanel } from './devtools';
 
@@ -33,6 +34,7 @@ export function ChatPanel({ analysisId, expanded }: ChatPanelProps) {
     error,
     highlightedText,
     sendMessage,
+    setHighlightedText,
     clearHighlightedText,
     clearConversation,
     clearError,
@@ -50,6 +52,16 @@ export function ChatPanel({ analysisId, expanded }: ChatPanelProps) {
     contextInfo,
     modelInfo,
   } = useChat({ analysisId, enableStreaming: true });
+
+  // Text selection hook - captures highlighted text from visualization
+  const { clearSelection } = useTextSelection({
+    enabled: expanded ?? false,
+    minLength: 2,
+    maxLength: 500,
+    onSelect: (text) => {
+      setHighlightedText(text);
+    },
+  });
 
   // Load suggested questions on mount
   useEffect(() => {
@@ -92,7 +104,8 @@ export function ChatPanel({ analysisId, expanded }: ChatPanelProps) {
     const message = inputValue;
     setInputValue('');
     await sendMessage(message);
-  }, [inputValue, isLoading, sendMessage]);
+    clearSelection();
+  }, [inputValue, isLoading, sendMessage, clearSelection]);
 
   const handleSuggestedQuestion = useCallback(async (question: string) => {
     if (isLoading) return;
@@ -127,7 +140,7 @@ export function ChatPanel({ analysisId, expanded }: ChatPanelProps) {
   }
 
   return (
-    <div className="h-full w-full flex flex-col relative bg-slate-900">
+    <div data-chat-panel className="h-full w-full flex flex-col relative bg-slate-900">
       {/* Header */}
       <div className="relative">
         <div className="p-4 border-b border-slate-800 bg-slate-800/30">
