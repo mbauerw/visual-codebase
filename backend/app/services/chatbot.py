@@ -310,6 +310,9 @@ class ChatbotService:
     ) -> AsyncGenerator[StreamEvent, None]:
         """Process a chat message and stream the response.
 
+        Uses a hybrid approach: non-streaming for tool execution iterations,
+        streaming for the final text response.
+
         Args:
             analysis_id: ID of the analysis being discussed
             message: The user's message
@@ -334,136 +337,108 @@ class ChatbotService:
         formatted_message = format_user_message(message, highlighted_text)
         conversation.add_user_message(formatted_message)
 
-        # Execute tool loop with streaming
+        # Execute tool loop (non-streaming for tool iterations)
         tools_used = []
         max_iterations = 10
-        accumulated_text = ""
 
-        for _ in range(max_iterations):
+        for iteration in range(max_iterations):
             try:
-                # Use streaming API
-                async with self.client.messages.stream(
+                # First, do non-streaming call to handle tools
+                response = await self.client.messages.create(
                     model=self.settings.llm_model,
                     max_tokens=2048,
                     system=system_context,
                     tools=CHAT_TOOLS,
                     messages=conversation.messages
-                ) as stream:
-                    current_tool_use = None
-                    tool_input_json = ""
+                )
 
-                    async for event in stream:
-                        if event.type == "content_block_start":
-                            if hasattr(event.content_block, 'type'):
-                                if event.content_block.type == "tool_use":
-                                    current_tool_use = {
-                                        "id": event.content_block.id,
-                                        "name": event.content_block.name,
-                                    }
-                                    tool_input_json = ""
-                                    yield StreamEvent(
-                                        type=StreamEventType.TOOL_USE_START,
-                                        tool_name=event.content_block.name,
-                                        conversation_id=conversation.conversation_id
-                                    )
+                # Check if we need to execute tools
+                if response.stop_reason == "tool_use":
+                    # Process all tool uses in this response
+                    assistant_content = []
+                    tool_results = []
 
-                        elif event.type == "content_block_delta":
-                            if hasattr(event.delta, 'type'):
-                                if event.delta.type == "text_delta":
-                                    text = event.delta.text
-                                    accumulated_text += text
-                                    yield StreamEvent(
-                                        type=StreamEventType.TEXT_DELTA,
-                                        content=text,
-                                        conversation_id=conversation.conversation_id
-                                    )
-                                elif event.delta.type == "input_json_delta":
-                                    tool_input_json += event.delta.partial_json
+                    for block in response.content:
+                        if block.type == "text":
+                            assistant_content.append({
+                                "type": "text",
+                                "text": block.text
+                            })
+                        elif block.type == "tool_use":
+                            tools_used.append(block.name)
 
-                        elif event.type == "content_block_stop":
-                            if current_tool_use:
-                                # Parse and execute the tool
-                                try:
-                                    tool_input = json.loads(tool_input_json) if tool_input_json else {}
-                                except json.JSONDecodeError:
-                                    tool_input = {}
+                            # Notify about tool use
+                            yield StreamEvent(
+                                type=StreamEventType.TOOL_USE_START,
+                                tool_name=block.name,
+                                conversation_id=conversation.conversation_id
+                            )
 
-                                current_tool_use["input"] = tool_input
-                                tools_used.append(current_tool_use["name"])
+                            logger.info(f"Executing tool: {block.name} with input: {block.input}")
 
-                                logger.info(f"Executing tool: {current_tool_use['name']} with input: {tool_input}")
+                            # Execute the tool
+                            result = tool_executor.execute_tool(block.name, block.input)
+                            result_str = json.dumps(result, default=str)
 
-                                # Execute the tool
-                                result = tool_executor.execute_tool(
-                                    current_tool_use["name"],
-                                    tool_input
-                                )
+                            assistant_content.append({
+                                "type": "tool_use",
+                                "id": block.id,
+                                "name": block.name,
+                                "input": block.input
+                            })
 
-                                yield StreamEvent(
-                                    type=StreamEventType.TOOL_USE_END,
-                                    tool_name=current_tool_use["name"],
-                                    conversation_id=conversation.conversation_id
-                                )
+                            tool_results.append({
+                                "type": "tool_result",
+                                "tool_use_id": block.id,
+                                "content": result_str
+                            })
 
-                                current_tool_use = None
-                                tool_input_json = ""
+                            yield StreamEvent(
+                                type=StreamEventType.TOOL_USE_END,
+                                tool_name=block.name,
+                                conversation_id=conversation.conversation_id
+                            )
 
-                    # Get the final message to check if we need to continue
-                    final_message = await stream.get_final_message()
+                    # Add assistant message with tool uses
+                    conversation.messages.append({
+                        "role": "assistant",
+                        "content": assistant_content
+                    })
 
-                    if final_message.stop_reason == "tool_use":
-                        # Process tool uses and continue
-                        assistant_content = []
-                        tool_results = []
+                    # Add tool results
+                    conversation.messages.append({
+                        "role": "user",
+                        "content": tool_results
+                    })
 
-                        for block in final_message.content:
-                            if block.type == "text":
-                                assistant_content.append({
-                                    "type": "text",
-                                    "text": block.text
-                                })
-                            elif block.type == "tool_use":
-                                result = tool_executor.execute_tool(block.name, block.input)
-                                result_str = json.dumps(result, default=str)
+                    # Continue loop to get response after tools
+                    continue
 
-                                assistant_content.append({
-                                    "type": "tool_use",
-                                    "id": block.id,
-                                    "name": block.name,
-                                    "input": block.input
-                                })
+                # No tool use - stream the final text response
+                # Extract text from the non-streaming response and stream it
+                final_text = ""
+                for block in response.content:
+                    if block.type == "text":
+                        final_text += block.text
 
-                                tool_results.append({
-                                    "type": "tool_result",
-                                    "tool_use_id": block.id,
-                                    "content": result_str
-                                })
-
-                        # Add assistant message with tool uses
-                        conversation.messages.append({
-                            "role": "assistant",
-                            "content": assistant_content
-                        })
-
-                        # Add tool results
-                        conversation.messages.append({
-                            "role": "user",
-                            "content": tool_results
-                        })
-
-                        # Reset accumulated text for next iteration
-                        accumulated_text = ""
-                        continue
-
-                    # No more tool use - we're done
-                    conversation.add_assistant_message(accumulated_text)
-
+                # Stream the text in chunks for a better UX
+                chunk_size = 20  # Characters per chunk
+                for i in range(0, len(final_text), chunk_size):
+                    chunk = final_text[i:i + chunk_size]
                     yield StreamEvent(
-                        type=StreamEventType.MESSAGE_COMPLETE,
-                        conversation_id=conversation.conversation_id,
-                        tools_used=list(set(tools_used))
+                        type=StreamEventType.TEXT_DELTA,
+                        content=chunk,
+                        conversation_id=conversation.conversation_id
                     )
-                    return
+
+                conversation.add_assistant_message(final_text)
+
+                yield StreamEvent(
+                    type=StreamEventType.MESSAGE_COMPLETE,
+                    conversation_id=conversation.conversation_id,
+                    tools_used=list(set(tools_used))
+                )
+                return
 
             except Exception as e:
                 logger.error(f"Streaming chat error: {e}")
@@ -475,6 +450,14 @@ class ChatbotService:
                 return
 
         # Max iterations reached
+        fallback_msg = "I've gathered information but reached my processing limit. Please try a more specific question."
+        conversation.add_assistant_message(fallback_msg)
+
+        yield StreamEvent(
+            type=StreamEventType.TEXT_DELTA,
+            content=fallback_msg,
+            conversation_id=conversation.conversation_id
+        )
         yield StreamEvent(
             type=StreamEventType.MESSAGE_COMPLETE,
             conversation_id=conversation.conversation_id,
