@@ -17,10 +17,17 @@ export interface ChatRequest {
   conversation_id?: string;
 }
 
+export interface TokenUsage {
+  input_tokens: number;
+  output_tokens: number;
+  total_tokens: number;
+}
+
 export interface ChatResponse {
   response: string;
   conversation_id: string;
   tools_used: string[];
+  token_usage?: TokenUsage;
 }
 
 export interface ChatHistoryResponse {
@@ -51,6 +58,7 @@ export interface StreamEvent {
   conversation_id?: string;
   tools_used?: string[];
   error?: string;
+  token_usage?: TokenUsage;
 }
 
 export interface SuggestedQuestion {

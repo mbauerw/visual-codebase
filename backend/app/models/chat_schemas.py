@@ -33,12 +33,21 @@ class ChatRequest(BaseModel):
     )
 
 
+class TokenUsage(BaseModel):
+    """Token usage statistics for a chat response."""
+
+    input_tokens: int = Field(0, description="Number of input tokens used")
+    output_tokens: int = Field(0, description="Number of output tokens generated")
+    total_tokens: int = Field(0, description="Total tokens (input + output)")
+
+
 class ChatResponse(BaseModel):
     """Response from the chatbot."""
 
     response: str = Field(..., description="The assistant's response")
     conversation_id: str = Field(..., description="Conversation ID for continuation")
     tools_used: list[str] = Field(default_factory=list, description="Tools used to generate the response")
+    token_usage: Optional[TokenUsage] = Field(None, description="Token usage statistics")
 
 
 class ChatHistoryResponse(BaseModel):
@@ -126,6 +135,7 @@ class StreamEvent(BaseModel):
     conversation_id: Optional[str] = Field(None, description="Conversation ID")
     tools_used: list[str] = Field(default_factory=list, description="Tools used (for complete event)")
     error: Optional[str] = Field(None, description="Error message for error events")
+    token_usage: Optional[TokenUsage] = Field(None, description="Token usage (for complete event)")
 
 
 class SuggestedQuestion(BaseModel):

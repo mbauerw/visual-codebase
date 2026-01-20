@@ -1,7 +1,9 @@
 """Chat API endpoints for the chatbot feature."""
 import json
 import logging
-from fastapi import APIRouter, HTTPException, Depends
+import time
+from collections import defaultdict
+from fastapi import APIRouter, HTTPException, Depends, Request
 from fastapi.responses import StreamingResponse
 
 from ..models.chat_schemas import (
@@ -20,11 +22,79 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/chat", tags=["chat"])
 
 
+# Rate limiter configuration
+RATE_LIMIT_REQUESTS = 20  # Max requests per window
+RATE_LIMIT_WINDOW = 60  # Window in seconds (1 minute)
+
+
+class RateLimiter:
+    """Simple in-memory rate limiter per user."""
+
+    def __init__(self, max_requests: int = RATE_LIMIT_REQUESTS, window_seconds: int = RATE_LIMIT_WINDOW):
+        self.max_requests = max_requests
+        self.window_seconds = window_seconds
+        self.requests: dict[str, list[float]] = defaultdict(list)
+
+    def is_allowed(self, user_id: str) -> tuple[bool, int]:
+        """
+        Check if a request is allowed for the given user.
+
+        Returns:
+            Tuple of (is_allowed, remaining_requests)
+        """
+        now = time.time()
+        window_start = now - self.window_seconds
+
+        # Clean up old requests outside the window
+        self.requests[user_id] = [
+            req_time for req_time in self.requests[user_id]
+            if req_time > window_start
+        ]
+
+        # Check if under limit
+        current_count = len(self.requests[user_id])
+        if current_count >= self.max_requests:
+            return False, 0
+
+        # Record this request
+        self.requests[user_id].append(now)
+        remaining = self.max_requests - current_count - 1
+        return True, remaining
+
+    def get_retry_after(self, user_id: str) -> int:
+        """Get seconds until the oldest request expires from the window."""
+        if not self.requests[user_id]:
+            return 0
+        oldest_request = min(self.requests[user_id])
+        retry_after = int(oldest_request + self.window_seconds - time.time())
+        return max(0, retry_after)
+
+
+# Global rate limiter instance
+rate_limiter = RateLimiter()
+
+
+async def check_rate_limit(current_user=Depends(get_current_user)):
+    """Dependency to check rate limit for chat endpoints."""
+    user_id = current_user.id
+    is_allowed, remaining = rate_limiter.is_allowed(user_id)
+
+    if not is_allowed:
+        retry_after = rate_limiter.get_retry_after(user_id)
+        raise HTTPException(
+            status_code=429,
+            detail=f"Rate limit exceeded. Try again in {retry_after} seconds.",
+            headers={"Retry-After": str(retry_after)}
+        )
+
+    return current_user
+
+
 @router.post("/{analysis_id}", response_model=ChatResponse)
 async def send_chat_message(
     analysis_id: str,
     request: ChatRequest,
-    current_user=Depends(get_current_user),
+    current_user=Depends(check_rate_limit),
 ) -> ChatResponse:
     """
     Send a message to the chatbot about an analysis.
@@ -177,7 +247,7 @@ async def delete_chat_history(
 async def stream_chat_message(
     analysis_id: str,
     request: ChatRequest,
-    current_user=Depends(get_current_user),
+    current_user=Depends(check_rate_limit),
 ):
     """
     Send a message to the chatbot and receive a streaming response.

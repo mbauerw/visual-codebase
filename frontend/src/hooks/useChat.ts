@@ -10,6 +10,7 @@ import type {
   ChatState,
   StreamEvent,
   SuggestedQuestion,
+  TokenUsage,
 } from '../types/chat';
 
 interface UseChatOptions {
@@ -27,6 +28,9 @@ interface UseChatReturn extends ChatState {
   loadSuggestedQuestions: () => Promise<void>;
   currentToolName: string | null;
   cancelStream: () => void;
+  retryLastMessage: () => Promise<void>;
+  canRetry: boolean;
+  tokenUsage: TokenUsage;
 }
 
 export function useChat({
@@ -40,6 +44,12 @@ export function useChat({
   const [highlightedText, setHighlightedText] = useState<string | null>(null);
   const [suggestedQuestions, setSuggestedQuestions] = useState<SuggestedQuestion[]>([]);
   const [currentToolName, setCurrentToolName] = useState<string | null>(null);
+  const [lastFailedMessage, setLastFailedMessage] = useState<string | null>(null);
+  const [tokenUsage, setTokenUsage] = useState<TokenUsage>({
+    input_tokens: 0,
+    output_tokens: 0,
+    total_tokens: 0,
+  });
 
   const abortControllerRef = useRef<AbortController | null>(null);
   const streamingMessageRef = useRef<string>('');
@@ -147,6 +157,14 @@ export function useChat({
               if (event.tools_used) {
                 toolsUsed = event.tools_used;
               }
+              // Track token usage (cumulative)
+              if (event.token_usage) {
+                setTokenUsage(prev => ({
+                  input_tokens: prev.input_tokens + event.token_usage!.input_tokens,
+                  output_tokens: prev.output_tokens + event.token_usage!.output_tokens,
+                  total_tokens: prev.total_tokens + event.token_usage!.total_tokens,
+                }));
+              }
               // Update final message with tools used
               setMessages(prev => {
                 const newMessages = [...prev];
@@ -178,6 +196,7 @@ export function useChat({
       }
       const errorMessage = err?.message || 'Failed to send message';
       setError(errorMessage);
+      setLastFailedMessage(message);
       // Remove the assistant placeholder on error
       setMessages(prev => prev.slice(0, -1));
     } finally {
@@ -233,6 +252,7 @@ export function useChat({
     } catch (err: any) {
       const errorMessage = err?.response?.data?.detail || err?.message || 'Failed to send message';
       setError(errorMessage);
+      setLastFailedMessage(message);
       // Remove the user message on error
       setMessages(prev => prev.slice(0, -1));
     } finally {
@@ -243,12 +263,23 @@ export function useChat({
   const sendMessage = useCallback(async (message: string) => {
     if (!message.trim()) return;
 
+    // Clear last failed message before attempting to send
+    setLastFailedMessage(null);
+
     if (enableStreaming) {
       await sendMessageStreaming(message);
     } else {
       await sendMessageNonStreaming(message);
     }
   }, [enableStreaming, sendMessageStreaming, sendMessageNonStreaming]);
+
+  const retryLastMessage = useCallback(async () => {
+    if (!lastFailedMessage) return;
+    const messageToRetry = lastFailedMessage;
+    setLastFailedMessage(null);
+    setError(null);
+    await sendMessage(messageToRetry);
+  }, [lastFailedMessage, sendMessage]);
 
   const clearHighlightedText = useCallback(() => {
     setHighlightedText(null);
@@ -270,6 +301,7 @@ export function useChat({
     setError(null);
     setHighlightedText(null);
     setCurrentToolName(null);
+    setTokenUsage({ input_tokens: 0, output_tokens: 0, total_tokens: 0 });
     streamingMessageRef.current = '';
   }, [analysisId, conversationId]);
 
@@ -292,5 +324,8 @@ export function useChat({
     loadSuggestedQuestions,
     currentToolName,
     cancelStream,
+    retryLastMessage,
+    canRetry: !!lastFailedMessage,
+    tokenUsage,
   };
 }

@@ -16,6 +16,7 @@ from ..models.chat_schemas import (
     StreamEvent,
     StreamEventType,
     SuggestedQuestion,
+    TokenUsage,
 )
 from .chat_tools import CHAT_TOOLS, ChatToolExecutor
 from .chat_context import build_base_context, format_user_message
@@ -207,6 +208,8 @@ class ChatbotService:
         # Execute tool loop
         tools_used = []
         max_iterations = 10  # Prevent infinite loops
+        total_input_tokens = 0
+        total_output_tokens = 0
 
         for _ in range(max_iterations):
             try:
@@ -217,6 +220,11 @@ class ChatbotService:
                     tools=CHAT_TOOLS,
                     messages=conversation.messages
                 )
+
+                # Track token usage
+                if hasattr(response, 'usage'):
+                    total_input_tokens += response.usage.input_tokens
+                    total_output_tokens += response.usage.output_tokens
 
                 # Check if we need to execute tools
                 if response.stop_reason == "tool_use":
@@ -277,7 +285,12 @@ class ChatbotService:
                 return ChatResponse(
                     response=final_text,
                     conversation_id=conversation.conversation_id,
-                    tools_used=list(set(tools_used))  # Deduplicate
+                    tools_used=list(set(tools_used)),  # Deduplicate
+                    token_usage=TokenUsage(
+                        input_tokens=total_input_tokens,
+                        output_tokens=total_output_tokens,
+                        total_tokens=total_input_tokens + total_output_tokens
+                    )
                 )
 
             except Exception as e:
@@ -287,7 +300,12 @@ class ChatbotService:
                 return ChatResponse(
                     response=error_msg,
                     conversation_id=conversation.conversation_id,
-                    tools_used=tools_used
+                    tools_used=tools_used,
+                    token_usage=TokenUsage(
+                        input_tokens=total_input_tokens,
+                        output_tokens=total_output_tokens,
+                        total_tokens=total_input_tokens + total_output_tokens
+                    ) if total_input_tokens > 0 or total_output_tokens > 0 else None
                 )
 
         # Max iterations reached
@@ -296,7 +314,12 @@ class ChatbotService:
         return ChatResponse(
             response=fallback_msg,
             conversation_id=conversation.conversation_id,
-            tools_used=tools_used
+            tools_used=tools_used,
+            token_usage=TokenUsage(
+                input_tokens=total_input_tokens,
+                output_tokens=total_output_tokens,
+                total_tokens=total_input_tokens + total_output_tokens
+            )
         )
 
     async def chat_stream(
@@ -340,6 +363,8 @@ class ChatbotService:
         # Execute tool loop (non-streaming for tool iterations)
         tools_used = []
         max_iterations = 10
+        total_input_tokens = 0
+        total_output_tokens = 0
 
         for iteration in range(max_iterations):
             try:
@@ -351,6 +376,11 @@ class ChatbotService:
                     tools=CHAT_TOOLS,
                     messages=conversation.messages
                 )
+
+                # Track token usage
+                if hasattr(response, 'usage'):
+                    total_input_tokens += response.usage.input_tokens
+                    total_output_tokens += response.usage.output_tokens
 
                 # Check if we need to execute tools
                 if response.stop_reason == "tool_use":
@@ -436,7 +466,12 @@ class ChatbotService:
                 yield StreamEvent(
                     type=StreamEventType.MESSAGE_COMPLETE,
                     conversation_id=conversation.conversation_id,
-                    tools_used=list(set(tools_used))
+                    tools_used=list(set(tools_used)),
+                    token_usage=TokenUsage(
+                        input_tokens=total_input_tokens,
+                        output_tokens=total_output_tokens,
+                        total_tokens=total_input_tokens + total_output_tokens
+                    )
                 )
                 return
 
@@ -461,7 +496,12 @@ class ChatbotService:
         yield StreamEvent(
             type=StreamEventType.MESSAGE_COMPLETE,
             conversation_id=conversation.conversation_id,
-            tools_used=tools_used
+            tools_used=tools_used,
+            token_usage=TokenUsage(
+                input_tokens=total_input_tokens,
+                output_tokens=total_output_tokens,
+                total_tokens=total_input_tokens + total_output_tokens
+            )
         )
 
     def get_suggested_questions(self, graph: ReactFlowGraph) -> list[SuggestedQuestion]:

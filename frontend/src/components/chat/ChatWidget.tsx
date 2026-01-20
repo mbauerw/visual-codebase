@@ -9,6 +9,7 @@ import {
   Sparkles,
   StopCircle,
   Wrench,
+  RefreshCw,
 } from 'lucide-react';
 import { useChat } from '../../hooks/useChat';
 import { useTextSelection } from '../../hooks/useTextSelection';
@@ -38,6 +39,9 @@ export function ChatWidget({ analysisId }: ChatWidgetProps) {
     loadSuggestedQuestions,
     currentToolName,
     cancelStream,
+    retryLastMessage,
+    canRetry,
+    tokenUsage,
   } = useChat({ analysisId, enableStreaming: true });
 
   // Text selection hook
@@ -71,6 +75,23 @@ export function ChatWidget({ analysisId }: ChatWidgetProps) {
     }
   }, [isOpen]);
 
+  // Keyboard shortcut (Cmd+K / Ctrl+K) to toggle chat
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        setIsOpen(prev => !prev);
+      }
+      // Escape to close
+      if (e.key === 'Escape' && isOpen) {
+        setIsOpen(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen]);
+
   const handleSubmit = useCallback(async (e?: React.FormEvent) => {
     e?.preventDefault();
     if (!inputValue.trim() || isLoading) return;
@@ -102,18 +123,10 @@ export function ChatWidget({ analysisId }: ChatWidgetProps) {
     return (
       <button
         onClick={toggleOpen}
-        className="fixed bottom-6 right-6 w-12 h-12 bg-white hover:bg-[#fafaf9] border border-[#e8e6e3] hover:border-[#d4d0cb] shadow-lg flex items-center justify-center transition-all duration-200 z-50"
-        title="Open AI Assistant"
+        className="fixed bottom-4 left-4 sm:bottom-6 sm:left-6 w-12 h-12 sm:w-24 sm:h-12 rounded-lg bg-gradient-to-br from-slate-900 to-gray-800 hover:bg-gradient-to-br hover:from-slate-800 hover:to-gray-600 border border-white shadow-lg flex items-center justify-center transition-all duration-200 z-50"
+        title="Open AI Assistant (⌘K)"
       >
-        <MessageSquare size={20} className="text-[#8b7355]" />
-        {messages.length > 0 && (
-          <span
-            className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-[#8b7355] text-white text-[10px] flex items-center justify-center font-medium"
-            style={{ fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace' }}
-          >
-            {messages.length > 9 ? '9+' : messages.length}
-          </span>
-        )}
+        <MessageSquare size={20} className="text-white" />
       </button>
     );
   }
@@ -121,10 +134,10 @@ export function ChatWidget({ analysisId }: ChatWidgetProps) {
   return (
     <div
       data-chat-widget
-      className="fixed bottom-6 right-6 w-[400px] h-[580px] bg-[#fafaf9] border border-[#e8e6e3] shadow-2xl flex flex-col z-50"
+      className="fixed inset-4 sm:inset-auto sm:bottom-6 sm:left-6 sm:w-[400px] sm:h-[580px] bg-[#fafaf9] rounded-lg border border-[#e8e6e3] shadow-2xl flex flex-col z-50"
     >
       {/* Header */}
-      <div className="flex items-center justify-between px-6 py-4 border-b border-[#e8e6e3] bg-white">
+      <div className="flex items-center justify-between px-6 py-4 border-b border-[#e8e6e3] bg-white rounded-t-lg">
         <div className="flex items-center gap-4">
           <div className="p-2 border border-[#e8e6e3]">
             <MessageSquare size={16} className="text-[#8b7355]" />
@@ -136,12 +149,23 @@ export function ChatWidget({ analysisId }: ChatWidgetProps) {
             </p>
           </div>
         </div>
-        <button
-          onClick={toggleOpen}
-          className="p-2 text-[#a0aec0] hover:text-[#718096] transition-colors"
-        >
-          <X size={18} />
-        </button>
+        <div className="flex items-center gap-3">
+          {tokenUsage.total_tokens > 0 && (
+            <span
+              className="text-[10px] text-[#a0aec0] font-light"
+              style={{ fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace' }}
+              title={`Input: ${tokenUsage.input_tokens.toLocaleString()} | Output: ${tokenUsage.output_tokens.toLocaleString()}`}
+            >
+              {tokenUsage.total_tokens.toLocaleString()} tokens
+            </span>
+          )}
+          <button
+            onClick={toggleOpen}
+            className="p-2 text-[#a0aec0] hover:text-[#718096] transition-colors"
+          >
+            <X size={18} />
+          </button>
+        </div>
       </div>
 
       {/* Context indicator bar */}
@@ -184,8 +208,8 @@ export function ChatWidget({ analysisId }: ChatWidgetProps) {
       <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4 bg-white [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-[#e2e0dc] hover:[&::-webkit-scrollbar-thumb]:bg-[#d4d0cb] [&::-webkit-scrollbar-thumb]:rounded-full">
         {messages.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center text-center">
-            <div className="p-6 border border-[#e8e6e3] bg-[#fafaf9] mb-6">
-              <MessageSquare size={28} className="text-[#cbd5e0]" />
+            <div className="p-6 border border-[#e8e6e3] bg-[#fafaf9] mb-6 ">
+              <MessageSquare size={28} className="text-[#cbd5e0] rounded-md" />
             </div>
             <p className="text-sm text-[#4a5568] font-medium mb-1">Ask About This Codebase</p>
             <p className="text-xs text-[#a0aec0] font-light mb-8">
@@ -234,11 +258,21 @@ export function ChatWidget({ analysisId }: ChatWidgetProps) {
       {error && (
         <div className="mx-6 mb-3 px-4 py-3 bg-[#fdf2f2] border border-[#fecaca]">
           <div className="flex items-center gap-3 text-[#dc2626] text-xs">
-            <AlertCircle size={14} />
+            <AlertCircle size={14} className="shrink-0" />
             <span className="flex-1 truncate font-light">{error}</span>
+            {canRetry && (
+              <button
+                onClick={retryLastMessage}
+                className="text-[#dc2626] hover:text-[#b91c1c] transition-colors shrink-0"
+                title="Retry"
+              >
+                <RefreshCw size={12} />
+              </button>
+            )}
             <button
               onClick={clearError}
-              className="text-[#dc2626] hover:text-[#b91c1c] transition-colors"
+              className="text-[#dc2626] hover:text-[#b91c1c] transition-colors shrink-0"
+              title="Dismiss"
             >
               <X size={12} />
             </button>
@@ -247,7 +281,7 @@ export function ChatWidget({ analysisId }: ChatWidgetProps) {
       )}
 
       {/* Input area */}
-      <div className="px-6 py-4 border-t border-[#e8e6e3] bg-white">
+      <div className="px-6 py-4 border-t border-[#e8e6e3] rounded-b-lg bg-white">
         <form onSubmit={handleSubmit} className="flex gap-3">
           <div className="flex-1 relative">
             <textarea
