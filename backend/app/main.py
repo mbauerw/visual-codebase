@@ -6,6 +6,7 @@ import os
 from dotenv import load_dotenv
 
 from .api.routes import router
+from .api.chat import router as chat_router
 from .settings import get_settings
 
 load_dotenv()
@@ -42,6 +43,7 @@ app.add_middleware(
 
 # Include API routes
 app.include_router(router)
+app.include_router(chat_router)
 
 
 @app.get("/")
