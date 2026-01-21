@@ -63,7 +63,7 @@ import { ProfessionalDesign } from '../components/TierList/designs/ProfessionalD
 import { ElegantDesign } from '../components/TierList/designs/ElegantDesign';
 import { FreeFormDesign } from '../components/TierList/designs/FreeFormDesign';
 import { ChatPanel } from '../components/chat';
-import GithubEmbed from '../components/GithubEmbed';
+import AnalysisFileTree from '../components/AnalysisFileTree';
 
 // Define node types with proper typing for React Flow v12
 const nodeTypes: NodeTypes = {
@@ -1357,6 +1357,28 @@ function VisualizationPageInner() {
     }
   }, [nodes]);
 
+  // Handle file selection from AnalysisFileTree
+  const handleFileTreeSelect = useCallback((nodeId: string, nodeData: ReactFlowNodeData) => {
+    // Close edge popover when selecting a file
+    setSelectedEdge(null);
+    setEdgePopoverPosition(null);
+
+    // Set the selected node
+    setSelectedCategory(null);
+    setSelectedNode(nodeData);
+    setSelectedNodeId(nodeId);
+    setSelectionSource('node');
+
+    // Open source code panel with this file
+    setSourceCodeFile({
+      nodeId: nodeId,
+      fileName: nodeData.label,
+      language: nodeData.language,
+      lineCount: nodeData.line_count,
+    });
+    setIsSourcePanelOpen(true);
+  }, []);
+
   // Track viewport changes for background sync
   const onMove = useCallback(() => {
     setViewport(getViewport());
@@ -1543,7 +1565,11 @@ function VisualizationPageInner() {
                 <h2 className='text-3xl text-red-500 text-center '>FILES</h2>
               </div>
               <div className='h-[900px] w-full p-8 flex items-start justify-start rounded-2xl overflow-hidden'>
-                <GithubEmbed owner='mbauerw' repo='visual-codebase' />
+                <AnalysisFileTree
+                  nodes={graphData.nodes}
+                  onFileSelect={handleFileTreeSelect}
+                  selectedFileId={selectedNodeId}
+                />
               </div>
             </div>
             {/* Source Code Panel - appears below React Flow when a file is selected */}
