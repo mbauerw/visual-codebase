@@ -953,6 +953,22 @@ function VisualizationPageInner() {
     loadData();
   }, [navigate, searchParams]);
 
+  // Auto-open source panel with main file when graphData loads
+  useEffect(() => {
+    if (!graphData || sourceCodeFile) return; // Don't override if a file is already selected
+
+    const mainFile = findMainFile(graphData.nodes);
+    if (mainFile) {
+      setSourceCodeFile({
+        nodeId: mainFile.id,
+        fileName: mainFile.data.label,
+        language: mainFile.data.language,
+        lineCount: mainFile.data.line_count,
+      });
+      setIsSourcePanelOpen(true);
+    }
+  }, [graphData, sourceCodeFile]);
+
   // Apply layout and filters
   useEffect(() => {
     if (!graphData) return;
@@ -1946,6 +1962,27 @@ function VisualizationPageInner() {
       />
     </div>
   );
+}
+
+// Helper function to find the "main" entry file from graph nodes
+// Prioritizes: App.tsx/jsx/js > main.ts/tsx/js/py > index files > first file
+function findMainFile(nodes: ReactFlowGraph['nodes']): ReactFlowGraph['nodes'][0] | null {
+  if (nodes.length === 0) return null;
+
+  // Priority patterns for main files (case-insensitive basename matching)
+  const mainPatterns = [
+    /^App\.(tsx|jsx|ts|js)$/i,
+    /^main\.(tsx|ts|js|py)$/i,
+    /^index\.(tsx|ts|js)$/i,
+  ];
+
+  for (const pattern of mainPatterns) {
+    const match = nodes.find(node => pattern.test(node.data.label));
+    if (match) return match;
+  }
+
+  // Fallback to first file
+  return nodes[0];
 }
 
 // Helper function to get display name for the analysis
