@@ -887,7 +887,7 @@ function VisualizationPageInner() {
   }, [panelWidth, getMaxPanelWidth]);
 
   // Source code panel state
-  const [isSourcePanelOpen, setIsSourcePanelOpen] = useState(false);
+  const [isSourcePanelOpen, setIsSourcePanelOpen] = useState(true);
   const [sourceCodeFile, setSourceCodeFile] = useState<{
     nodeId: string;
     fileName: string;
