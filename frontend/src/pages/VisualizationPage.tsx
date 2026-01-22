@@ -1270,6 +1270,8 @@ function VisualizationPageInner() {
     [graphData]
   );
 
+  
+
   // Handle category node selection
   // const onCategoryNodeClick = useCallback(
   //   (_: React.MouseEvent, node: Node) => {
@@ -1368,7 +1370,13 @@ function VisualizationPageInner() {
     setSelectedNode(nodeData);
     setSelectedNodeId(nodeId);
     setSelectionSource('node');
-
+     // Also update React Flow's internal selection state so CustomNode shows the amber ring styling
+     setNodes((currentNodes) =>
+      currentNodes.map((node) => ({
+        ...node,
+        selected: node.id === nodeId,
+      }))
+    );
     // Open source code panel with this file
     setSourceCodeFile({
       nodeId: nodeId,

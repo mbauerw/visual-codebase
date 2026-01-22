@@ -293,9 +293,9 @@ export default function SourceCodePanel({
         </div>
       </div>
 
-      {/* Content area */}
+      {/* Content area - outer container handles horizontal scroll (scrollbar at viewport bottom), inner handles vertical */}
       {!isCollapsed && (
-        <div className="flex-1 overflow-auto [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-slate-800 [&::-webkit-scrollbar-thumb]:bg-slate-600 [&::-webkit-scrollbar-thumb]:rounded">
+        <div className="flex-1 overflow-x-auto overflow-y-hidden [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-track]:bg-slate-800 [&::-webkit-scrollbar-thumb]:bg-slate-600 [&::-webkit-scrollbar-thumb]:rounded">
           {isLoading ? (
             <div className="flex flex-col items-center justify-center h-full text-slate-400 gap-3">
               <Loader2 size={32} className="animate-spin" />
@@ -309,20 +309,23 @@ export default function SourceCodePanel({
               <span className="text-sm text-center">{error}</span>
             </div>
           ) : sourceCode ? (
-            <SyntaxHighlighter
-              language={getPrismLanguage(language)}
-              style={customTheme}
-              showLineNumbers
-              lineNumberStyle={lineNumberStyle}
-              wrapLines
-              customStyle={{
-                margin: 0,
-                background: '#0f172a',
-                minHeight: '100%',
-              }}
-            >
-              {sourceCode}
-            </SyntaxHighlighter>
+            <div className="h-full overflow-y-auto overflow-x-hidden min-w-max [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-slate-800 [&::-webkit-scrollbar-thumb]:bg-slate-600 [&::-webkit-scrollbar-thumb]:rounded">
+              <SyntaxHighlighter
+                language={getPrismLanguage(language)}
+                style={customTheme}
+                showLineNumbers
+                lineNumberStyle={lineNumberStyle}
+                wrapLines={false}
+                customStyle={{
+                  margin: 0,
+                  background: '#0f172a',
+                  minHeight: '100%',
+                  overflow: 'visible',
+                }}
+              >
+                {sourceCode}
+              </SyntaxHighlighter>
+            </div>
           ) : (
             <div className="flex flex-col items-center justify-center h-full text-slate-400 gap-3">
               <FileCode size={32} className="text-slate-600" />
