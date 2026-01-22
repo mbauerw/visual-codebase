@@ -1,5 +1,7 @@
 """Tool definitions and executors for the chatbot."""
+import json
 import logging
+from collections import deque
 from typing import Any, Optional
 
 from ..models.schemas import (
@@ -14,17 +16,120 @@ from ..models.schemas import (
 logger = logging.getLogger(__name__)
 
 
+class ToolResultSummarizer:
+    """Summarizes large tool results to fit within token budgets."""
+
+    # Rough estimate: 1 token ≈ 4 characters
+    CHARS_PER_TOKEN = 4
+    DEFAULT_TOKEN_LIMIT = 2000
+
+    @classmethod
+    def summarize(
+        cls,
+        result: dict[str, Any],
+        token_limit: int = DEFAULT_TOKEN_LIMIT
+    ) -> dict[str, Any]:
+        """Summarize a tool result to fit within token limit."""
+        result_str = json.dumps(result, default=str)
+        estimated_tokens = len(result_str) // cls.CHARS_PER_TOKEN
+
+        if estimated_tokens <= token_limit:
+            return result
+
+        # Need to summarize
+        summarized = cls._apply_summarization(result.copy(), token_limit)
+
+        # Add metadata about summarization
+        summarized["_summarized"] = True
+        summarized["_original_tokens"] = estimated_tokens
+
+        return summarized
+
+    @classmethod
+    def _apply_summarization(
+        cls,
+        data: dict[str, Any],
+        token_limit: int
+    ) -> dict[str, Any]:
+        """Apply progressive summarization strategies."""
+        result = data
+
+        # Strategy 1: Truncate string fields
+        result = cls._truncate_strings(result, max_length=100)
+        if cls._estimate_tokens(result) <= token_limit:
+            return result
+
+        # Strategy 2: Limit array items
+        result = cls._limit_arrays(result, max_items=5)
+        if cls._estimate_tokens(result) <= token_limit:
+            return result
+
+        # Strategy 3: Further limit arrays
+        result = cls._limit_arrays(result, max_items=3)
+        if cls._estimate_tokens(result) <= token_limit:
+            return result
+
+        # Strategy 4: Aggressive truncation
+        result = cls._truncate_strings(result, max_length=50)
+        result = cls._limit_arrays(result, max_items=2)
+
+        return result
+
+    @classmethod
+    def _truncate_strings(cls, obj: Any, max_length: int) -> Any:
+        """Recursively truncate string values."""
+        if isinstance(obj, str):
+            if len(obj) > max_length:
+                return obj[:max_length - 3] + "..."
+            return obj
+        elif isinstance(obj, dict):
+            return {k: cls._truncate_strings(v, max_length) for k, v in obj.items()}
+        elif isinstance(obj, list):
+            return [cls._truncate_strings(item, max_length) for item in obj]
+        return obj
+
+    @classmethod
+    def _limit_arrays(cls, obj: Any, max_items: int) -> Any:
+        """Recursively limit array lengths."""
+        if isinstance(obj, list):
+            if len(obj) > max_items:
+                truncated = obj[:max_items]
+                truncated.append({"_truncated": len(obj) - max_items})
+                return [cls._limit_arrays(item, max_items) for item in truncated]
+            return [cls._limit_arrays(item, max_items) for item in obj]
+        elif isinstance(obj, dict):
+            return {k: cls._limit_arrays(v, max_items) for k, v in obj.items()}
+        return obj
+
+    @classmethod
+    def _estimate_tokens(cls, obj: Any) -> int:
+        """Estimate token count for an object."""
+        return len(json.dumps(obj, default=str)) // cls.CHARS_PER_TOKEN
+
+
 # Tool definitions for Claude's tool use feature
 CHAT_TOOLS = [
     {
         "name": "get_file_info",
-        "description": "Get detailed analysis of a specific file including its role, category, description, and metrics",
+        "description": """Get comprehensive analysis of a specific file in the codebase.
+
+Returns: path, name, folder, language, architectural role (e.g., react_component, utility),
+AI-generated description, line count, size in bytes, and list of imports.
+
+When to use:
+- User asks about a specific file's purpose or functionality
+- User wants to know what a file does or its role in the architecture
+- User asks about imports/dependencies of a specific file
+
+Examples:
+- "What does auth.ts do?" -> get_file_info(filename="auth.ts")
+- "What does src/services/api.ts import?" -> get_file_info(filename="src/services/api.ts")""",
         "input_schema": {
             "type": "object",
             "properties": {
                 "filename": {
                     "type": "string",
-                    "description": "File path or name (e.g., 'src/utils/auth.ts' or 'auth.ts')"
+                    "description": "File path (e.g., 'src/utils/auth.ts') or just filename (e.g., 'auth.ts'). Partial paths work."
                 }
             },
             "required": ["filename"]
@@ -32,41 +137,66 @@ CHAT_TOOLS = [
     },
     {
         "name": "search_files",
-        "description": "Search for files by name pattern, architectural role, category, or keyword in description",
+        "description": """Search for files by name pattern, architectural role, category, or keyword in description.
+
+Returns: List of matching files with path, name, role, category, and truncated description. Limited to 20 results.
+
+When to use:
+- User asks about multiple files (e.g., "all components", "utility files")
+- User wants to find files by pattern or role
+- User asks about a category of files
+
+Examples:
+- "Show me all React components" -> search_files(role="react_component")
+- "Find files related to authentication" -> search_files(query="auth")
+- "What utility files are there?" -> search_files(role="utility")""",
         "input_schema": {
             "type": "object",
             "properties": {
                 "query": {
                     "type": "string",
-                    "description": "Search term to match against file names or descriptions"
+                    "description": "Search term to match against file names, paths, or descriptions"
                 },
                 "role": {
                     "type": "string",
                     "enum": [r.value for r in ArchitecturalRole],
-                    "description": "Filter by architectural role"
+                    "description": "Filter by architectural role: react_component, utility, api_service, model, config, test, hook, context, store, middleware, controller, router, schema"
                 },
                 "category": {
                     "type": "string",
                     "enum": [c.value for c in Category],
-                    "description": "Filter by category"
+                    "description": "Filter by category: frontend, backend, shared, infrastructure, test, config"
                 }
             }
         }
     },
     {
         "name": "get_dependencies",
-        "description": "Get files that a specific file imports from, or files that import from it",
+        "description": """Get the import/export relationships for a specific file.
+
+Returns: List of files this file imports from, and/or list of files that import from this file.
+Each entry includes path, name, and the specific symbols imported.
+
+When to use:
+- User asks what a file imports or uses
+- User asks what depends on a file
+- User wants to understand file relationships
+
+Examples:
+- "What does App.tsx import?" -> get_dependencies(filename="App.tsx", direction="imports")
+- "What files use the auth service?" -> get_dependencies(filename="auth.ts", direction="imported_by")
+- "Show all dependencies for utils.ts" -> get_dependencies(filename="utils.ts", direction="both")""",
         "input_schema": {
             "type": "object",
             "properties": {
                 "filename": {
                     "type": "string",
-                    "description": "File path or name"
+                    "description": "File path or name to analyze"
                 },
                 "direction": {
                     "type": "string",
                     "enum": ["imports", "imported_by", "both"],
-                    "description": "Direction of dependencies to retrieve"
+                    "description": "'imports' = what this file uses, 'imported_by' = what uses this file, 'both' = bidirectional"
                 }
             },
             "required": ["filename"]
@@ -74,17 +204,31 @@ CHAT_TOOLS = [
     },
     {
         "name": "get_function_info",
-        "description": "Get detailed information about a function including its tier, call count, and callers/callees",
+        "description": """Get detailed information about a specific function including tier, call metrics, and relationships.
+
+Returns: function name, qualified name, file path, tier (S/A/B/C/D/F), internal/external call counts,
+whether exported, whether entry point, function type, line number, and async status.
+
+Note: Requires function tier data to be available for this analysis.
+
+When to use:
+- User asks about a specific function's importance or usage
+- User wants to know what calls a function or what it calls
+- User asks about function tier/ranking
+
+Examples:
+- "Tell me about the handleSubmit function" -> get_function_info(function_name="handleSubmit")
+- "What tier is fetchData?" -> get_function_info(function_name="fetchData")""",
         "input_schema": {
             "type": "object",
             "properties": {
                 "function_name": {
                     "type": "string",
-                    "description": "Name of the function"
+                    "description": "Name of the function to look up"
                 },
                 "file_path": {
                     "type": "string",
-                    "description": "Optional file path to disambiguate functions with the same name"
+                    "description": "Optional file path to disambiguate when multiple functions have the same name"
                 }
             },
             "required": ["function_name"]
@@ -92,14 +236,28 @@ CHAT_TOOLS = [
     },
     {
         "name": "list_functions",
-        "description": "List functions filtered by tier, file, or minimum call count",
+        "description": """List functions filtered by tier, file, or minimum call count.
+
+Returns: List of functions with name, qualified name, file path, tier, and total call count.
+
+Note: Requires function tier data to be available for this analysis.
+
+When to use:
+- User asks about top/important functions
+- User wants to see functions in a specific file
+- User asks about functions by tier
+
+Examples:
+- "What are the most important functions?" -> list_functions(tier="S")
+- "Show me all functions in App.tsx" -> list_functions(file_path="App.tsx")
+- "Which functions are called more than 10 times?" -> list_functions(min_calls=10)""",
         "input_schema": {
             "type": "object",
             "properties": {
                 "tier": {
                     "type": "string",
                     "enum": [t.value for t in TierLevel],
-                    "description": "Filter by function tier"
+                    "description": "Filter by importance tier: S (most important), A, B, C, D, F (least important)"
                 },
                 "file_path": {
                     "type": "string",
@@ -107,18 +265,32 @@ CHAT_TOOLS = [
                 },
                 "min_calls": {
                     "type": "integer",
-                    "description": "Minimum number of calls to include"
+                    "description": "Only include functions called at least this many times"
                 },
                 "limit": {
                     "type": "integer",
-                    "description": "Maximum results to return (default 20)"
+                    "description": "Maximum results to return (default 20, max 50)"
                 }
             }
         }
     },
     {
         "name": "get_codebase_summary",
-        "description": "Get the high-level codebase summary, statistics, and language distribution",
+        "description": """Get the high-level codebase summary including project type, purpose, tech stack, and key modules.
+
+Returns: analysis ID, file count, edge count, languages used, project type, primary purpose,
+architecture summary, tech stack (languages, frameworks, patterns), key modules, and complexity assessment.
+
+When to use:
+- User asks about the overall codebase or architecture
+- User wants an overview or summary
+- User asks what the project is or does
+- First message in conversation (to provide context)
+
+Examples:
+- "What is this codebase?" -> get_codebase_summary()
+- "Give me an overview" -> get_codebase_summary()
+- "What technologies are used?" -> get_codebase_summary()""",
         "input_schema": {
             "type": "object",
             "properties": {}
@@ -126,16 +298,155 @@ CHAT_TOOLS = [
     },
     {
         "name": "explain_highlighted",
-        "description": "Find and explain what highlighted text refers to in the codebase (file name, function name, import, etc.)",
+        "description": """Identify and explain what highlighted/selected text from the visualization refers to.
+
+Handles: file names, function names, architectural roles, categories, import paths, and partial matches.
+Uses fuzzy matching to find the best match even with incomplete text.
+
+When to use:
+- User has highlighted text in the visualization (indicated by [Highlighted: ...] prefix)
+- User pastes or references code elements like file names or function names
+- User asks "what is this?" about selected text
+
+Examples:
+- User highlights "auth.ts" -> explain_highlighted(text="auth.ts")
+- User highlights "react_component" -> explain_highlighted(text="react_component")
+- User highlights "@/utils/helpers" -> explain_highlighted(text="@/utils/helpers")""",
         "input_schema": {
             "type": "object",
             "properties": {
                 "text": {
                     "type": "string",
-                    "description": "The highlighted text to explain"
+                    "description": "The highlighted or selected text to explain"
                 }
             },
             "required": ["text"]
+        }
+    },
+    {
+        "name": "detect_circular_dependencies",
+        "description": """Detect circular dependencies (import cycles) in the codebase.
+
+Returns: List of circular dependency chains found, with each chain showing the cycle of files.
+Also returns total cycle count and whether the codebase has any cycles.
+
+When to use:
+- User asks about circular dependencies
+- User wants to find import cycles
+- User asks about architectural problems or code smells
+
+Examples:
+- "Are there any circular dependencies?" -> detect_circular_dependencies()
+- "Find import cycles" -> detect_circular_dependencies()
+- "Check for circular imports involving auth.ts" -> detect_circular_dependencies(involving_file="auth.ts")""",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "involving_file": {
+                    "type": "string",
+                    "description": "Optional: only return cycles involving this file"
+                },
+                "max_cycles": {
+                    "type": "integer",
+                    "description": "Maximum number of cycles to return (default 10)"
+                }
+            }
+        }
+    },
+    {
+        "name": "find_dependency_path",
+        "description": """Find how two files are connected through the dependency graph.
+
+Returns: The shortest chain of imports connecting file A to file B, or indicates if no path exists.
+Shows the direction of imports at each step.
+
+When to use:
+- User asks how two files are related
+- User wants to know the dependency chain between files
+- User asks "how does X connect to Y"
+
+Examples:
+- "How does App.tsx connect to utils.ts?" -> find_dependency_path(source="App.tsx", target="utils.ts")
+- "What's the relationship between api.ts and types.ts?" -> find_dependency_path(source="api.ts", target="types.ts")""",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "source": {
+                    "type": "string",
+                    "description": "Starting file path or name"
+                },
+                "target": {
+                    "type": "string",
+                    "description": "Target file path or name"
+                },
+                "max_depth": {
+                    "type": "integer",
+                    "description": "Maximum path length to search (default 10)"
+                },
+                "bidirectional": {
+                    "type": "boolean",
+                    "description": "If true, search in both import directions (default false)"
+                }
+            },
+            "required": ["source", "target"]
+        }
+    },
+    {
+        "name": "compare_files",
+        "description": """Compare two files to understand their similarities, differences, and relationships.
+
+Returns: Side-by-side comparison of roles, categories, languages, sizes, shared dependencies,
+and whether they have a direct import relationship.
+
+When to use:
+- User wants to compare two files
+- User asks about differences between files
+- User asks which file is more important/central
+
+Examples:
+- "Compare api.ts and service.ts" -> compare_files(file1="api.ts", file2="service.ts")
+- "What's the difference between App.tsx and Main.tsx?" -> compare_files(file1="App.tsx", file2="Main.tsx")""",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "file1": {
+                    "type": "string",
+                    "description": "First file path or name"
+                },
+                "file2": {
+                    "type": "string",
+                    "description": "Second file path or name"
+                }
+            },
+            "required": ["file1", "file2"]
+        }
+    },
+    {
+        "name": "get_metrics",
+        "description": """Get aggregate metrics and statistics about the codebase.
+
+Returns: Various aggregate statistics like average file size by role, dependency counts,
+most connected files, language distribution details, and more.
+
+When to use:
+- User asks for statistics or metrics
+- User wants aggregate data like "average", "most", "total"
+- User asks about codebase health or complexity
+
+Examples:
+- "What's the average file size by role?" -> get_metrics(metric="size_by_role")
+- "Which files have the most dependencies?" -> get_metrics(metric="most_connected")
+- "Show me the dependency statistics" -> get_metrics(metric="dependency_stats")""",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "metric": {
+                    "type": "string",
+                    "enum": ["size_by_role", "most_connected", "dependency_stats", "role_distribution", "all"],
+                    "description": "Which metric to calculate: size_by_role, most_connected, dependency_stats, role_distribution, or all"
+                }
+            },
+            "required": ["metric"]
         }
     }
 ]
@@ -180,36 +491,58 @@ class ChatToolExecutor:
         """
         try:
             if tool_name == "get_file_info":
-                return self._get_file_info(tool_input.get("filename", ""))
+                result = self._get_file_info(tool_input.get("filename", ""))
             elif tool_name == "search_files":
-                return self._search_files(
+                result = self._search_files(
                     query=tool_input.get("query"),
                     role=tool_input.get("role"),
                     category=tool_input.get("category")
                 )
             elif tool_name == "get_dependencies":
-                return self._get_dependencies(
+                result = self._get_dependencies(
                     filename=tool_input.get("filename", ""),
                     direction=tool_input.get("direction", "both")
                 )
             elif tool_name == "get_function_info":
-                return self._get_function_info(
+                result = self._get_function_info(
                     function_name=tool_input.get("function_name", ""),
                     file_path=tool_input.get("file_path")
                 )
             elif tool_name == "list_functions":
-                return self._list_functions(
+                result = self._list_functions(
                     tier=tool_input.get("tier"),
                     file_path=tool_input.get("file_path"),
                     min_calls=tool_input.get("min_calls"),
                     limit=tool_input.get("limit", 20)
                 )
             elif tool_name == "get_codebase_summary":
-                return self._get_codebase_summary()
+                result = self._get_codebase_summary()
             elif tool_name == "explain_highlighted":
-                return self._explain_highlighted(tool_input.get("text", ""))
+                result = self._explain_highlighted(tool_input.get("text", ""))
+            elif tool_name == "detect_circular_dependencies":
+                result = self._detect_circular_dependencies(
+                    involving_file=tool_input.get("involving_file"),
+                    max_cycles=tool_input.get("max_cycles", 10)
+                )
+            elif tool_name == "find_dependency_path":
+                result = self._find_dependency_path(
+                    source=tool_input.get("source", ""),
+                    target=tool_input.get("target", ""),
+                    max_depth=tool_input.get("max_depth", 10),
+                    bidirectional=tool_input.get("bidirectional", False)
+                )
+            elif tool_name == "compare_files":
+                result = self._compare_files(
+                    file1=tool_input.get("file1", ""),
+                    file2=tool_input.get("file2", "")
+                )
+            elif tool_name == "get_metrics":
+                result = self._get_metrics(tool_input.get("metric", "all"))
             else:
                 return {"error": f"Unknown tool: {tool_name}"}
+
+            # Apply result summarization for large results
+            return ToolResultSummarizer.summarize(result)
         except Exception as e:
             logger.error(f"Tool execution error for {tool_name}: {e}")
             return {"error": str(e)}
@@ -470,6 +803,326 @@ class ChatToolExecutor:
                 "tier_counts": metadata.function_stats.tier_counts,
                 "top_functions": metadata.function_stats.top_functions
             }
+
+        return result
+
+    def _detect_circular_dependencies(
+        self,
+        involving_file: Optional[str] = None,
+        max_cycles: int = 10
+    ) -> dict[str, Any]:
+        """Detect circular dependencies using DFS cycle detection."""
+        # Build adjacency list from edges
+        adjacency: dict[str, set[str]] = {}
+        for edge in self.graph.edges:
+            if edge.source not in adjacency:
+                adjacency[edge.source] = set()
+            adjacency[edge.source].add(edge.target)
+
+        cycles: list[dict] = []
+        visited: set[str] = set()
+        rec_stack: set[str] = set()
+
+        # Find target node if involving_file is specified
+        target_node = None
+        if involving_file:
+            target_node = self._find_node(involving_file)
+            if not target_node:
+                return {"error": f"File not found: {involving_file}"}
+
+        def dfs(node: str, path: list[str]) -> None:
+            if len(cycles) >= max_cycles:
+                return
+
+            visited.add(node)
+            rec_stack.add(node)
+            path.append(node)
+
+            for neighbor in adjacency.get(node, []):
+                if neighbor not in visited:
+                    dfs(neighbor, path)
+                elif neighbor in rec_stack:
+                    # Found cycle - extract it
+                    cycle_start = path.index(neighbor)
+                    cycle_ids = path[cycle_start:] + [neighbor]
+
+                    # Convert node IDs to paths for readability
+                    cycle_paths = [
+                        self._node_by_id[n].data.path if n in self._node_by_id else n
+                        for n in cycle_ids
+                    ]
+
+                    # Filter by involving_file if specified
+                    if target_node and target_node.id not in cycle_ids:
+                        return
+
+                    # Normalize cycle (start from alphabetically first node)
+                    if len(cycle_paths) > 1:
+                        min_idx = cycle_paths[:-1].index(min(cycle_paths[:-1]))
+                        normalized = cycle_paths[min_idx:-1] + cycle_paths[:min_idx] + [cycle_paths[min_idx]]
+                    else:
+                        normalized = cycle_paths
+
+                    # Check for duplicates
+                    existing_cycles = [c["cycle"] for c in cycles]
+                    if normalized not in existing_cycles:
+                        cycles.append({
+                            "cycle": normalized,
+                            "length": len(normalized) - 1
+                        })
+
+            path.pop()
+            rec_stack.remove(node)
+
+        # Run DFS from each node
+        for node_id in adjacency:
+            if node_id not in visited and len(cycles) < max_cycles:
+                dfs(node_id, [])
+
+        return {
+            "has_cycles": len(cycles) > 0,
+            "cycle_count": len(cycles),
+            "cycles": cycles[:max_cycles],
+            "truncated": len(cycles) > max_cycles,
+            "message": f"Found {len(cycles)} circular dependency chain(s)" if cycles else "No circular dependencies detected"
+        }
+
+    def _find_dependency_path(
+        self,
+        source: str,
+        target: str,
+        max_depth: int = 10,
+        bidirectional: bool = False
+    ) -> dict[str, Any]:
+        """Find shortest dependency path between two files using BFS."""
+        source_node = self._find_node(source)
+        target_node = self._find_node(target)
+
+        if not source_node:
+            return {"error": f"Source file not found: {source}"}
+        if not target_node:
+            return {"error": f"Target file not found: {target}"}
+        if source_node.id == target_node.id:
+            return {
+                "connected": True,
+                "path": [source_node.data.path],
+                "length": 0,
+                "message": "Source and target are the same file"
+            }
+
+        # Build adjacency list
+        forward: dict[str, list[tuple[str, str]]] = {}  # node_id -> [(neighbor_id, edge_label)]
+        backward: dict[str, list[tuple[str, str]]] = {}
+
+        for edge in self.graph.edges:
+            if edge.source not in forward:
+                forward[edge.source] = []
+            label = ", ".join(edge.data.imported_names[:3]) if edge.data and edge.data.imported_names else "imports"
+            forward[edge.source].append((edge.target, label))
+
+            if bidirectional:
+                if edge.target not in backward:
+                    backward[edge.target] = []
+                backward[edge.target].append((edge.source, "imported by"))
+
+        # BFS
+        queue = deque([(source_node.id, [(source_node.data.path, "start")])])
+        visited = {source_node.id}
+
+        while queue:
+            current_id, path = queue.popleft()
+
+            if len(path) > max_depth:
+                continue
+
+            # Get neighbors
+            neighbors = forward.get(current_id, [])
+            if bidirectional:
+                neighbors = neighbors + backward.get(current_id, [])
+
+            for neighbor_id, label in neighbors:
+                if neighbor_id == target_node.id:
+                    neighbor_path = self._node_by_id[neighbor_id].data.path
+                    final_path = path + [(neighbor_path, label)]
+                    return {
+                        "connected": True,
+                        "path": [p[0] for p in final_path],
+                        "steps": [
+                            {"from": final_path[i][0], "to": final_path[i+1][0], "via": final_path[i+1][1]}
+                            for i in range(len(final_path) - 1)
+                        ],
+                        "length": len(final_path) - 1,
+                        "message": f"Found path with {len(final_path) - 1} step(s)"
+                    }
+
+                if neighbor_id not in visited:
+                    visited.add(neighbor_id)
+                    neighbor_node = self._node_by_id.get(neighbor_id)
+                    if neighbor_node:
+                        queue.append((neighbor_id, path + [(neighbor_node.data.path, label)]))
+
+        return {
+            "connected": False,
+            "path": [],
+            "length": -1,
+            "message": f"No dependency path found between {source_node.data.path} and {target_node.data.path} within {max_depth} steps"
+        }
+
+    def _compare_files(self, file1: str, file2: str) -> dict[str, Any]:
+        """Compare two files for similarities and relationships."""
+        node1 = self._find_node(file1)
+        node2 = self._find_node(file2)
+
+        if not node1:
+            return {"error": f"File not found: {file1}"}
+        if not node2:
+            return {"error": f"File not found: {file2}"}
+
+        # Get dependencies for both files
+        deps1 = self._get_dependencies(node1.data.path, "both")
+        deps2 = self._get_dependencies(node2.data.path, "both")
+
+        # Find shared dependencies
+        imports1 = set(d["path"] for d in deps1.get("imports", []))
+        imports2 = set(d["path"] for d in deps2.get("imports", []))
+        shared_imports = imports1 & imports2
+
+        imported_by1 = set(d["path"] for d in deps1.get("imported_by", []))
+        imported_by2 = set(d["path"] for d in deps2.get("imported_by", []))
+        shared_importers = imported_by1 & imported_by2
+
+        # Check direct relationship
+        direct_relationship = None
+        if node1.data.path in imports2:
+            direct_relationship = f"{node2.data.path} imports {node1.data.path}"
+        elif node2.data.path in imports1:
+            direct_relationship = f"{node1.data.path} imports {node2.data.path}"
+
+        return {
+            "file1": {
+                "path": node1.data.path,
+                "name": node1.data.label,
+                "role": node1.data.role.value,
+                "category": node1.data.category.value,
+                "language": node1.data.language.value,
+                "line_count": node1.data.line_count,
+                "import_count": len(imports1),
+                "imported_by_count": len(imported_by1)
+            },
+            "file2": {
+                "path": node2.data.path,
+                "name": node2.data.label,
+                "role": node2.data.role.value,
+                "category": node2.data.category.value,
+                "language": node2.data.language.value,
+                "line_count": node2.data.line_count,
+                "import_count": len(imports2),
+                "imported_by_count": len(imported_by2)
+            },
+            "comparison": {
+                "same_role": node1.data.role == node2.data.role,
+                "same_category": node1.data.category == node2.data.category,
+                "same_language": node1.data.language == node2.data.language,
+                "size_difference_lines": abs(node1.data.line_count - node2.data.line_count),
+                "shared_imports": list(shared_imports)[:10],
+                "shared_imports_count": len(shared_imports),
+                "shared_importers": list(shared_importers)[:10],
+                "shared_importers_count": len(shared_importers),
+                "direct_relationship": direct_relationship
+            }
+        }
+
+    def _get_metrics(self, metric: str) -> dict[str, Any]:
+        """Calculate aggregate metrics for the codebase."""
+        result: dict[str, Any] = {"metric_type": metric}
+
+        # Calculate size_by_role
+        if metric in ("size_by_role", "all"):
+            role_stats: dict[str, dict] = {}
+            for node in self.graph.nodes:
+                role = node.data.role.value
+                if role not in role_stats:
+                    role_stats[role] = {"total_lines": 0, "count": 0, "total_bytes": 0}
+                role_stats[role]["total_lines"] += node.data.line_count
+                role_stats[role]["total_bytes"] += node.data.size_bytes
+                role_stats[role]["count"] += 1
+
+            size_by_role = {
+                role: {
+                    "avg_lines": round(stats["total_lines"] / stats["count"], 1),
+                    "avg_bytes": round(stats["total_bytes"] / stats["count"], 1),
+                    "file_count": stats["count"]
+                }
+                for role, stats in role_stats.items()
+            }
+            if metric == "size_by_role":
+                result["size_by_role"] = size_by_role
+                return result
+
+        # Calculate most_connected and dependency_stats together (shared computation)
+        if metric in ("most_connected", "dependency_stats", "all"):
+            import_counts: dict[str, int] = {}
+            imported_by_counts: dict[str, int] = {}
+
+            for edge in self.graph.edges:
+                import_counts[edge.source] = import_counts.get(edge.source, 0) + 1
+                imported_by_counts[edge.target] = imported_by_counts.get(edge.target, 0) + 1
+
+            if metric in ("most_connected", "all"):
+                # Combine and find most connected
+                connection_scores = []
+                for node in self.graph.nodes:
+                    imports = import_counts.get(node.id, 0)
+                    imported_by = imported_by_counts.get(node.id, 0)
+                    connection_scores.append({
+                        "path": node.data.path,
+                        "imports": imports,
+                        "imported_by": imported_by,
+                        "total": imports + imported_by
+                    })
+
+                most_connected = sorted(
+                    connection_scores,
+                    key=lambda x: x["total"],
+                    reverse=True
+                )[:10]
+
+                if metric == "most_connected":
+                    result["most_connected"] = most_connected
+                    return result
+
+            if metric in ("dependency_stats", "all"):
+                import_counts_list = list(import_counts.values()) if import_counts else [0]
+                dependency_stats = {
+                    "total_dependencies": len(self.graph.edges),
+                    "avg_imports_per_file": round(sum(import_counts_list) / len(self.graph.nodes), 2) if self.graph.nodes else 0,
+                    "max_imports": max(import_counts_list) if import_counts_list else 0,
+                    "files_with_no_imports": len(self.graph.nodes) - len(import_counts),
+                    "files_with_no_importers": len(self.graph.nodes) - len(imported_by_counts)
+                }
+
+                if metric == "dependency_stats":
+                    result["dependency_stats"] = dependency_stats
+                    return result
+
+        # Calculate role_distribution
+        if metric in ("role_distribution", "all"):
+            role_distribution: dict[str, int] = {}
+            for node in self.graph.nodes:
+                role = node.data.role.value
+                role_distribution[role] = role_distribution.get(role, 0) + 1
+            role_distribution = dict(sorted(role_distribution.items(), key=lambda x: x[1], reverse=True))
+
+            if metric == "role_distribution":
+                result["role_distribution"] = role_distribution
+                return result
+
+        # Return all metrics
+        if metric == "all":
+            result["size_by_role"] = size_by_role
+            result["most_connected"] = most_connected
+            result["dependency_stats"] = dependency_stats
+            result["role_distribution"] = role_distribution
 
         return result
 
