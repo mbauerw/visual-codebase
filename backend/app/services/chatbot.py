@@ -1,9 +1,11 @@
 """Core chatbot service with tool execution loop."""
+import asyncio
 import json
 import logging
 import time
 import uuid
-from datetime import datetime
+from dataclasses import dataclass
+from datetime import datetime, timedelta
 from typing import Optional, AsyncGenerator
 
 import anthropic
@@ -41,6 +43,15 @@ class ConversationState:
         self.messages: list[dict] = []  # Claude API message format
         self.created_at = datetime.utcnow()
         self.last_active = datetime.utcnow()
+        # Cached system context - computed once per conversation
+        self._system_context: Optional[str] = None
+
+    def get_system_context(self, graph: 'ReactFlowGraph') -> str:
+        """Get or compute the system context (cached per conversation)."""
+        if self._system_context is None:
+            from .chat_context import build_base_context
+            self._system_context = build_base_context(graph)
+        return self._system_context
 
     def add_user_message(self, content: str):
         """Add a user message to the conversation."""
@@ -159,6 +170,14 @@ class ConversationManager:
                 del self._conversations[conv_id]
 
 
+@dataclass
+class CachedToolExecutor:
+    """Cached tool executor with metadata for TTL validation."""
+    executor: ChatToolExecutor
+    tier_list_hash: int
+    created_at: datetime
+
+
 class ChatbotService:
     """Main chatbot service with Claude integration and tool execution."""
 
@@ -166,17 +185,61 @@ class ChatbotService:
         self.settings = get_settings()
         self.client = anthropic.AsyncAnthropic(api_key=self.settings.anthropic_api_key)
         self.conversation_manager = ConversationManager()
-        # Cache for tool executors by analysis_id
-        self._tool_executors: dict[str, ChatToolExecutor] = {}
+        # Cache for tool executors by analysis_id with TTL
+        self._tool_executor_cache: dict[str, CachedToolExecutor] = {}
+        self._tool_executor_ttl = timedelta(minutes=10)
+
+    def _compute_tier_list_hash(self, tier_list: Optional[list]) -> int:
+        """Compute a hash of the tier list for cache validation."""
+        if not tier_list:
+            return 0
+        # Hash based on length and first/last items for quick comparison
+        return hash((
+            len(tier_list),
+            tier_list[0].get("qualified_name") if tier_list else None,
+            tier_list[-1].get("qualified_name") if tier_list else None
+        ))
 
     def _get_tool_executor(
         self, analysis_id: str, graph: ReactFlowGraph, tier_list: Optional[list] = None
     ) -> ChatToolExecutor:
-        """Get or create a tool executor for an analysis."""
-        # Create fresh executor each time to ensure data is current
+        """Get or create a tool executor for an analysis with TTL caching."""
+        now = datetime.utcnow()
+        tier_hash = self._compute_tier_list_hash(tier_list)
+
+        # Check cache
+        if analysis_id in self._tool_executor_cache:
+            cached = self._tool_executor_cache[analysis_id]
+            age = now - cached.created_at
+
+            # Valid if within TTL and tier_list hasn't changed
+            if age < self._tool_executor_ttl and cached.tier_list_hash == tier_hash:
+                logger.debug(f"Using cached tool executor for {analysis_id}")
+                return cached.executor
+
+        # Create new executor
+        logger.debug(f"Creating new tool executor for {analysis_id}")
         executor = ChatToolExecutor(graph, tier_list)
-        self._tool_executors[analysis_id] = executor
+        self._tool_executor_cache[analysis_id] = CachedToolExecutor(
+            executor=executor,
+            tier_list_hash=tier_hash,
+            created_at=now
+        )
+
+        # Cleanup old entries periodically
+        self._cleanup_executor_cache()
+
         return executor
+
+    def _cleanup_executor_cache(self):
+        """Remove expired tool executors from cache."""
+        now = datetime.utcnow()
+        expired = [
+            aid for aid, cached in self._tool_executor_cache.items()
+            if now - cached.created_at > self._tool_executor_ttl
+        ]
+        for aid in expired:
+            del self._tool_executor_cache[aid]
 
     def _compute_context_info(
         self,
@@ -249,11 +312,11 @@ class ChatbotService:
         # Get or create conversation
         conversation = self.conversation_manager.get_or_create(analysis_id, conversation_id)
 
-        # Get tool executor
+        # Get tool executor (cached)
         tool_executor = self._get_tool_executor(analysis_id, graph, tier_list)
 
-        # Build system context
-        system_context = build_base_context(graph)
+        # Get system context (cached per conversation)
+        system_context = conversation.get_system_context(graph)
 
         # Format user message with highlighted text
         formatted_message = format_user_message(message, highlighted_text)
@@ -282,36 +345,49 @@ class ChatbotService:
 
                 # Check if we need to execute tools
                 if response.stop_reason == "tool_use":
-                    # Process all tool uses in this response
-                    assistant_content = []
+                    # Separate text blocks and tool_use blocks
+                    text_blocks = [b for b in response.content if b.type == "text"]
+                    tool_blocks = [b for b in response.content if b.type == "tool_use"]
+
+                    # Build assistant_content with text blocks first
+                    assistant_content = [
+                        {"type": "text", "text": b.text} for b in text_blocks
+                    ]
+
+                    # Track tools used
+                    for block in tool_blocks:
+                        tools_used.append(block.name)
+
+                    # Execute all tools in parallel
+                    async def execute_single_tool(block):
+                        """Execute a single tool and return result."""
+                        logger.info(f"Executing tool: {block.name} with input: {block.input}")
+                        result = await asyncio.to_thread(
+                            tool_executor.execute_tool, block.name, block.input
+                        )
+                        result_str = json.dumps(result, default=str)
+                        return block, result_str
+
+                    # Run all tools concurrently
+                    tool_execution_results = await asyncio.gather(*[
+                        execute_single_tool(block) for block in tool_blocks
+                    ])
+
+                    # Process results
                     tool_results = []
+                    for block, result_str in tool_execution_results:
+                        assistant_content.append({
+                            "type": "tool_use",
+                            "id": block.id,
+                            "name": block.name,
+                            "input": block.input
+                        })
 
-                    for block in response.content:
-                        if block.type == "text":
-                            assistant_content.append({
-                                "type": "text",
-                                "text": block.text
-                            })
-                        elif block.type == "tool_use":
-                            tools_used.append(block.name)
-                            logger.info(f"Executing tool: {block.name} with input: {block.input}")
-
-                            # Execute the tool
-                            result = tool_executor.execute_tool(block.name, block.input)
-                            result_str = json.dumps(result, default=str)
-
-                            assistant_content.append({
-                                "type": "tool_use",
-                                "id": block.id,
-                                "name": block.name,
-                                "input": block.input
-                            })
-
-                            tool_results.append({
-                                "type": "tool_result",
-                                "tool_use_id": block.id,
-                                "content": result_str
-                            })
+                        tool_results.append({
+                            "type": "tool_result",
+                            "tool_use_id": block.id,
+                            "content": result_str
+                        })
 
                     # Add assistant message with tool uses
                     conversation.messages.append({
@@ -404,11 +480,11 @@ class ChatbotService:
         # Get or create conversation
         conversation = self.conversation_manager.get_or_create(analysis_id, conversation_id)
 
-        # Get tool executor
+        # Get tool executor (cached)
         tool_executor = self._get_tool_executor(analysis_id, graph, tier_list)
 
-        # Build system context
-        system_context = build_base_context(graph)
+        # Get system context (cached per conversation)
+        system_context = conversation.get_system_context(graph)
 
         # Format user message with highlighted text
         formatted_message = format_user_message(message, highlighted_text)
@@ -449,65 +525,74 @@ class ChatbotService:
 
                 # Check if we need to execute tools
                 if response.stop_reason == "tool_use":
-                    # Process all tool uses in this response
-                    assistant_content = []
+                    # Separate text blocks and tool_use blocks
+                    text_blocks = [b for b in response.content if b.type == "text"]
+                    tool_blocks = [b for b in response.content if b.type == "tool_use"]
+
+                    # Build assistant_content with text blocks first
+                    assistant_content = [
+                        {"type": "text", "text": b.text} for b in text_blocks
+                    ]
+
+                    # Emit tool_use_start events for all tools
+                    for block in tool_blocks:
+                        tools_used.append(block.name)
+                        input_str = json.dumps(block.input, default=str)
+                        input_preview = self._truncate_string(input_str, 200)
+
+                        yield StreamEvent(
+                            type=StreamEventType.TOOL_USE_START,
+                            tool_name=block.name,
+                            tool_call_id=block.id,
+                            tool_input=block.input,
+                            tool_input_preview=input_preview,
+                            conversation_id=conversation.conversation_id
+                        )
+
+                    # Execute all tools in parallel
+                    async def execute_single_tool(block):
+                        """Execute a single tool and return result with timing."""
+                        logger.info(f"Executing tool: {block.name} with input: {block.input}")
+                        start_time = time.time()
+                        result = await asyncio.to_thread(
+                            tool_executor.execute_tool, block.name, block.input
+                        )
+                        duration_ms = int((time.time() - start_time) * 1000)
+                        result_str = json.dumps(result, default=str)
+                        return block, result_str, duration_ms
+
+                    # Run all tools concurrently
+                    tool_execution_results = await asyncio.gather(*[
+                        execute_single_tool(block) for block in tool_blocks
+                    ])
+
+                    # Process results and emit end events
                     tool_results = []
+                    for block, result_str, duration_ms in tool_execution_results:
+                        output_preview = self._truncate_string(result_str, 500)
 
-                    for block in response.content:
-                        if block.type == "text":
-                            assistant_content.append({
-                                "type": "text",
-                                "text": block.text
-                            })
-                        elif block.type == "tool_use":
-                            tools_used.append(block.name)
+                        assistant_content.append({
+                            "type": "tool_use",
+                            "id": block.id,
+                            "name": block.name,
+                            "input": block.input
+                        })
 
-                            # Prepare tool input preview
-                            input_str = json.dumps(block.input, default=str)
-                            input_preview = self._truncate_string(input_str, 200)
+                        tool_results.append({
+                            "type": "tool_result",
+                            "tool_use_id": block.id,
+                            "content": result_str
+                        })
 
-                            # Notify about tool use with input details
-                            yield StreamEvent(
-                                type=StreamEventType.TOOL_USE_START,
-                                tool_name=block.name,
-                                tool_call_id=block.id,
-                                tool_input=block.input,
-                                tool_input_preview=input_preview,
-                                conversation_id=conversation.conversation_id
-                            )
-
-                            logger.info(f"Executing tool: {block.name} with input: {block.input}")
-
-                            # Execute the tool with timing
-                            start_time = time.time()
-                            result = tool_executor.execute_tool(block.name, block.input)
-                            duration_ms = int((time.time() - start_time) * 1000)
-
-                            result_str = json.dumps(result, default=str)
-                            output_preview = self._truncate_string(result_str, 500)
-
-                            assistant_content.append({
-                                "type": "tool_use",
-                                "id": block.id,
-                                "name": block.name,
-                                "input": block.input
-                            })
-
-                            tool_results.append({
-                                "type": "tool_result",
-                                "tool_use_id": block.id,
-                                "content": result_str
-                            })
-
-                            yield StreamEvent(
-                                type=StreamEventType.TOOL_USE_END,
-                                tool_name=block.name,
-                                tool_call_id=block.id,
-                                tool_output=result_str,
-                                tool_output_preview=output_preview,
-                                tool_duration_ms=duration_ms,
-                                conversation_id=conversation.conversation_id
-                            )
+                        yield StreamEvent(
+                            type=StreamEventType.TOOL_USE_END,
+                            tool_name=block.name,
+                            tool_call_id=block.id,
+                            tool_output=result_str,
+                            tool_output_preview=output_preview,
+                            tool_duration_ms=duration_ms,
+                            conversation_id=conversation.conversation_id
+                        )
 
                     # Add assistant message with tool uses
                     conversation.messages.append({
@@ -524,22 +609,35 @@ class ChatbotService:
                     # Continue loop to get response after tools
                     continue
 
-                # No tool use - stream the final text response
-                # Extract text from the non-streaming response and stream it
-                final_text = ""
-                for block in response.content:
-                    if block.type == "text":
-                        final_text += block.text
+                # No tool use - use true streaming for final response
+                final_text_parts = []
 
-                # Stream the text in chunks for a better UX
-                chunk_size = 20  # Characters per chunk
-                for i in range(0, len(final_text), chunk_size):
-                    chunk = final_text[i:i + chunk_size]
-                    yield StreamEvent(
-                        type=StreamEventType.TEXT_DELTA,
-                        content=chunk,
-                        conversation_id=conversation.conversation_id
-                    )
+                async with self.client.messages.stream(
+                    model=self.settings.llm_model,
+                    max_tokens=2048,
+                    system=system_context,
+                    tools=CHAT_TOOLS,
+                    messages=conversation.messages
+                ) as stream:
+                    async for event in stream:
+                        if hasattr(event, 'type'):
+                            if event.type == "content_block_delta":
+                                if hasattr(event.delta, 'text'):
+                                    text_chunk = event.delta.text
+                                    final_text_parts.append(text_chunk)
+                                    yield StreamEvent(
+                                        type=StreamEventType.TEXT_DELTA,
+                                        content=text_chunk,
+                                        conversation_id=conversation.conversation_id
+                                    )
+
+                    # Get final message for accurate token counts
+                    final_message = await stream.get_final_message()
+                    if hasattr(final_message, 'usage'):
+                        total_input_tokens += final_message.usage.input_tokens
+                        total_output_tokens += final_message.usage.output_tokens
+
+                final_text = "".join(final_text_parts)
 
                 conversation.add_assistant_message(final_text)
 
