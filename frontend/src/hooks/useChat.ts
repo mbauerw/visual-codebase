@@ -176,17 +176,24 @@ export function useChat({
     setMessages(prev => [...prev, assistantMessage]);
 
     // Create throttled updater for text content (batches updates at ~60fps)
+    // IMPORTANT: The merge function must be pure (no side effects) because React
+    // may call it multiple times in concurrent mode. We derive the new content
+    // from the previous state instead of mutating a ref.
     throttledUpdaterRef.current = createThrottledUpdater<string, ChatMessage[]>(
       setMessages,
       (prev, textDelta) => {
         const newMessages = [...prev];
         const lastIdx = newMessages.length - 1;
         if (newMessages[lastIdx]?.role === 'assistant') {
-          streamingMessageRef.current += textDelta;
+          // Derive new content from previous state (pure function, no side effects)
+          const prevContent = newMessages[lastIdx].content || '';
+          const newContent = prevContent + textDelta;
           newMessages[lastIdx] = {
             ...newMessages[lastIdx],
-            content: streamingMessageRef.current,
+            content: newContent,
           };
+          // Update ref for external access (after state derivation, not during)
+          streamingMessageRef.current = newContent;
         }
         return newMessages;
       },
