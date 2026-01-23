@@ -5,11 +5,28 @@ import type { ContextInfo } from './devtools';
 
 export type MessageRole = 'user' | 'assistant';
 
+export type ToolResultStatus = 'running' | 'completed' | 'error';
+
+/**
+ * Inline tool result for progressive display within messages.
+ */
+export interface ToolResultInline {
+  id: string;
+  name: string;
+  status: ToolResultStatus;
+  inputPreview?: string;
+  outputPreview?: string;
+  durationMs?: number;
+  error?: string;
+}
+
 export interface ChatMessage {
   role: MessageRole;
   content: string;
   timestamp: string;
   tools_used?: string[];
+  /** Inline tool results for progressive display */
+  tool_results?: ToolResultInline[];
 }
 
 export interface ChatRequest {

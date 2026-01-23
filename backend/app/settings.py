@@ -30,6 +30,13 @@ class Settings(BaseSettings):
     llm_max_tokens: int = 4096
     llm_parallel_batches: int = 4  # Number of batches to process concurrently
 
+    # Redis settings (optional, for distributed rate limiting)
+    redis_url: str = ""  # e.g., "redis://localhost:6379/0"
+
+    # Rate limiting settings
+    rate_limit_requests: int = 20  # Max requests per window
+    rate_limit_window: int = 60  # Window in seconds
+
     # Github settings
     github_token: str = Field(..., description="GitHub API token")
     github_secret: str = Field(..., description="GitHub Secret")

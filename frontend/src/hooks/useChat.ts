@@ -11,14 +11,15 @@ import type {
   StreamEvent,
   SuggestedQuestion,
   TokenUsage,
+  ToolResultInline,
 } from '../types/chat';
 import type {
   ToolCallLog,
   ContextInfo,
   ModelInfo,
-  DevToolsState,
 } from '../types/devtools';
 import { DEV_TOOLS_STORAGE_KEY, DEFAULT_DEV_TOOLS_STATE } from '../types/devtools';
+import { createThrottledUpdater, type ThrottledUpdater } from '../utils/throttledUpdater';
 
 interface UseChatOptions {
   analysisId: string | null;
@@ -78,11 +79,13 @@ export function useChat({
 
   const abortControllerRef = useRef<AbortController | null>(null);
   const streamingMessageRef = useRef<string>('');
+  const throttledUpdaterRef = useRef<ThrottledUpdater<string> | null>(null);
 
   // Cleanup on unmount
   useEffect(() => {
     return () => {
       abortControllerRef.current?.abort();
+      throttledUpdaterRef.current?.cancel();
     };
   }, []);
 
@@ -123,8 +126,9 @@ export function useChat({
       return;
     }
 
-    // Abort any existing stream
+    // Abort any existing stream and cancel throttled updater
     abortControllerRef.current?.abort();
+    throttledUpdaterRef.current?.cancel();
     abortControllerRef.current = new AbortController();
 
     setIsLoading(true);
@@ -141,14 +145,33 @@ export function useChat({
     };
     setMessages(prev => [...prev, userMessage]);
 
-    // Add placeholder for assistant message
+    // Add placeholder for assistant message with empty tool_results
     const assistantMessage: ChatMessage = {
       role: 'assistant',
       content: '',
       timestamp: new Date().toISOString(),
       tools_used: [],
+      tool_results: [],
     };
     setMessages(prev => [...prev, assistantMessage]);
+
+    // Create throttled updater for text content (batches updates at ~60fps)
+    throttledUpdaterRef.current = createThrottledUpdater<string, ChatMessage[]>(
+      setMessages,
+      (prev, textDelta) => {
+        const newMessages = [...prev];
+        const lastIdx = newMessages.length - 1;
+        if (newMessages[lastIdx]?.role === 'assistant') {
+          streamingMessageRef.current += textDelta;
+          newMessages[lastIdx] = {
+            ...newMessages[lastIdx],
+            content: streamingMessageRef.current,
+          };
+        }
+        return newMessages;
+      },
+      { minIntervalMs: 16 } // ~60fps
+    );
 
     try {
       let toolsUsed: string[] = [];
@@ -164,18 +187,8 @@ export function useChat({
           switch (event.type) {
             case 'text_delta':
               if (event.content) {
-                streamingMessageRef.current += event.content;
-                setMessages(prev => {
-                  const newMessages = [...prev];
-                  const lastIdx = newMessages.length - 1;
-                  if (newMessages[lastIdx]?.role === 'assistant') {
-                    newMessages[lastIdx] = {
-                      ...newMessages[lastIdx],
-                      content: streamingMessageRef.current,
-                    };
-                  }
-                  return newMessages;
-                });
+                // Use throttled updater for batched text updates
+                throttledUpdaterRef.current?.update(event.content);
               }
               break;
 
@@ -193,7 +206,7 @@ export function useChat({
               if (event.tool_name) {
                 toolsUsed.push(event.tool_name);
               }
-              // Add tool call to logs
+              // Add tool call to dev tools logs
               if (event.tool_call_id && event.tool_name) {
                 const newToolCall: ToolCallLog = {
                   id: event.tool_call_id,
@@ -205,11 +218,34 @@ export function useChat({
                 };
                 setToolCallLogs(prev => [...prev, newToolCall]);
               }
+              // Add inline tool result to message for progressive display
+              if (event.tool_call_id && event.tool_name) {
+                const newToolResult: ToolResultInline = {
+                  id: event.tool_call_id,
+                  name: event.tool_name,
+                  status: 'running',
+                  inputPreview: event.tool_input_preview,
+                };
+                setMessages(prev => {
+                  const newMessages = [...prev];
+                  const lastIdx = newMessages.length - 1;
+                  if (newMessages[lastIdx]?.role === 'assistant') {
+                    newMessages[lastIdx] = {
+                      ...newMessages[lastIdx],
+                      tool_results: [
+                        ...(newMessages[lastIdx].tool_results || []),
+                        newToolResult,
+                      ],
+                    };
+                  }
+                  return newMessages;
+                });
+              }
               break;
 
             case 'tool_use_end':
               setCurrentToolName(null);
-              // Update tool call in logs with result
+              // Update tool call in dev tools logs with result
               if (event.tool_call_id) {
                 setToolCallLogs(prev => prev.map(log =>
                   log.id === event.tool_call_id
@@ -224,9 +260,35 @@ export function useChat({
                     : log
                 ));
               }
+              // Update inline tool result in message
+              if (event.tool_call_id) {
+                setMessages(prev => {
+                  const newMessages = [...prev];
+                  const lastIdx = newMessages.length - 1;
+                  if (newMessages[lastIdx]?.role === 'assistant') {
+                    newMessages[lastIdx] = {
+                      ...newMessages[lastIdx],
+                      tool_results: newMessages[lastIdx].tool_results?.map(tr =>
+                        tr.id === event.tool_call_id
+                          ? {
+                              ...tr,
+                              status: 'completed' as const,
+                              outputPreview: event.tool_output_preview,
+                              durationMs: event.tool_duration_ms,
+                            }
+                          : tr
+                      ),
+                    };
+                  }
+                  return newMessages;
+                });
+              }
               break;
 
             case 'message_complete':
+              // Flush any pending throttled updates
+              throttledUpdaterRef.current?.forceFlush();
+
               if (event.conversation_id && !conversationId) {
                 setConversationId(event.conversation_id);
               }
@@ -263,6 +325,8 @@ export function useChat({
               break;
 
             case 'error':
+              // Flush any pending updates before showing error
+              throttledUpdaterRef.current?.forceFlush();
               setError(event.error || 'Unknown error');
               break;
           }
@@ -273,6 +337,9 @@ export function useChat({
       // Clear highlighted text after sending
       setHighlightedText(null);
     } catch (err: any) {
+      // Clean up throttled updater
+      throttledUpdaterRef.current?.cancel();
+
       if (err.name === 'AbortError') {
         // Request was cancelled, not an error
         return;

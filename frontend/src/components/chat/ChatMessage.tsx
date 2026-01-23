@@ -1,12 +1,14 @@
 import { User, Bot, Wrench } from 'lucide-react';
 import type { ChatMessage as ChatMessageType } from '../../types/chat';
+import { ToolResultsList } from './ToolResultBlock';
 
 interface ChatMessageProps {
   message: ChatMessageType;
   variant?: 'widget' | 'panel';
+  showToolResults?: boolean;
 }
 
-export function ChatMessage({ message, variant = 'widget' }: ChatMessageProps) {
+export function ChatMessage({ message, variant = 'widget', showToolResults = true }: ChatMessageProps) {
   const isUser = message.role === 'user';
   const isPanel = variant === 'panel';
 
@@ -41,6 +43,9 @@ export function ChatMessage({ message, variant = 'widget' }: ChatMessageProps) {
     ? 'text-[10px] text-slate-500 font-medium'
     : 'text-[10px] text-[#a0aec0] font-light';
 
+  const hasToolResults = showToolResults && !isUser && message.tool_results && message.tool_results.length > 0;
+  const hasToolsUsed = !isUser && message.tools_used && message.tools_used.length > 0;
+
   return (
     <div className={`flex gap-3 ${isUser ? 'flex-row-reverse' : 'flex-row'}`}>
       {/* Avatar */}
@@ -65,21 +70,34 @@ export function ChatMessage({ message, variant = 'widget' }: ChatMessageProps) {
           {isUser ? 'You' : 'Assistant'}
         </span>
 
-        <div className={`px-3 py-2.5 text-sm leading-relaxed ${messageClasses}`}>
-          <p className="whitespace-pre-wrap break-words">
-            {message.content}
-          </p>
-        </div>
+        {/* Tool results (shown before text content for progressive display) */}
+        {hasToolResults && (
+          <div className="w-full mb-2">
+            <ToolResultsList
+              results={message.tool_results!}
+              variant={variant}
+            />
+          </div>
+        )}
 
-        {/* Tools used indicator */}
-        {!isUser && message.tools_used && message.tools_used.length > 0 && (
+        {/* Text content */}
+        {message.content && (
+          <div className={`px-3 py-2.5 text-sm leading-relaxed ${messageClasses}`}>
+            <p className="whitespace-pre-wrap break-words">
+              {message.content}
+            </p>
+          </div>
+        )}
+
+        {/* Tools used indicator (only shown when no inline tool_results) */}
+        {hasToolsUsed && !hasToolResults && (
           <div className="flex items-center gap-2 mt-1.5 px-1">
             <Wrench size={10} className={toolsClasses} />
             <span
               className={toolsTextClasses}
               style={{ fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace' }}
             >
-              {message.tools_used.join(', ')}
+              {message.tools_used!.join(', ')}
             </span>
           </div>
         )}

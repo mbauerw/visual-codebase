@@ -24,6 +24,7 @@ from ..models.chat_schemas import (
 )
 from .chat_tools import CHAT_TOOLS, ChatToolExecutor
 from .chat_context import build_base_context, format_user_message
+from .tool_output_formatter import ToolOutputFormatter
 from .token_counter import (
     count_message_tokens,
     count_system_prompt_tokens,
@@ -569,7 +570,10 @@ class ChatbotService:
                     # Process results and emit end events
                     tool_results = []
                     for block, result_str, duration_ms in tool_execution_results:
-                        output_preview = self._truncate_string(result_str, 500)
+                        # Use smart formatter for human-readable preview
+                        output_preview = ToolOutputFormatter.format_preview(
+                            block.name, result_str
+                        )
 
                         assistant_content.append({
                             "type": "tool_use",
