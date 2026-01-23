@@ -3,9 +3,11 @@
  * Reduces state updates during streaming to prevent frame drops.
  */
 
-export interface ThrottledUpdaterOptions {
+export interface ThrottledUpdaterOptions<T = string> {
   /** Minimum interval between updates in milliseconds (default: 16ms = ~60fps) */
   minIntervalMs?: number;
+  /** Function to merge buffered deltas together (default: string concatenation) */
+  bufferMerge?: (buffered: T, newDelta: T) => T;
 }
 
 export interface ThrottledUpdater<T> {
@@ -44,9 +46,20 @@ export interface ThrottledUpdater<T> {
 export function createThrottledUpdater<T, S = T>(
   setState: React.Dispatch<React.SetStateAction<S>>,
   merge: (prev: S, delta: T) => S,
-  options: ThrottledUpdaterOptions = {}
+  options: ThrottledUpdaterOptions<T> = {}
 ): ThrottledUpdater<T> {
-  const { minIntervalMs = 16 } = options;
+  const { minIntervalMs = 16, bufferMerge } = options;
+
+  // Default buffer merge for strings is concatenation
+  const defaultBufferMerge = (a: T, b: T): T => {
+    if (typeof a === 'string' && typeof b === 'string') {
+      return (a + b) as T;
+    }
+    // For non-strings, just use the latest value (caller should provide bufferMerge)
+    return b;
+  };
+
+  const mergeBuffer = bufferMerge || defaultBufferMerge;
 
   let buffer: T | null = null;
   let rafId: number | null = null;
@@ -101,9 +114,9 @@ export function createThrottledUpdater<T, S = T>(
       if (buffer === null) {
         buffer = delta;
       } else {
-        // Merge with existing buffer using same merge function
-        // For string concatenation, this will combine chunks
-        buffer = merge(buffer as unknown as S, delta) as unknown as T;
+        // Merge buffered deltas together (NOT using state merge function)
+        // For strings, this concatenates: "chunk1" + "chunk2" = "chunk1chunk2"
+        buffer = mergeBuffer(buffer, delta);
       }
       scheduleUpdate();
     },
