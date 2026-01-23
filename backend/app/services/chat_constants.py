@@ -1,0 +1,34 @@
+"""Shared constants for chatbot services.
+
+This module centralizes magic numbers and configuration values used across
+the chatbot-related services for easier maintenance and consistency.
+"""
+
+# Token estimation
+# Rough estimate: 1 token ≈ 4 characters for English text
+# Note: For more accurate estimation, consider using the tiktoken library
+CHARS_PER_TOKEN = 4
+
+# API configuration
+MAX_RESPONSE_TOKENS = 2048  # Maximum tokens in Claude response
+MAX_TOOL_ITERATIONS = 10  # Maximum tool execution iterations per request
+
+# Tool result summarization
+DEFAULT_SUMMARIZATION_TOKEN_LIMIT = 2000
+SUMMARIZATION_MAX_STRING_LENGTH = 100
+SUMMARIZATION_MAX_ARRAY_ITEMS_INITIAL = 5
+SUMMARIZATION_MAX_ARRAY_ITEMS_AGGRESSIVE = 2
+
+# Tool output preview formatting
+MAX_PREVIEW_LENGTH = 300
+MAX_PREVIEW_LIST_ITEMS = 5
+MAX_PREVIEW_STRING_LENGTH = 100
+
+# Cycle detection
+DEFAULT_MAX_CYCLES = 10
+
+# Dependency path search
+DEFAULT_MAX_DEPTH = 10
+
+# Function listing
+DEFAULT_FUNCTION_LIST_LIMIT = 20

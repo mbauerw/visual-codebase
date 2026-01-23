@@ -169,9 +169,9 @@ export function ToolResultsList({ results, variant = 'panel' }: ToolResultsListP
 
   return (
     <div className="space-y-1.5 mt-2">
-      {results.map((result) => (
+      {results.map((result, index) => (
         <ToolResultBlock
-          key={result.id}
+          key={result.id || `tool-result-${index}`}
           result={result}
           variant={variant}
         />

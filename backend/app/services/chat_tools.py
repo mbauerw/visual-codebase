@@ -12,16 +12,27 @@ from ..models.schemas import (
     Category,
     TierLevel,
 )
+from .chat_constants import (
+    CHARS_PER_TOKEN,
+    DEFAULT_SUMMARIZATION_TOKEN_LIMIT,
+    DEFAULT_MAX_CYCLES,
+    DEFAULT_MAX_DEPTH,
+    DEFAULT_FUNCTION_LIST_LIMIT,
+)
 
 logger = logging.getLogger(__name__)
 
 
 class ToolResultSummarizer:
-    """Summarizes large tool results to fit within token budgets."""
+    """Summarizes large tool results to fit within token budgets.
 
-    # Rough estimate: 1 token ≈ 4 characters
-    CHARS_PER_TOKEN = 4
-    DEFAULT_TOKEN_LIMIT = 2000
+    Attributes:
+        CHARS_PER_TOKEN: Estimated characters per token for rough token counting.
+        DEFAULT_TOKEN_LIMIT: Default maximum tokens for summarized output.
+    """
+
+    CHARS_PER_TOKEN = CHARS_PER_TOKEN
+    DEFAULT_TOKEN_LIMIT = DEFAULT_SUMMARIZATION_TOKEN_LIMIT
 
     @classmethod
     def summarize(
@@ -513,7 +524,7 @@ class ChatToolExecutor:
                     tier=tool_input.get("tier"),
                     file_path=tool_input.get("file_path"),
                     min_calls=tool_input.get("min_calls"),
-                    limit=tool_input.get("limit", 20)
+                    limit=tool_input.get("limit", DEFAULT_FUNCTION_LIST_LIMIT)
                 )
             elif tool_name == "get_codebase_summary":
                 result = self._get_codebase_summary()
@@ -522,13 +533,13 @@ class ChatToolExecutor:
             elif tool_name == "detect_circular_dependencies":
                 result = self._detect_circular_dependencies(
                     involving_file=tool_input.get("involving_file"),
-                    max_cycles=tool_input.get("max_cycles", 10)
+                    max_cycles=tool_input.get("max_cycles", DEFAULT_MAX_CYCLES)
                 )
             elif tool_name == "find_dependency_path":
                 result = self._find_dependency_path(
                     source=tool_input.get("source", ""),
                     target=tool_input.get("target", ""),
-                    max_depth=tool_input.get("max_depth", 10),
+                    max_depth=tool_input.get("max_depth", DEFAULT_MAX_DEPTH),
                     bidirectional=tool_input.get("bidirectional", False)
                 )
             elif tool_name == "compare_files":
@@ -728,7 +739,7 @@ class ChatToolExecutor:
         tier: Optional[str] = None,
         file_path: Optional[str] = None,
         min_calls: Optional[int] = None,
-        limit: int = 20
+        limit: int = DEFAULT_FUNCTION_LIST_LIMIT
     ) -> dict[str, Any]:
         """List functions matching criteria."""
         if not self.tier_list:
@@ -809,7 +820,7 @@ class ChatToolExecutor:
     def _detect_circular_dependencies(
         self,
         involving_file: Optional[str] = None,
-        max_cycles: int = 10
+        max_cycles: int = DEFAULT_MAX_CYCLES
     ) -> dict[str, Any]:
         """Detect circular dependencies using optimized DFS cycle detection.
 
@@ -922,10 +933,26 @@ class ChatToolExecutor:
         self,
         source: str,
         target: str,
-        max_depth: int = 10,
+        max_depth: int = DEFAULT_MAX_DEPTH,
         bidirectional: bool = False
     ) -> dict[str, Any]:
-        """Find shortest dependency path between two files using BFS."""
+        """Find shortest dependency path between two files using BFS.
+
+        Args:
+            source: Path or name of the source file.
+            target: Path or name of the target file.
+            max_depth: Maximum search depth (default from chat_constants).
+            bidirectional: If True, also search reverse dependency direction.
+
+        Returns:
+            Path information including connected status, path list, and length.
+        """
+        # Validate inputs
+        if not source or not source.strip():
+            return {"error": "source parameter is required"}
+        if not target or not target.strip():
+            return {"error": "target parameter is required"}
+
         source_node = self._find_node(source)
         target_node = self._find_node(target)
 
@@ -1000,7 +1027,21 @@ class ChatToolExecutor:
         }
 
     def _compare_files(self, file1: str, file2: str) -> dict[str, Any]:
-        """Compare two files for similarities and relationships."""
+        """Compare two files for similarities and relationships.
+
+        Args:
+            file1: Path or name of the first file to compare.
+            file2: Path or name of the second file to compare.
+
+        Returns:
+            Comparison results including shared dependencies and relationships.
+        """
+        # Validate inputs
+        if not file1 or not file1.strip():
+            return {"error": "file1 parameter is required"}
+        if not file2 or not file2.strip():
+            return {"error": "file2 parameter is required"}
+
         node1 = self._find_node(file1)
         node2 = self._find_node(file2)
 

@@ -25,6 +25,7 @@ from ..models.chat_schemas import (
 from .chat_tools import CHAT_TOOLS, ChatToolExecutor
 from .chat_context import build_base_context, format_user_message
 from .tool_output_formatter import ToolOutputFormatter
+from .chat_constants import MAX_RESPONSE_TOKENS, MAX_TOOL_ITERATIONS
 from .token_counter import (
     count_message_tokens,
     count_system_prompt_tokens,
@@ -329,15 +330,14 @@ class ChatbotService:
 
         # Execute tool loop
         tools_used = []
-        max_iterations = 10  # Prevent infinite loops
         total_input_tokens = 0
         total_output_tokens = 0
 
-        for _ in range(max_iterations):
+        for _ in range(MAX_TOOL_ITERATIONS):
             try:
                 response = await self.client.messages.create(
                     model=self.settings.llm_model,
-                    max_tokens=2048,
+                    max_tokens=MAX_RESPONSE_TOKENS,
                     system=system_context,
                     tools=CHAT_TOOLS,
                     messages=conversation.messages
@@ -505,7 +505,6 @@ class ChatbotService:
 
         # Execute tool loop (non-streaming for tool iterations)
         tools_used = []
-        max_iterations = 10
         total_input_tokens = 0
         total_output_tokens = 0
 
@@ -520,12 +519,12 @@ class ChatbotService:
             model_id=self.settings.llm_model
         )
 
-        for iteration in range(max_iterations):
+        for iteration in range(MAX_TOOL_ITERATIONS):
             try:
                 # First, do non-streaming call to handle tools
                 response = await self.client.messages.create(
                     model=self.settings.llm_model,
-                    max_tokens=2048,
+                    max_tokens=MAX_RESPONSE_TOKENS,
                     system=system_context,
                     tools=CHAT_TOOLS,
                     messages=conversation.messages
@@ -639,7 +638,7 @@ class ChatbotService:
 
                 async with self.client.messages.stream(
                     model=self.settings.llm_model,
-                    max_tokens=2048,
+                    max_tokens=MAX_RESPONSE_TOKENS,
                     system=system_context,
                     tools=CHAT_TOOLS,
                     messages=conversation.messages
