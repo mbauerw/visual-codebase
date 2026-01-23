@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import {
   sendChatMessage,
   deleteChatHistory,
@@ -20,6 +20,26 @@ import type {
 } from '../types/devtools';
 import { DEV_TOOLS_STORAGE_KEY, DEFAULT_DEV_TOOLS_STATE } from '../types/devtools';
 import { createThrottledUpdater, type ThrottledUpdater } from '../utils/throttledUpdater';
+
+/**
+ * Convert ToolCallLog to ToolResultInline for display.
+ * This derives inline tool results from the canonical toolCallLogs state.
+ */
+function toolCallLogToInline(log: ToolCallLog): ToolResultInline {
+  // Map ToolCallLog status to ToolResultInline status
+  // "pending" maps to "running" since the tool is about to execute
+  const status = log.status === 'pending' ? 'running' : log.status;
+
+  return {
+    id: log.id,
+    name: log.name,
+    status,
+    inputPreview: log.inputPreview,
+    outputPreview: log.outputPreview,
+    durationMs: log.durationMs,
+    error: log.status === 'error' ? 'Tool execution failed' : undefined,
+  };
+}
 
 interface UseChatOptions {
   analysisId: string | null;
@@ -145,13 +165,13 @@ export function useChat({
     };
     setMessages(prev => [...prev, userMessage]);
 
-    // Add placeholder for assistant message with empty tool_results
+    // Add placeholder for assistant message
+    // tool_results will be derived from toolCallLogs via useMemo
     const assistantMessage: ChatMessage = {
       role: 'assistant',
       content: '',
       timestamp: new Date().toISOString(),
       tools_used: [],
-      tool_results: [],
     };
     setMessages(prev => [...prev, assistantMessage]);
 
@@ -206,7 +226,8 @@ export function useChat({
               if (event.tool_name) {
                 toolsUsed.push(event.tool_name);
               }
-              // Add tool call to dev tools logs
+              // Add tool call to logs (single source of truth)
+              // tool_results in messages will be derived from this
               if (event.tool_call_id && event.tool_name) {
                 const newToolCall: ToolCallLog = {
                   id: event.tool_call_id,
@@ -218,34 +239,11 @@ export function useChat({
                 };
                 setToolCallLogs(prev => [...prev, newToolCall]);
               }
-              // Add inline tool result to message for progressive display
-              if (event.tool_call_id && event.tool_name) {
-                const newToolResult: ToolResultInline = {
-                  id: event.tool_call_id,
-                  name: event.tool_name,
-                  status: 'running',
-                  inputPreview: event.tool_input_preview,
-                };
-                setMessages(prev => {
-                  const newMessages = [...prev];
-                  const lastIdx = newMessages.length - 1;
-                  if (newMessages[lastIdx]?.role === 'assistant') {
-                    newMessages[lastIdx] = {
-                      ...newMessages[lastIdx],
-                      tool_results: [
-                        ...(newMessages[lastIdx].tool_results || []),
-                        newToolResult,
-                      ],
-                    };
-                  }
-                  return newMessages;
-                });
-              }
               break;
 
             case 'tool_use_end':
               setCurrentToolName(null);
-              // Update tool call in dev tools logs with result
+              // Update tool call in logs with result (single source of truth)
               if (event.tool_call_id) {
                 setToolCallLogs(prev => prev.map(log =>
                   log.id === event.tool_call_id
@@ -259,29 +257,6 @@ export function useChat({
                       }
                     : log
                 ));
-              }
-              // Update inline tool result in message
-              if (event.tool_call_id) {
-                setMessages(prev => {
-                  const newMessages = [...prev];
-                  const lastIdx = newMessages.length - 1;
-                  if (newMessages[lastIdx]?.role === 'assistant') {
-                    newMessages[lastIdx] = {
-                      ...newMessages[lastIdx],
-                      tool_results: newMessages[lastIdx].tool_results?.map(tr =>
-                        tr.id === event.tool_call_id
-                          ? {
-                              ...tr,
-                              status: 'completed' as const,
-                              outputPreview: event.tool_output_preview,
-                              durationMs: event.tool_duration_ms,
-                            }
-                          : tr
-                      ),
-                    };
-                  }
-                  return newMessages;
-                });
               }
               break;
 
@@ -462,8 +437,29 @@ export function useChat({
     setError(null);
   }, []);
 
+  // Derive messages with tool_results from the canonical toolCallLogs state
+  // This ensures a single source of truth for tool execution state
+  const messagesWithToolResults = useMemo(() => {
+    if (toolCallLogs.length === 0) {
+      return messages;
+    }
+
+    // Find the last assistant message and inject tool results
+    const result = [...messages];
+    const lastIdx = result.length - 1;
+
+    if (lastIdx >= 0 && result[lastIdx]?.role === 'assistant') {
+      result[lastIdx] = {
+        ...result[lastIdx],
+        tool_results: toolCallLogs.map(toolCallLogToInline),
+      };
+    }
+
+    return result;
+  }, [messages, toolCallLogs]);
+
   return {
-    messages,
+    messages: messagesWithToolResults,
     conversationId,
     isLoading,
     error,

@@ -73,6 +73,8 @@ class ToolOutputFormatter:
             "search_functions": cls._format_search_functions,
             "get_callers": cls._format_callers,
             "get_callees": cls._format_callees,
+            "list_functions": cls._format_list_functions,
+            "explain_highlighted": cls._format_explain_highlighted,
         }
         return formatters.get(tool_name)
 
@@ -343,6 +345,76 @@ class ToolOutputFormatter:
             preview += f" (+{total - cls.MAX_LIST_ITEMS} more)"
 
         return f"Calls {total} functions: {preview}"
+
+    @classmethod
+    def _format_list_functions(cls, result: dict) -> str:
+        """Format list_functions result."""
+        functions = result.get("functions", [])
+        total = result.get("count", len(functions))
+        tier = result.get("tier_filter")
+        file_filter = result.get("file_filter")
+
+        if not functions:
+            filter_desc = []
+            if tier:
+                filter_desc.append(f"tier {tier}")
+            if file_filter:
+                filter_desc.append(f"in {file_filter}")
+            filter_str = " ".join(filter_desc) if filter_desc else ""
+            return f"No functions found{' ' + filter_str if filter_str else ''}"
+
+        # Show function names with their tiers
+        func_strs = []
+        for f in functions[:cls.MAX_LIST_ITEMS]:
+            name = f.get("function_name", "?")
+            tier_val = f.get("tier", "")
+            func_strs.append(f"{name} ({tier_val})" if tier_val else name)
+
+        preview = ", ".join(func_strs)
+        if total > cls.MAX_LIST_ITEMS:
+            preview += f" (+{total - cls.MAX_LIST_ITEMS} more)"
+
+        return f"Found {total} functions: {preview}"
+
+    @classmethod
+    def _format_explain_highlighted(cls, result: dict) -> str:
+        """Format explain_highlighted result."""
+        match_type = result.get("match_type", "unknown")
+        text = result.get("text", "")
+
+        if match_type == "file":
+            file_info = result.get("file", {})
+            name = file_info.get("name", text)
+            role = file_info.get("role", "")
+            return f"File: {name}" + (f" ({role})" if role else "")
+
+        elif match_type == "function":
+            func_info = result.get("function", {})
+            name = func_info.get("function_name", text)
+            tier = func_info.get("tier", "")
+            file_path = func_info.get("file_path", "")
+            parts = [f"Function: {name}"]
+            if tier:
+                parts.append(f"Tier: {tier}")
+            if file_path:
+                parts.append(f"In: {file_path}")
+            return "\n".join(parts)
+
+        elif match_type == "role":
+            role = result.get("role", text)
+            count = result.get("file_count", 0)
+            return f"Architectural role: {role} ({count} files)"
+
+        elif match_type == "category":
+            category = result.get("category", text)
+            count = result.get("file_count", 0)
+            return f"Category: {category} ({count} files)"
+
+        elif match_type == "no_match":
+            return f"No match found for: {text}"
+
+        # Default
+        return f"Matched: {text} ({match_type})"
 
     @classmethod
     def _format_default(cls, result: dict) -> str:

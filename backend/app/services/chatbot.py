@@ -191,15 +191,19 @@ class ChatbotService:
         self._tool_executor_ttl = timedelta(minutes=10)
 
     def _compute_tier_list_hash(self, tier_list: Optional[list]) -> int:
-        """Compute a hash of the tier list for cache validation."""
+        """Compute a comprehensive hash of the tier list for cache validation.
+
+        Uses all qualified names to ensure changes in the middle of the list
+        are detected, preventing false cache hits.
+        """
         if not tier_list:
             return 0
-        # Hash based on length and first/last items for quick comparison
-        return hash((
-            len(tier_list),
-            tier_list[0].get("qualified_name") if tier_list else None,
-            tier_list[-1].get("qualified_name") if tier_list else None
-        ))
+        # Hash all qualified names for comprehensive comparison
+        # This catches reordering and middle-item changes
+        names = tuple(
+            f.get("qualified_name", "") for f in tier_list
+        )
+        return hash(names)
 
     def _get_tool_executor(
         self, analysis_id: str, graph: ReactFlowGraph, tier_list: Optional[list] = None
@@ -359,24 +363,32 @@ class ChatbotService:
                     for block in tool_blocks:
                         tools_used.append(block.name)
 
-                    # Execute all tools in parallel
+                    # Execute all tools in parallel with error handling
                     async def execute_single_tool(block):
                         """Execute a single tool and return result."""
                         logger.info(f"Executing tool: {block.name} with input: {block.input}")
-                        result = await asyncio.to_thread(
-                            tool_executor.execute_tool, block.name, block.input
-                        )
-                        result_str = json.dumps(result, default=str)
-                        return block, result_str
+                        try:
+                            result = await asyncio.to_thread(
+                                tool_executor.execute_tool, block.name, block.input
+                            )
+                            result_str = json.dumps(result, default=str)
+                            return block, result_str, None
+                        except Exception as e:
+                            logger.error(f"Tool execution failed for {block.name}: {e}")
+                            return block, None, str(e)
 
-                    # Run all tools concurrently
+                    # Run all tools concurrently, handling individual failures
                     tool_execution_results = await asyncio.gather(*[
                         execute_single_tool(block) for block in tool_blocks
                     ])
 
-                    # Process results
+                    # Process results (handle both successes and failures)
                     tool_results = []
-                    for block, result_str in tool_execution_results:
+                    for block, result_str, error in tool_execution_results:
+                        # Handle failed tool execution
+                        if error is not None:
+                            result_str = json.dumps({"error": f"Tool execution failed: {error}"})
+
                         assistant_content.append({
                             "type": "tool_use",
                             "id": block.id,
@@ -550,26 +562,35 @@ class ChatbotService:
                             conversation_id=conversation.conversation_id
                         )
 
-                    # Execute all tools in parallel
+                    # Execute all tools in parallel with error handling
                     async def execute_single_tool(block):
                         """Execute a single tool and return result with timing."""
                         logger.info(f"Executing tool: {block.name} with input: {block.input}")
                         start_time = time.time()
-                        result = await asyncio.to_thread(
-                            tool_executor.execute_tool, block.name, block.input
-                        )
-                        duration_ms = int((time.time() - start_time) * 1000)
-                        result_str = json.dumps(result, default=str)
-                        return block, result_str, duration_ms
+                        try:
+                            result = await asyncio.to_thread(
+                                tool_executor.execute_tool, block.name, block.input
+                            )
+                            duration_ms = int((time.time() - start_time) * 1000)
+                            result_str = json.dumps(result, default=str)
+                            return block, result_str, duration_ms, None
+                        except Exception as e:
+                            duration_ms = int((time.time() - start_time) * 1000)
+                            logger.error(f"Tool execution failed for {block.name}: {e}")
+                            return block, None, duration_ms, str(e)
 
-                    # Run all tools concurrently
+                    # Run all tools concurrently, handling individual failures
                     tool_execution_results = await asyncio.gather(*[
                         execute_single_tool(block) for block in tool_blocks
                     ])
 
-                    # Process results and emit end events
+                    # Process results and emit end events (handle both successes and failures)
                     tool_results = []
-                    for block, result_str, duration_ms in tool_execution_results:
+                    for block, result_str, duration_ms, error in tool_execution_results:
+                        # Handle failed tool execution
+                        if error is not None:
+                            result_str = json.dumps({"error": f"Tool execution failed: {error}"})
+
                         # Use smart formatter for human-readable preview
                         output_preview = ToolOutputFormatter.format_preview(
                             block.name, result_str

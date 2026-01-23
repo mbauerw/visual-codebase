@@ -811,7 +811,13 @@ class ChatToolExecutor:
         involving_file: Optional[str] = None,
         max_cycles: int = 10
     ) -> dict[str, Any]:
-        """Detect circular dependencies using DFS cycle detection."""
+        """Detect circular dependencies using optimized DFS cycle detection.
+
+        Uses a color-based DFS (white/gray/black) for O(V+E) complexity:
+        - WHITE (0): unvisited
+        - GRAY (1): in current path (on recursion stack)
+        - BLACK (2): finished processing
+        """
         # Build adjacency list from edges
         adjacency: dict[str, set[str]] = {}
         for edge in self.graph.edges:
@@ -819,9 +825,13 @@ class ChatToolExecutor:
                 adjacency[edge.source] = set()
             adjacency[edge.source].add(edge.target)
 
+        # Color states: 0=white, 1=gray, 2=black
+        color: dict[str, int] = {node: 0 for node in adjacency}
+        # Track parent in current path for efficient cycle extraction
+        parent: dict[str, Optional[str]] = {}
+
         cycles: list[dict] = []
-        visited: set[str] = set()
-        rec_stack: set[str] = set()
+        seen_cycles: set[tuple] = set()  # For efficient deduplication
 
         # Find target node if involving_file is specified
         target_node = None
@@ -830,54 +840,75 @@ class ChatToolExecutor:
             if not target_node:
                 return {"error": f"File not found: {involving_file}"}
 
-        def dfs(node: str, path: list[str]) -> None:
+        def extract_cycle(start: str, end: str) -> list[str]:
+            """Extract cycle path from end back to start using parent pointers."""
+            cycle = [end]
+            current = end
+            while parent.get(current) != start and parent.get(current) is not None:
+                current = parent[current]
+                cycle.append(current)
+            cycle.append(start)
+            cycle.reverse()
+            cycle.append(start)  # Complete the cycle
+            return cycle
+
+        def normalize_cycle(cycle_ids: list[str]) -> tuple:
+            """Normalize cycle for deduplication - start from min element."""
+            if len(cycle_ids) <= 2:
+                return tuple(cycle_ids)
+            # Remove the duplicate end element for rotation
+            core = cycle_ids[:-1]
+            # Find minimum element and rotate to start from it
+            min_idx = core.index(min(core))
+            rotated = core[min_idx:] + core[:min_idx]
+            rotated.append(rotated[0])  # Add back closing element
+            return tuple(rotated)
+
+        def dfs(node: str) -> None:
             if len(cycles) >= max_cycles:
                 return
 
-            visited.add(node)
-            rec_stack.add(node)
-            path.append(node)
+            color[node] = 1  # Gray - currently processing
 
             for neighbor in adjacency.get(node, []):
-                if neighbor not in visited:
-                    dfs(neighbor, path)
-                elif neighbor in rec_stack:
-                    # Found cycle - extract it
-                    cycle_start = path.index(neighbor)
-                    cycle_ids = path[cycle_start:] + [neighbor]
+                if len(cycles) >= max_cycles:
+                    return
+
+                if color.get(neighbor, 0) == 0:  # White - unvisited
+                    parent[neighbor] = node
+                    dfs(neighbor)
+                elif color.get(neighbor, 0) == 1:  # Gray - back edge = cycle
+                    # Extract the cycle
+                    cycle_ids = extract_cycle(neighbor, node)
+
+                    # Filter by involving_file if specified
+                    if target_node and target_node.id not in cycle_ids:
+                        continue
+
+                    # Normalize for deduplication
+                    normalized_tuple = normalize_cycle(cycle_ids)
+                    if normalized_tuple in seen_cycles:
+                        continue
+                    seen_cycles.add(normalized_tuple)
 
                     # Convert node IDs to paths for readability
                     cycle_paths = [
                         self._node_by_id[n].data.path if n in self._node_by_id else n
-                        for n in cycle_ids
+                        for n in normalized_tuple
                     ]
 
-                    # Filter by involving_file if specified
-                    if target_node and target_node.id not in cycle_ids:
-                        return
+                    cycles.append({
+                        "cycle": list(cycle_paths),
+                        "length": len(cycle_paths) - 1
+                    })
 
-                    # Normalize cycle (start from alphabetically first node)
-                    if len(cycle_paths) > 1:
-                        min_idx = cycle_paths[:-1].index(min(cycle_paths[:-1]))
-                        normalized = cycle_paths[min_idx:-1] + cycle_paths[:min_idx] + [cycle_paths[min_idx]]
-                    else:
-                        normalized = cycle_paths
+            color[node] = 2  # Black - finished
 
-                    # Check for duplicates
-                    existing_cycles = [c["cycle"] for c in cycles]
-                    if normalized not in existing_cycles:
-                        cycles.append({
-                            "cycle": normalized,
-                            "length": len(normalized) - 1
-                        })
-
-            path.pop()
-            rec_stack.remove(node)
-
-        # Run DFS from each node
+        # Run DFS from each unvisited node
         for node_id in adjacency:
-            if node_id not in visited and len(cycles) < max_cycles:
-                dfs(node_id, [])
+            if color.get(node_id, 0) == 0 and len(cycles) < max_cycles:
+                parent[node_id] = None
+                dfs(node_id)
 
         return {
             "has_cycles": len(cycles) > 0,
