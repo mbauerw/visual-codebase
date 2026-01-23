@@ -141,10 +141,12 @@ class RedisRateLimiter(BaseRateLimiter):
         """
         Check if a request is allowed using Redis sorted sets.
 
-        Uses a sliding window algorithm:
+        Uses an atomic sliding window algorithm:
         1. Remove entries outside the window
-        2. Count remaining entries
-        3. If under limit, add new entry
+        2. Add new entry optimistically
+        3. Count entries - if over limit, remove the entry we just added
+
+        This approach is atomic and prevents race conditions.
         """
         redis = await self._get_redis()
         if redis is None:
@@ -155,43 +157,50 @@ class RedisRateLimiter(BaseRateLimiter):
         redis_key = f"{self.key_prefix}:{key}"
         now = time.time()
         window_start = now - self.window_seconds
+        # Use unique member to avoid collisions in high-concurrency scenarios
+        member = f"{now}:{id(self)}:{hash(key) % 10000}"
 
         try:
-            # Use pipeline for atomicity
+            # Atomic operation: clean, add, count, set expiry in single pipeline
             async with redis.pipeline(transaction=True) as pipe:
                 # Remove entries outside the window
                 pipe.zremrangebyscore(redis_key, '-inf', window_start)
-                # Count current entries
+                # Optimistically add this request
+                pipe.zadd(redis_key, {member: now})
+                # Count current entries (including the one we just added)
                 pipe.zcard(redis_key)
-                # Execute first batch
+                # Set expiry
+                pipe.expire(redis_key, self.window_seconds + 1)
+                # Execute atomically
                 results = await pipe.execute()
-                current_count = results[1]
 
-                if current_count >= self.max_requests:
-                    # Get oldest entry to calculate retry_after
-                    oldest_entries = await redis.zrange(redis_key, 0, 0, withscores=True)
-                    if oldest_entries:
-                        oldest_time = oldest_entries[0][1]
-                        retry_after = int(oldest_time + self.window_seconds - now)
-                    else:
-                        retry_after = self.window_seconds
-                    return RateLimitResult(
-                        allowed=False,
-                        remaining=0,
-                        retry_after=max(0, retry_after)
-                    )
+            current_count = results[2]  # zcard result
 
-                # Add this request
-                async with redis.pipeline(transaction=True) as pipe:
-                    pipe.zadd(redis_key, {str(now): now})
-                    pipe.expire(redis_key, self.window_seconds + 1)
-                    await pipe.execute()
+            # Check if we exceeded the limit (remember we already added ourselves)
+            if current_count > self.max_requests:
+                # Over limit - remove the entry we just added
+                await redis.zrem(redis_key, member)
+
+                # Get oldest entry to calculate retry_after
+                oldest_entries = await redis.zrange(redis_key, 0, 0, withscores=True)
+                if oldest_entries:
+                    oldest_time = oldest_entries[0][1]
+                    retry_after = int(oldest_time + self.window_seconds - now)
+                else:
+                    retry_after = self.window_seconds
 
                 return RateLimitResult(
-                    allowed=True,
-                    remaining=self.max_requests - current_count - 1,
-                    retry_after=0
+                    allowed=False,
+                    remaining=0,
+                    retry_after=max(0, retry_after)
                 )
+
+            # Request allowed
+            return RateLimitResult(
+                allowed=True,
+                remaining=self.max_requests - current_count,
+                retry_after=0
+            )
 
         except Exception as e:
             logger.error(f"Redis rate limit error: {e}")
@@ -271,27 +280,41 @@ class HybridRateLimiter(BaseRateLimiter):
 _rate_limiter: Optional[HybridRateLimiter] = None
 
 
-def get_rate_limiter(
-    redis_url: Optional[str] = None,
-    max_requests: int = 20,
-    window_seconds: int = 60
-) -> HybridRateLimiter:
+def get_rate_limiter() -> HybridRateLimiter:
     """
     Get or create the rate limiter singleton.
 
-    Args:
-        redis_url: Optional Redis URL (only used on first call)
-        max_requests: Max requests per window (only used on first call)
-        window_seconds: Window size in seconds (only used on first call)
+    Configuration is read from application settings to ensure consistency.
+    The singleton pattern ensures all rate limit checks use the same instance.
 
     Returns:
-        HybridRateLimiter instance
+        HybridRateLimiter instance configured from settings
     """
     global _rate_limiter
     if _rate_limiter is None:
+        # Import here to avoid circular imports
+        from ..settings import get_settings
+        settings = get_settings()
+
         _rate_limiter = HybridRateLimiter(
-            redis_url=redis_url,
-            max_requests=max_requests,
-            window_seconds=window_seconds
+            redis_url=settings.redis_url if settings.redis_url else None,
+            max_requests=settings.rate_limit_requests,
+            window_seconds=settings.rate_limit_window
+        )
+        logger.info(
+            f"Rate limiter initialized: max_requests={settings.rate_limit_requests}, "
+            f"window={settings.rate_limit_window}s, redis={'enabled' if settings.redis_url else 'disabled'}"
         )
     return _rate_limiter
+
+
+def reset_rate_limiter() -> None:
+    """
+    Reset the rate limiter singleton (useful for testing or config changes).
+
+    Warning: This will lose all in-memory rate limit state.
+    """
+    global _rate_limiter
+    if _rate_limiter is not None:
+        logger.info("Resetting rate limiter singleton")
+        _rate_limiter = None

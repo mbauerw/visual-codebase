@@ -13,8 +13,7 @@ from ..models.chat_schemas import (
 )
 from ..services.chatbot import get_chatbot_service
 from ..services.database import get_database_service
-from ..services.rate_limiter import get_rate_limiter, HybridRateLimiter
-from ..settings import get_settings
+from ..services.rate_limiter import get_rate_limiter
 from ..auth import get_current_user
 
 logger = logging.getLogger(__name__)
@@ -22,20 +21,10 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/chat", tags=["chat"])
 
 
-def get_chat_rate_limiter() -> HybridRateLimiter:
-    """Get the rate limiter instance configured from settings."""
-    settings = get_settings()
-    return get_rate_limiter(
-        redis_url=settings.redis_url if settings.redis_url else None,
-        max_requests=settings.rate_limit_requests,
-        window_seconds=settings.rate_limit_window
-    )
-
-
 async def check_rate_limit(current_user=Depends(get_current_user)):
     """Dependency to check rate limit for chat endpoints."""
     user_id = current_user.id
-    rate_limiter = get_chat_rate_limiter()
+    rate_limiter = get_rate_limiter()
 
     result = await rate_limiter.is_allowed(user_id)
 

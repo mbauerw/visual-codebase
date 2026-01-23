@@ -50,9 +50,17 @@ export function createThrottledUpdater<T, S = T>(
 
   let buffer: T | null = null;
   let rafId: number | null = null;
+  let timeoutId: ReturnType<typeof setTimeout> | null = null;
   let lastUpdateTime = 0;
+  let isCancelled = false;
 
   const flush = () => {
+    // Don't flush if cancelled
+    if (isCancelled) {
+      rafId = null;
+      return;
+    }
+
     if (buffer !== null) {
       const currentBuffer = buffer;
       buffer = null;
@@ -63,7 +71,8 @@ export function createThrottledUpdater<T, S = T>(
   };
 
   const scheduleUpdate = () => {
-    if (rafId !== null) return;
+    // Don't schedule if already scheduled or cancelled
+    if (rafId !== null || timeoutId !== null || isCancelled) return;
 
     const now = performance.now();
     const timeSinceLastUpdate = now - lastUpdateTime;
@@ -74,14 +83,21 @@ export function createThrottledUpdater<T, S = T>(
     } else {
       // Schedule update after remaining time
       const delay = minIntervalMs - timeSinceLastUpdate;
-      setTimeout(() => {
-        rafId = requestAnimationFrame(flush);
+      timeoutId = setTimeout(() => {
+        timeoutId = null;
+        // Check again if cancelled before scheduling RAF
+        if (!isCancelled) {
+          rafId = requestAnimationFrame(flush);
+        }
       }, delay);
     }
   };
 
   return {
     update(delta: T) {
+      // Ignore updates after cancel
+      if (isCancelled) return;
+
       if (buffer === null) {
         buffer = delta;
       } else {
@@ -93,18 +109,35 @@ export function createThrottledUpdater<T, S = T>(
     },
 
     forceFlush() {
+      // Clear any pending scheduled updates
+      if (timeoutId !== null) {
+        clearTimeout(timeoutId);
+        timeoutId = null;
+      }
       if (rafId !== null) {
         cancelAnimationFrame(rafId);
         rafId = null;
       }
-      flush();
+      // Flush immediately (but respect cancelled state)
+      if (!isCancelled) {
+        flush();
+      }
     },
 
     cancel() {
+      isCancelled = true;
+
+      // Clear timeout if pending
+      if (timeoutId !== null) {
+        clearTimeout(timeoutId);
+        timeoutId = null;
+      }
+      // Clear RAF if pending
       if (rafId !== null) {
         cancelAnimationFrame(rafId);
         rafId = null;
       }
+      // Clear buffer
       buffer = null;
     },
   };
