@@ -2,6 +2,7 @@
 from typing import Optional
 
 from ..models.schemas import ReactFlowGraph, CodebaseSummary, FunctionStats
+from ..models.chat_schemas import SelectionContext
 
 
 BASE_CONTEXT_TEMPLATE = """You are a code analysis assistant for the "{project_name}" codebase.
@@ -19,7 +20,22 @@ BASE_CONTEXT_TEMPLATE = """You are a code analysis assistant for the "{project_n
 
 You have tools to look up specific files, functions, and dependencies. Use them when the user asks about specific parts of the codebase.
 
-When the user highlights text from the visualization, use the explain_highlighted tool to provide context about what that text refers to.
+## Using Selection Context (IMPORTANT for efficiency)
+
+When the user's message includes context information in the format [Context: ...], USE IT DIRECTLY:
+- If [File: path/to/file.ts] is present, you ALREADY KNOW which file is being discussed
+- If [Type: function_name] is present, the highlighted text is definitely a function name
+- If [Node: node_id] is present, you know which graph node is selected
+
+When context is provided:
+- DO NOT use explain_highlighted or broad search tools - the file is already known
+- Instead, use get_file_info or get_function_info with the exact file path provided
+- This saves time and provides more accurate responses
+
+Example:
+- Message: "[Context: File: src/hooks/useChat.ts | Type: function_name][Highlighted: sendMessage] What does this do?"
+- CORRECT: Answer about sendMessage in useChat.ts, use get_function_info("sendMessage", "src/hooks/useChat.ts") if needed
+- WRONG: Search for sendMessage across all files with explain_highlighted
 
 Guidelines:
 - Be concise but thorough
@@ -147,16 +163,62 @@ def _format_function_stats(stats: Optional[FunctionStats]) -> str:
     return "\n".join(parts)
 
 
-def format_user_message(message: str, highlighted_text: Optional[str] = None) -> str:
-    """Format a user message with optional highlighted text context.
+def format_user_message(
+    message: str,
+    highlighted_text: Optional[str] = None,
+    selection_context: Optional[SelectionContext] = None
+) -> str:
+    """Format a user message with optional highlighted text and selection context.
+
+    When selection context is provided, it gives the model direct knowledge of
+    which file/function is being referenced, eliminating the need for broad searches.
 
     Args:
         message: The user's message
         highlighted_text: Optional highlighted text from the visualization
+        selection_context: Optional rich context about the selection source
 
     Returns:
-        Formatted message string
+        Formatted message string with context prefix
     """
-    if highlighted_text:
-        return f"[Highlighted: {highlighted_text}]\n\n{message}"
-    return message
+    if not highlighted_text:
+        return message
+
+    # Build context parts from selection context
+    context_parts = []
+
+    if selection_context:
+        # Add file context if available
+        if selection_context.current_file:
+            file_info = selection_context.current_file
+            context_parts.append(f"File: {file_info.file_path}")
+            if file_info.role:
+                context_parts.append(f"Role: {file_info.role}")
+
+        # Add selected node context if different from current file
+        elif selection_context.selected_node:
+            node_info = selection_context.selected_node
+            context_parts.append(f"File: {node_info.file_path}")
+            if node_info.role:
+                context_parts.append(f"Role: {node_info.role}")
+
+        # Add line range if available
+        if selection_context.line_range:
+            lr = selection_context.line_range
+            context_parts.append(f"Lines: {lr.start}-{lr.end}")
+
+        # Add selection type if detected
+        if selection_context.selection_type:
+            context_parts.append(f"Type: {selection_context.selection_type.value}")
+
+        # Add source information
+        if selection_context.source:
+            context_parts.append(f"Source: {selection_context.source.value}")
+
+    # Format the message with context
+    if context_parts:
+        context_str = " | ".join(context_parts)
+        return f"[Context: {context_str}]\n[Highlighted: {highlighted_text}]\n\n{message}"
+
+    # Fallback to simple format if no context
+    return f"[Highlighted: {highlighted_text}]\n\n{message}"

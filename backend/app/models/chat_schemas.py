@@ -1,7 +1,7 @@
 """Pydantic schemas for the chatbot feature."""
 from datetime import datetime
 from enum import Enum
-from typing import Optional
+from typing import Optional, Literal
 from pydantic import BaseModel, Field
 
 
@@ -10,6 +10,76 @@ class MessageRole(str, Enum):
 
     USER = "user"
     ASSISTANT = "assistant"
+
+
+class SelectionSource(str, Enum):
+    """Source of the text selection."""
+
+    SOURCE_CODE_PANEL = "source_code_panel"
+    GRAPH_NODE = "graph_node"
+    TIER_LIST = "tier_list"
+    FILE_TREE = "file_tree"
+    UNKNOWN = "unknown"
+
+
+class SelectionType(str, Enum):
+    """Type of the selected text."""
+
+    FUNCTION_NAME = "function_name"
+    VARIABLE = "variable"
+    IMPORT = "import"
+    FILE_NAME = "file_name"
+    CODE_BLOCK = "code_block"
+    UNKNOWN = "unknown"
+
+
+class CurrentFileContext(BaseModel):
+    """Context about the currently viewed file."""
+
+    node_id: str = Field(..., description="Node ID in the graph")
+    file_path: str = Field(..., description="Full file path")
+    file_name: str = Field(..., description="File name only")
+    language: str = Field(..., description="Programming language")
+    role: Optional[str] = Field(None, description="Architectural role")
+    category: Optional[str] = Field(None, description="File category")
+
+
+class SelectedNodeContext(BaseModel):
+    """Context about the selected graph node."""
+
+    node_id: str = Field(..., description="Node ID in the graph")
+    file_path: str = Field(..., description="Full file path")
+    role: Optional[str] = Field(None, description="Architectural role")
+    category: Optional[str] = Field(None, description="File category")
+
+
+class LineRange(BaseModel):
+    """Line range of a selection in source code."""
+
+    start: int = Field(..., description="Start line number")
+    end: int = Field(..., description="End line number")
+
+
+class SelectionContext(BaseModel):
+    """Rich context about the user's selection to reduce unnecessary tool calls.
+
+    When provided, the model can directly look up the relevant file/function
+    instead of searching through all files.
+    """
+
+    source: SelectionSource = Field(..., description="Where the selection originated")
+    current_file: Optional[CurrentFileContext] = Field(
+        None, description="Current file being viewed in source panel"
+    )
+    selected_node: Optional[SelectedNodeContext] = Field(
+        None, description="Currently selected graph node"
+    )
+    line_range: Optional[LineRange] = Field(
+        None, description="Line range if selecting from source code"
+    )
+    selection_type: Optional[SelectionType] = Field(
+        None, description="Detected type of the selection"
+    )
 
 
 class ChatMessage(BaseModel):
@@ -27,6 +97,9 @@ class ChatRequest(BaseModel):
     message: str = Field(..., description="The user's message", min_length=1, max_length=4000)
     highlighted_text: Optional[str] = Field(
         None, description="Text highlighted by the user in the visualization", max_length=1000
+    )
+    selection_context: Optional[SelectionContext] = Field(
+        None, description="Rich context about the selection to optimize tool usage"
     )
     conversation_id: Optional[str] = Field(
         None, description="Existing conversation ID to continue"

@@ -64,6 +64,7 @@ import { ElegantDesign } from '../components/TierList/designs/ElegantDesign';
 import { FreeFormDesign } from '../components/TierList/designs/FreeFormDesign';
 import { ChatPanel } from '../components/chat';
 import AnalysisFileTree from '../components/AnalysisFileTree';
+import type { SelectionContext } from '../types/chat';
 
 // Define node types with proper typing for React Flow v12
 const nodeTypes: NodeTypes = {
@@ -1419,6 +1420,47 @@ function VisualizationPageInner() {
     return [...new Set(graphData.nodes.map((n) => n.data.role))];
   }, [graphData]);
 
+  // Build selection context for the chat panel
+  // This provides rich context about the currently selected file/node
+  const selectionContextForChat = useMemo((): SelectionContext | null => {
+    if (!sourceCodeFile && !selectedNode) {
+      return null;
+    }
+
+    // Determine the source based on how the selection was made
+    const source = selectionSource === 'tierlist' ? 'tier_list' as const
+      : selectionSource === 'node' ? 'graph_node' as const
+      : 'source_code_panel' as const;
+
+    const context: SelectionContext = {
+      source,
+    };
+
+    // Add current file context if a file is open in the source code panel
+    if (sourceCodeFile) {
+      context.current_file = {
+        node_id: sourceCodeFile.nodeId,
+        file_path: selectedNode?.path || sourceCodeFile.fileName,
+        file_name: sourceCodeFile.fileName,
+        language: sourceCodeFile.language,
+        role: selectedNode?.role,
+        category: selectedNode?.category,
+      };
+    }
+
+    // Add selected node context if different from current file
+    if (selectedNode && selectedNodeId) {
+      context.selected_node = {
+        node_id: selectedNodeId,
+        file_path: selectedNode.path,
+        role: selectedNode.role,
+        category: selectedNode.category,
+      };
+    }
+
+    return context;
+  }, [sourceCodeFile, selectedNode, selectedNodeId, selectionSource]);
+
   // Count file nodes (excluding category nodes)
   const fileNodeCount = useMemo(() => {
     return nodes.filter(n => n.type === 'custom').length;
@@ -1912,6 +1954,7 @@ function VisualizationPageInner() {
                   <ChatPanel
                     analysisId={analysisId}
                     expanded={expanded}
+                    selectionContext={selectionContextForChat}
                   />
                 )}
               </div>

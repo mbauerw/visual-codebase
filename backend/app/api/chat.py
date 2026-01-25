@@ -108,6 +108,7 @@ async def send_chat_message(
         message=request.message,
         graph=graph,
         highlighted_text=request.highlighted_text,
+        selection_context=request.selection_context,
         conversation_id=request.conversation_id,
         tier_list=tier_list
     )
@@ -261,6 +262,7 @@ async def stream_chat_message(
             message=request.message,
             graph=graph,
             highlighted_text=request.highlighted_text,
+            selection_context=request.selection_context,
             conversation_id=request.conversation_id,
             tier_list=tier_list
         ):

@@ -29,9 +29,69 @@ export interface ChatMessage {
   tool_results?: ToolResultInline[];
 }
 
+/**
+ * Source of the text selection for rich context.
+ */
+export type SelectionSource =
+  | 'source_code_panel'
+  | 'graph_node'
+  | 'tier_list'
+  | 'file_tree'
+  | 'unknown';
+
+/**
+ * Type of the selected text for better intent detection.
+ */
+export type SelectionType =
+  | 'function_name'
+  | 'variable'
+  | 'import'
+  | 'file_name'
+  | 'code_block'
+  | 'unknown';
+
+/**
+ * Rich context about the user's selection to reduce unnecessary tool calls.
+ * When provided, the model can directly look up the relevant file/function
+ * instead of searching through all files.
+ */
+export interface SelectionContext {
+  /** Where the selection originated */
+  source: SelectionSource;
+
+  /** Current file being viewed in source panel */
+  current_file?: {
+    node_id: string;
+    file_path: string;
+    file_name: string;
+    language: string;
+    role?: string;
+    category?: string;
+  };
+
+  /** Currently selected graph node */
+  selected_node?: {
+    node_id: string;
+    file_path: string;
+    role?: string;
+    category?: string;
+  };
+
+  /** Line range if selecting from source code */
+  line_range?: {
+    start: number;
+    end: number;
+  };
+
+  /** Detected type of the selection */
+  selection_type?: SelectionType;
+}
+
 export interface ChatRequest {
   message: string;
   highlighted_text?: string;
+  /** Rich context about the selection to optimize tool usage */
+  selection_context?: SelectionContext;
   conversation_id?: string;
 }
 

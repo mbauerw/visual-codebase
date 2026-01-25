@@ -12,6 +12,7 @@ import type {
   SuggestedQuestion,
   TokenUsage,
   ToolResultInline,
+  SelectionContext,
 } from '../types/chat';
 import type {
   ToolCallLog,
@@ -44,6 +45,8 @@ function toolCallLogToInline(log: ToolCallLog): ToolResultInline {
 interface UseChatOptions {
   analysisId: string | null;
   enableStreaming?: boolean;
+  /** Selection context to provide when highlighted text is from a known source */
+  selectionContext?: SelectionContext | null;
 }
 
 interface UseChatReturn extends ChatState {
@@ -70,6 +73,7 @@ interface UseChatReturn extends ChatState {
 export function useChat({
   analysisId,
   enableStreaming = true,
+  selectionContext = null,
 }: UseChatOptions): UseChatReturn {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [conversationId, setConversationId] = useState<string | null>(null);
@@ -208,6 +212,7 @@ export function useChat({
         {
           message,
           highlighted_text: highlightedText || undefined,
+          selection_context: selectionContext || undefined,
           conversation_id: conversationId || undefined,
         },
         (event: StreamEvent) => {
@@ -335,7 +340,7 @@ export function useChat({
       setIsLoading(false);
       setCurrentToolName(null);
     }
-  }, [analysisId, conversationId, highlightedText]);
+  }, [analysisId, conversationId, highlightedText, selectionContext]);
 
   const sendMessageNonStreaming = useCallback(async (message: string) => {
     if (!analysisId) {
@@ -362,6 +367,7 @@ export function useChat({
       const response = await sendChatMessage(analysisId, {
         message,
         highlighted_text: highlightedText || undefined,
+        selection_context: selectionContext || undefined,
         conversation_id: conversationId || undefined,
       });
 
@@ -390,7 +396,7 @@ export function useChat({
     } finally {
       setIsLoading(false);
     }
-  }, [analysisId, conversationId, highlightedText]);
+  }, [analysisId, conversationId, highlightedText, selectionContext]);
 
   const sendMessage = useCallback(async (message: string) => {
     if (!message.trim()) return;

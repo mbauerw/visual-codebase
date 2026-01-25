@@ -21,6 +21,7 @@ from ..models.chat_schemas import (
     SuggestedQuestion,
     TokenUsage,
     ContextInfo,
+    SelectionContext,
 )
 from .chat_tools import CHAT_TOOLS, ChatToolExecutor
 from .chat_context import build_base_context, format_user_message
@@ -299,6 +300,7 @@ class ChatbotService:
         message: str,
         graph: ReactFlowGraph,
         highlighted_text: Optional[str] = None,
+        selection_context: Optional[SelectionContext] = None,
         conversation_id: Optional[str] = None,
         tier_list: Optional[list] = None
     ) -> ChatResponse:
@@ -309,6 +311,7 @@ class ChatbotService:
             message: The user's message
             graph: ReactFlowGraph with analysis data
             highlighted_text: Optional highlighted text from visualization
+            selection_context: Optional rich context about the selection source
             conversation_id: Optional existing conversation ID
             tier_list: Optional function tier list data
 
@@ -324,8 +327,8 @@ class ChatbotService:
         # Get system context (cached per conversation)
         system_context = conversation.get_system_context(graph)
 
-        # Format user message with highlighted text
-        formatted_message = format_user_message(message, highlighted_text)
+        # Format user message with highlighted text and selection context
+        formatted_message = format_user_message(message, highlighted_text, selection_context)
         conversation.add_user_message(formatted_message)
 
         # Execute tool loop
@@ -471,6 +474,7 @@ class ChatbotService:
         message: str,
         graph: ReactFlowGraph,
         highlighted_text: Optional[str] = None,
+        selection_context: Optional[SelectionContext] = None,
         conversation_id: Optional[str] = None,
         tier_list: Optional[list] = None
     ) -> AsyncGenerator[StreamEvent, None]:
@@ -484,6 +488,7 @@ class ChatbotService:
             message: The user's message
             graph: ReactFlowGraph with analysis data
             highlighted_text: Optional highlighted text from visualization
+            selection_context: Optional rich context about the selection source
             conversation_id: Optional existing conversation ID
             tier_list: Optional function tier list data
 
@@ -499,8 +504,8 @@ class ChatbotService:
         # Get system context (cached per conversation)
         system_context = conversation.get_system_context(graph)
 
-        # Format user message with highlighted text
-        formatted_message = format_user_message(message, highlighted_text)
+        # Format user message with highlighted text and selection context
+        formatted_message = format_user_message(message, highlighted_text, selection_context)
         conversation.add_user_message(formatted_message)
 
         # Execute tool loop (non-streaming for tool iterations)

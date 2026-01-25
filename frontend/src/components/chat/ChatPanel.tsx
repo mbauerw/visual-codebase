@@ -17,13 +17,16 @@ import { useChat } from '../../hooks/useChat';
 import { useTextSelection } from '../../hooks/useTextSelection';
 import { ChatMessage } from './ChatMessage';
 import { DevToolsPanel } from './devtools';
+import type { SelectionContext } from '../../types/chat';
 
 interface ChatPanelProps {
   analysisId: string | null;
   expanded?: boolean;
+  /** Rich selection context for better tool optimization */
+  selectionContext?: SelectionContext | null;
 }
 
-export function ChatPanel({ analysisId, expanded }: ChatPanelProps) {
+export function ChatPanel({ analysisId, expanded, selectionContext }: ChatPanelProps) {
   const [inputValue, setInputValue] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -51,7 +54,7 @@ export function ChatPanel({ analysisId, expanded }: ChatPanelProps) {
     toolCallLogs,
     contextInfo,
     modelInfo,
-  } = useChat({ analysisId, enableStreaming: true });
+  } = useChat({ analysisId, enableStreaming: true, selectionContext });
 
   // Text selection hook - captures highlighted text from visualization
   const { clearSelection } = useTextSelection({
