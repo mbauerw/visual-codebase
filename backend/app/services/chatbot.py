@@ -22,9 +22,10 @@ from ..models.chat_schemas import (
     TokenUsage,
     ContextInfo,
     SelectionContext,
+    ContextMode,
 )
 from .chat_tools import CHAT_TOOLS, ChatToolExecutor
-from .chat_context import build_base_context, format_user_message
+from .chat_context import build_base_context, build_general_context, format_user_message
 from .tool_output_formatter import ToolOutputFormatter
 from .chat_constants import MAX_RESPONSE_TOKENS, MAX_TOOL_ITERATIONS
 from .token_counter import (
@@ -252,7 +253,8 @@ class ChatbotService:
         self,
         system_context: str,
         messages: list[dict],
-        actual_input_tokens: int = 0
+        actual_input_tokens: int = 0,
+        tools: Optional[list] = None,
     ) -> ContextInfo:
         """Compute context window information for debugging.
 
@@ -260,13 +262,14 @@ class ChatbotService:
             system_context: The system prompt
             messages: Conversation messages
             actual_input_tokens: Actual input tokens from API response (if available)
+            tools: Tool definitions (None for general mode)
 
         Returns:
             ContextInfo with token counts and utilization
         """
         system_tokens = count_system_prompt_tokens(system_context)
         conversation_tokens = count_message_tokens(messages)
-        tools_tokens = count_tools_tokens(CHAT_TOOLS)
+        tools_tokens = count_tools_tokens(tools) if tools else 0
 
         # Pre-request estimate
         pre_request_tokens = system_tokens + conversation_tokens + tools_tokens
@@ -302,7 +305,8 @@ class ChatbotService:
         highlighted_text: Optional[str] = None,
         selection_context: Optional[SelectionContext] = None,
         conversation_id: Optional[str] = None,
-        tier_list: Optional[list] = None
+        tier_list: Optional[list] = None,
+        context_mode: str = "codebase",
     ) -> ChatResponse:
         """Process a chat message and return a response.
 
@@ -314,6 +318,7 @@ class ChatbotService:
             selection_context: Optional rich context about the selection source
             conversation_id: Optional existing conversation ID
             tier_list: Optional function tier list data
+            context_mode: 'codebase' for full context + tools, 'general' for minimal
 
         Returns:
             ChatResponse with the assistant's response
@@ -321,11 +326,17 @@ class ChatbotService:
         # Get or create conversation
         conversation = self.conversation_manager.get_or_create(analysis_id, conversation_id)
 
-        # Get tool executor (cached)
-        tool_executor = self._get_tool_executor(analysis_id, graph, tier_list)
+        # Determine context and tools based on mode
+        is_general = context_mode == "general"
 
-        # Get system context (cached per conversation)
-        system_context = conversation.get_system_context(graph)
+        if is_general:
+            system_context = build_general_context()
+            tools_to_use = None
+        else:
+            # Get tool executor (cached) - only needed for codebase mode
+            tool_executor = self._get_tool_executor(analysis_id, graph, tier_list)
+            system_context = conversation.get_system_context(graph)
+            tools_to_use = CHAT_TOOLS
 
         # Format user message with highlighted text and selection context
         formatted_message = format_user_message(message, highlighted_text, selection_context)
@@ -338,13 +349,17 @@ class ChatbotService:
 
         for _ in range(MAX_TOOL_ITERATIONS):
             try:
-                response = await self.client.messages.create(
+                # Build API call kwargs - only include tools for codebase mode
+                api_kwargs = dict(
                     model=self.settings.llm_model,
                     max_tokens=MAX_RESPONSE_TOKENS,
                     system=system_context,
-                    tools=CHAT_TOOLS,
-                    messages=conversation.messages
+                    messages=conversation.messages,
                 )
+                if tools_to_use:
+                    api_kwargs["tools"] = tools_to_use
+
+                response = await self.client.messages.create(**api_kwargs)
 
                 # Track token usage
                 if hasattr(response, 'usage'):
@@ -476,7 +491,8 @@ class ChatbotService:
         highlighted_text: Optional[str] = None,
         selection_context: Optional[SelectionContext] = None,
         conversation_id: Optional[str] = None,
-        tier_list: Optional[list] = None
+        tier_list: Optional[list] = None,
+        context_mode: str = "codebase",
     ) -> AsyncGenerator[StreamEvent, None]:
         """Process a chat message and stream the response.
 
@@ -491,6 +507,7 @@ class ChatbotService:
             selection_context: Optional rich context about the selection source
             conversation_id: Optional existing conversation ID
             tier_list: Optional function tier list data
+            context_mode: 'codebase' for full context + tools, 'general' for minimal
 
         Yields:
             StreamEvent objects for each chunk of the response
@@ -498,11 +515,18 @@ class ChatbotService:
         # Get or create conversation
         conversation = self.conversation_manager.get_or_create(analysis_id, conversation_id)
 
-        # Get tool executor (cached)
-        tool_executor = self._get_tool_executor(analysis_id, graph, tier_list)
+        # Determine context and tools based on mode
+        is_general = context_mode == "general"
 
-        # Get system context (cached per conversation)
-        system_context = conversation.get_system_context(graph)
+        if is_general:
+            system_context = build_general_context()
+            tools_to_use = None
+            tool_executor = None
+        else:
+            # Get tool executor (cached) - only needed for codebase mode
+            tool_executor = self._get_tool_executor(analysis_id, graph, tier_list)
+            system_context = conversation.get_system_context(graph)
+            tools_to_use = CHAT_TOOLS
 
         # Format user message with highlighted text and selection context
         formatted_message = format_user_message(message, highlighted_text, selection_context)
@@ -515,7 +539,7 @@ class ChatbotService:
 
         # Send initial context info before first request
         initial_context_info = self._compute_context_info(
-            system_context, conversation.messages
+            system_context, conversation.messages, tools=tools_to_use
         )
         yield StreamEvent(
             type=StreamEventType.CONTEXT_UPDATE,
@@ -526,14 +550,18 @@ class ChatbotService:
 
         for iteration in range(MAX_TOOL_ITERATIONS):
             try:
-                # First, do non-streaming call to handle tools
-                response = await self.client.messages.create(
+                # Build API call kwargs - only include tools for codebase mode
+                api_kwargs = dict(
                     model=self.settings.llm_model,
                     max_tokens=MAX_RESPONSE_TOKENS,
                     system=system_context,
-                    tools=CHAT_TOOLS,
-                    messages=conversation.messages
+                    messages=conversation.messages,
                 )
+                if tools_to_use:
+                    api_kwargs["tools"] = tools_to_use
+
+                # First, do non-streaming call to handle tools
+                response = await self.client.messages.create(**api_kwargs)
 
                 # Track token usage
                 if hasattr(response, 'usage'):
@@ -641,13 +669,17 @@ class ChatbotService:
                 # No tool use - use true streaming for final response
                 final_text_parts = []
 
-                async with self.client.messages.stream(
+                # Build streaming kwargs - only include tools for codebase mode
+                stream_kwargs = dict(
                     model=self.settings.llm_model,
                     max_tokens=MAX_RESPONSE_TOKENS,
                     system=system_context,
-                    tools=CHAT_TOOLS,
-                    messages=conversation.messages
-                ) as stream:
+                    messages=conversation.messages,
+                )
+                if tools_to_use:
+                    stream_kwargs["tools"] = tools_to_use
+
+                async with self.client.messages.stream(**stream_kwargs) as stream:
                     async for event in stream:
                         if hasattr(event, 'type'):
                             if event.type == "content_block_delta":
@@ -674,7 +706,8 @@ class ChatbotService:
                 final_context_info = self._compute_context_info(
                     system_context,
                     conversation.messages,
-                    actual_input_tokens=total_input_tokens
+                    actual_input_tokens=total_input_tokens,
+                    tools=tools_to_use,
                 )
 
                 yield StreamEvent(

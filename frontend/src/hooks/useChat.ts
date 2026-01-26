@@ -13,6 +13,7 @@ import type {
   TokenUsage,
   ToolResultInline,
   SelectionContext,
+  ContextMode,
 } from '../types/chat';
 import type {
   ToolCallLog,
@@ -62,6 +63,9 @@ interface UseChatReturn extends ChatState {
   retryLastMessage: () => Promise<void>;
   canRetry: boolean;
   tokenUsage: TokenUsage;
+  // Context mode
+  contextMode: ContextMode;
+  setContextMode: (mode: ContextMode) => void;
   // Dev tools
   devToolsExpanded: boolean;
   toggleDevTools: () => void;
@@ -88,6 +92,9 @@ export function useChat({
     output_tokens: 0,
     total_tokens: 0,
   });
+
+  // Context mode state
+  const [contextMode, setContextMode] = useState<ContextMode>('codebase');
 
   // Dev tools state
   const [devToolsExpanded, setDevToolsExpanded] = useState<boolean>(() => {
@@ -214,6 +221,7 @@ export function useChat({
           highlighted_text: highlightedText || undefined,
           selection_context: selectionContext || undefined,
           conversation_id: conversationId || undefined,
+          context_mode: contextMode,
         },
         (event: StreamEvent) => {
           switch (event.type) {
@@ -340,7 +348,7 @@ export function useChat({
       setIsLoading(false);
       setCurrentToolName(null);
     }
-  }, [analysisId, conversationId, highlightedText, selectionContext]);
+  }, [analysisId, conversationId, highlightedText, selectionContext, contextMode]);
 
   const sendMessageNonStreaming = useCallback(async (message: string) => {
     if (!analysisId) {
@@ -369,6 +377,7 @@ export function useChat({
         highlighted_text: highlightedText || undefined,
         selection_context: selectionContext || undefined,
         conversation_id: conversationId || undefined,
+        context_mode: contextMode,
       });
 
       // Update conversation ID if this is a new conversation
@@ -396,7 +405,7 @@ export function useChat({
     } finally {
       setIsLoading(false);
     }
-  }, [analysisId, conversationId, highlightedText, selectionContext]);
+  }, [analysisId, conversationId, highlightedText, selectionContext, contextMode]);
 
   const sendMessage = useCallback(async (message: string) => {
     if (!message.trim()) return;
@@ -489,6 +498,9 @@ export function useChat({
     retryLastMessage,
     canRetry: !!lastFailedMessage,
     tokenUsage,
+    // Context mode
+    contextMode,
+    setContextMode,
     // Dev tools
     devToolsExpanded,
     toggleDevTools,

@@ -110,7 +110,8 @@ async def send_chat_message(
         highlighted_text=request.highlighted_text,
         selection_context=request.selection_context,
         conversation_id=request.conversation_id,
-        tier_list=tier_list
+        tier_list=tier_list,
+        context_mode=request.context_mode.value,
     )
 
     return response
@@ -264,7 +265,8 @@ async def stream_chat_message(
             highlighted_text=request.highlighted_text,
             selection_context=request.selection_context,
             conversation_id=request.conversation_id,
-            tier_list=tier_list
+            tier_list=tier_list,
+            context_mode=request.context_mode.value,
         ):
             # Format as SSE
             data = json.dumps(event.model_dump())

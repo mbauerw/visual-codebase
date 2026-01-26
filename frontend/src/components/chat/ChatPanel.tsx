@@ -10,8 +10,9 @@ import {
   Wrench,
   RefreshCw,
   X,
-  Layers,
   Terminal,
+  Code2,
+  Globe,
 } from 'lucide-react';
 import { useChat } from '../../hooks/useChat';
 import { useTextSelection } from '../../hooks/useTextSelection';
@@ -48,6 +49,9 @@ export function ChatPanel({ analysisId, expanded, selectionContext }: ChatPanelP
     retryLastMessage,
     canRetry,
     tokenUsage,
+    // Context mode
+    contextMode,
+    setContextMode,
     // Dev tools
     devToolsExpanded,
     toggleDevTools,
@@ -155,7 +159,7 @@ export function ChatPanel({ analysisId, expanded, selectionContext }: ChatPanelP
               <div>
                 <h2 className="text-lg font-bold text-white">AI Assistant</h2>
                 <p className="text-xs text-slate-500">
-                  {isLoading ? 'Processing...' : 'Codebase Analysis'}
+                  {isLoading ? 'Processing...' : contextMode === 'codebase' ? 'Codebase Analysis' : 'General Assistant'}
                 </p>
               </div>
             </div>
@@ -190,6 +194,38 @@ export function ChatPanel({ analysisId, expanded, selectionContext }: ChatPanelP
               )}
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* Context Mode Toggle */}
+      <div className="px-4 py-2 border-b border-slate-800 bg-slate-800/20">
+        <div className="flex items-center gap-1 bg-slate-800 rounded-lg p-0.5">
+          <button
+            onClick={() => setContextMode('codebase')}
+            disabled={isLoading}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all flex-1 justify-center ${
+              contextMode === 'codebase'
+                ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
+                : 'text-slate-500 hover:text-slate-300 border border-transparent'
+            } disabled:opacity-50`}
+            title="Full codebase context with analysis tools"
+          >
+            <Code2 size={12} />
+            Codebase
+          </button>
+          <button
+            onClick={() => setContextMode('general')}
+            disabled={isLoading}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all flex-1 justify-center ${
+              contextMode === 'general'
+                ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
+                : 'text-slate-500 hover:text-slate-300 border border-transparent'
+            } disabled:opacity-50`}
+            title="General programming assistant (no tools, lower cost)"
+          >
+            <Globe size={12} />
+            General
+          </button>
         </div>
       </div>
 
@@ -240,9 +276,13 @@ export function ChatPanel({ analysisId, expanded, selectionContext }: ChatPanelP
             <div className="p-4 bg-slate-800/50 rounded-2xl border border-slate-700/50 mb-4">
               <MessageSquare size={32} className="text-slate-600" />
             </div>
-            <p className="text-sm text-slate-400 font-medium mb-1">Ask About This Codebase</p>
+            <p className="text-sm text-slate-400 font-medium mb-1">
+              {contextMode === 'codebase' ? 'Ask About This Codebase' : 'Ask a Programming Question'}
+            </p>
             <p className="text-xs text-slate-500 mb-6 max-w-[200px]">
-              Select text in the visualization for context
+              {contextMode === 'codebase'
+                ? 'Select text in the visualization for context'
+                : 'General programming questions without codebase tools'}
             </p>
 
             {/* Suggested Questions */}
@@ -318,7 +358,7 @@ export function ChatPanel({ analysisId, expanded, selectionContext }: ChatPanelP
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Ask a question..."
+              placeholder={contextMode === 'codebase' ? 'Ask about the codebase...' : 'Ask a programming question...'}
               className="w-full px-3 py-2 bg-slate-900 border border-slate-700 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-amber-500/50 focus:border-amber-500/50 rounded-lg resize-none transition-colors"
               rows={1}
               disabled={isLoading}

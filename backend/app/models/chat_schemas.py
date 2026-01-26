@@ -5,6 +5,13 @@ from typing import Optional, Literal
 from pydantic import BaseModel, Field
 
 
+class ContextMode(str, Enum):
+    """Chat context mode - determines what context and tools are included."""
+
+    CODEBASE = "codebase"  # Full codebase context + all tools
+    GENERAL = "general"    # Minimal context, no tools
+
+
 class MessageRole(str, Enum):
     """Role of a message in the conversation."""
 
@@ -103,6 +110,10 @@ class ChatRequest(BaseModel):
     )
     conversation_id: Optional[str] = Field(
         None, description="Existing conversation ID to continue"
+    )
+    context_mode: ContextMode = Field(
+        ContextMode.CODEBASE,
+        description="Context mode: 'codebase' for full context + tools, 'general' for minimal context"
     )
 
 

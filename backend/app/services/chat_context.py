@@ -5,6 +5,19 @@ from ..models.schemas import ReactFlowGraph, CodebaseSummary, FunctionStats
 from ..models.chat_schemas import SelectionContext
 
 
+GENERAL_CONTEXT_TEMPLATE = """You are a helpful programming assistant.
+
+Answer programming questions directly and clearly. You have broad knowledge of programming languages, frameworks, design patterns, and software engineering best practices.
+
+If the user asks about specific files or functions in their codebase, let them know they can switch to "Codebase" mode for detailed analysis with tools.
+
+Guidelines:
+- Be concise but thorough
+- Provide code examples when helpful
+- Reference official documentation when relevant
+"""
+
+
 BASE_CONTEXT_TEMPLATE = """You are a code analysis assistant for the "{project_name}" codebase.
 
 ## Codebase Overview
@@ -43,6 +56,15 @@ Guidelines:
 - If a file or function isn't found, suggest similar alternatives
 - Explain architectural patterns and relationships between files when helpful
 """
+
+
+def build_general_context() -> str:
+    """Build the general-purpose context string (no codebase info, no tools).
+
+    Returns:
+        Minimal system context string for general programming questions
+    """
+    return GENERAL_CONTEXT_TEMPLATE
 
 
 def build_base_context(graph: ReactFlowGraph) -> str:

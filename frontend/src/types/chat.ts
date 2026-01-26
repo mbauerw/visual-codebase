@@ -87,12 +87,21 @@ export interface SelectionContext {
   selection_type?: SelectionType;
 }
 
+/**
+ * Chat context mode - determines what context and tools are included.
+ * 'codebase' sends full codebase context + all tools.
+ * 'general' sends minimal context with no tools (for general programming questions).
+ */
+export type ContextMode = 'codebase' | 'general';
+
 export interface ChatRequest {
   message: string;
   highlighted_text?: string;
   /** Rich context about the selection to optimize tool usage */
   selection_context?: SelectionContext;
   conversation_id?: string;
+  /** Context mode: 'codebase' for full analysis, 'general' for general questions */
+  context_mode?: ContextMode;
 }
 
 export interface TokenUsage {
