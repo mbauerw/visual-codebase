@@ -65,6 +65,7 @@ import { FreeFormDesign } from '../components/TierList/designs/FreeFormDesign';
 import { ChatPanel } from '../components/chat';
 import AnalysisFileTree from '../components/AnalysisFileTree';
 import type { SelectionContext } from '../types/chat';
+import { DraggableModal } from '../components/DraggableModal';
 
 // Define node types with proper typing for React Flow v12
 const nodeTypes: NodeTypes = {
@@ -809,6 +810,7 @@ function VisualizationPageInner() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [authModalTab, setAuthModalTab] = useState(0);
+  const [chatModalOpen, setChatModalOpen] = useState(false);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [loading, setLoading] = useState(true);
 
@@ -817,7 +819,7 @@ function VisualizationPageInner() {
   const [edgePopoverPosition, setEdgePopoverPosition] = useState<{ x: number; y: number } | null>(null);
 
   // Right panel tab state
-  type RightPanelTab = 'details' | 'tierlist' | 'chat';
+  type RightPanelTab = 'details' | 'tierlist';
   const [rightPanelTab, setRightPanelTab] = useState<RightPanelTab>('details');
 
   // Resize state for right panel
@@ -1516,6 +1518,20 @@ function VisualizationPageInner() {
 
           <div className="h-6 w-px bg-slate-700" />
 
+          <button
+            onClick={() => setChatModalOpen(prev => !prev)}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded transition-colors ${
+              chatModalOpen
+                ? 'bg-blue-600 text-white'
+                : 'bg-slate-700 text-slate-400 hover:text-white hover:bg-slate-600'
+            }`}
+          >
+            <MessageSquare size={16} />
+            <span className="text-sm font-medium">AI Chat</span>
+          </button>
+
+          <div className="h-6 w-px bg-slate-700" />
+
           {user ? (
             <div className="flex items-center gap-3">
               <button
@@ -1559,6 +1575,16 @@ function VisualizationPageInner() {
 
         {/* Mobile Stats Only */}
         <div className="flex md:hidden items-center gap-3 text-xs text-slate-400">
+          <button
+            onClick={() => setChatModalOpen(prev => !prev)}
+            className={`p-1.5 rounded transition-colors ${
+              chatModalOpen
+                ? 'bg-blue-600 text-white'
+                : 'bg-slate-700 text-slate-400'
+            }`}
+          >
+            <MessageSquare size={14} />
+          </button>
           <div className="flex items-center gap-1">
             <FileCode size={14} />
             <span>{graphData.metadata.file_count}</span>
@@ -1914,16 +1940,6 @@ function VisualizationPageInner() {
                   <BarChart3 size={16} />
                   Functions
                 </button>
-                <button
-                  onClick={() => setRightPanelTab('chat')}
-                  className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium transition-colors ${rightPanelTab === 'chat'
-                    ? 'bg-slate-800 text-white border-b-2 border-amber-500'
-                    : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
-                    }`}
-                >
-                  <MessageSquare size={16} />
-                  AI Chat
-                </button>
                 <div className='absolute top-2 right-2 flex items-center cursor-pointer gap-2 text-slate-400 z-50 ' >
                   <ChevronsLeftRight size={26} onMouseDown={() => setExpanded(prev => !prev)} className='z-50 pointer-events-all' />
                 </div>
@@ -1948,13 +1964,6 @@ function VisualizationPageInner() {
                   <ProfessionalDesign
                     analysisId={analysisId}
                     onFunctionSelect={handleFunctionSelect}
-                  />
-                )}
-                {rightPanelTab === 'chat' && (
-                  <ChatPanel
-                    analysisId={analysisId}
-                    expanded={expanded}
-                    selectionContext={selectionContextForChat}
                   />
                 )}
               </div>
@@ -2003,6 +2012,21 @@ function VisualizationPageInner() {
         onClose={closeEdgePopover}
         nodes={graphData?.nodes || []}
       />
+
+      {/* AI Chat Modal */}
+      <DraggableModal
+        title="AI Chat"
+        isOpen={chatModalOpen}
+        onClose={() => setChatModalOpen(false)}
+        width={450}
+        height={650}
+      >
+        <ChatPanel
+          analysisId={analysisId}
+          expanded={true}
+          selectionContext={selectionContextForChat}
+        />
+      </DraggableModal>
     </div>
   );
 }
