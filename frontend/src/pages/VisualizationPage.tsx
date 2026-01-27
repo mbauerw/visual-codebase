@@ -1266,7 +1266,7 @@ function VisualizationPageInner() {
       if (node.type === 'category') {
         setSelectedNode(null);
         setSelectedNodeId(null);
-        setSelectionSource(null);
+        // setSelectionSource(null);
 
         // Filter files for this role from graphData
         const roleFiles = graphData?.nodes
@@ -1281,7 +1281,7 @@ function VisualizationPageInner() {
           files: roleFiles,
         } as CategoryRoleData);
         // Close source panel when selecting a category
-        setIsSourcePanelOpen(false);
+        // setIsSourcePanelOpen(false);
       }
     },
     [graphData]

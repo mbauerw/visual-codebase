@@ -793,6 +793,11 @@ class ChatbotService:
             category="overview"
         ))
 
+        questions.append(SuggestedQuestion(
+            question="If I wanted to understand how this codebase works, which files should I look at first?",
+            category="overview"
+        ))
+
         if metadata.summary:
             questions.append(SuggestedQuestion(
                 question=f"Explain the {metadata.summary.project_type} architecture in more detail.",

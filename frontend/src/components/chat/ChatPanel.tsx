@@ -18,7 +18,14 @@ import { useChat } from '../../hooks/useChat';
 import { useTextSelection } from '../../hooks/useTextSelection';
 import { ChatMessage } from './ChatMessage';
 import { DevToolsPanel } from './devtools';
-import type { SelectionContext } from '../../types/chat';
+import type { SelectionContext, SuggestedQuestion } from '../../types/chat';
+
+const GENERAL_SUGGESTED_QUESTIONS: SuggestedQuestion[] = [
+  { question: 'What are common React performance optimization techniques?', category: 'general' },
+  { question: 'Explain the difference between REST and GraphQL', category: 'general' },
+  { question: 'What are the SOLID principles in software design?', category: 'general' },
+  { question: 'How does garbage collection work in JavaScript?', category: 'general' },
+];
 
 interface ChatPanelProps {
   analysisId: string | null;
@@ -286,24 +293,29 @@ export function ChatPanel({ analysisId, expanded, selectionContext }: ChatPanelP
             </p>
 
             {/* Suggested Questions */}
-            {suggestedQuestions.length > 0 && (
-              <div className="w-full space-y-2">
-                <div className="flex items-center justify-center gap-2 text-xs text-slate-500 mb-3">
-                  <Sparkles size={12} className="text-amber-500" />
-                  <span className="uppercase tracking-wider text-[10px] font-medium">Suggestions</span>
+            {(() => {
+              const displayQuestions = contextMode === 'general'
+                ? GENERAL_SUGGESTED_QUESTIONS
+                : suggestedQuestions;
+              return displayQuestions.length > 0 && (
+                <div className="w-full space-y-2">
+                  <div className="flex items-center justify-center gap-2 text-xs text-slate-500 mb-3">
+                    <Sparkles size={12} className={contextMode === 'general' ? 'text-blue-400' : 'text-amber-500'} />
+                    <span className="uppercase tracking-wider text-[10px] font-medium">Suggestions</span>
+                  </div>
+                  {displayQuestions.slice(0, 4).map((q, index) => (
+                    <button
+                      key={index}
+                      onClick={() => handleSuggestedQuestion(q.question)}
+                      disabled={isLoading}
+                      className="w-full text-left text-xs px-3 py-2.5 bg-slate-800/50 hover:bg-slate-800 border border-slate-700/50 hover:border-slate-600 text-slate-400 hover:text-slate-300 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {q.question}
+                    </button>
+                  ))}
                 </div>
-                {suggestedQuestions.slice(0, 4).map((q, index) => (
-                  <button
-                    key={index}
-                    onClick={() => handleSuggestedQuestion(q.question)}
-                    disabled={isLoading}
-                    className="w-full text-left text-xs px-3 py-2.5 bg-slate-800/50 hover:bg-slate-800 border border-slate-700/50 hover:border-slate-600 text-slate-400 hover:text-slate-300 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {q.question}
-                  </button>
-                ))}
-              </div>
-            )}
+              );
+            })()}
           </div>
         ) : (
           <>

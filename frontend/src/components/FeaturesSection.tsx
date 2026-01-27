@@ -4,7 +4,7 @@ import { BlueVideoBackground } from './backgrounds';
 
 export default function FeaturesSection() {
   return (
-    <section id="features" className="py-20 md:py-14 min-h-[95vh] flex flex-col justify-end px-4 relative overflow-hidden">
+    <section id="features" className="py-20 md:py-14 min-h-[100vh] flex flex-col justify-end px-4 relative overflow-hidden">
       {/* <img className="absolute top-0 left-0 w-full h-full opacity-[0.6] z-0  scale-108 pointer-events-none" src="/hills-grey.jpeg" /> */}
       {/* Dome-shaped fade overlay - fades top corners, reveals image in dome shape */}
       <BlueVideoBackground />
@@ -33,10 +33,11 @@ export default function FeaturesSection() {
             </p>
           </motion.div>
         </div>
-
-        <div className="grid md:grid-cols-3 gap-6 md:gap-8">
+      </div>
+      <div className="max-w-6xl mx-auto z-10 relative">
+        <div className="grid md:grid-cols-2 gap-6 md:gap-x-12 md:gap-y-12 place-items-center  ">
           {/* Feature 1 */}
-          <div className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100 hover:shadow-xl transition-all duration-300">
+          <div className="w-3/4 bg-white rounded-3xl p-8 shadow-sm border border-gray-100 hover:shadow-xl transition-all duration-300">
             <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#8FBCFA] to-[#6BA3F5] flex items-center justify-center mb-6">
               <GitBranch size={28} className="text-white" />
             </div>
@@ -47,7 +48,7 @@ export default function FeaturesSection() {
           </div>
 
           {/* Feature 2 */}
-          <div className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100 hover:shadow-xl  transition-all duration-300">
+          <div className="w-3/4 bg-white rounded-3xl p-8 shadow-sm border border-gray-100 hover:shadow-xl  transition-all duration-300">
             <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#FF9A9D] to-[#FF7A7D] flex items-center justify-center mb-6">
               <Zap size={28} className="text-white" />
             </div>
@@ -58,13 +59,24 @@ export default function FeaturesSection() {
           </div>
 
           {/* Feature 3 */}
-          <div className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100 hover:shadow-xl transition-all duration-300">
+          <div className="w-3/4 bg-white rounded-3xl p-8 shadow-sm border border-gray-100 hover:shadow-xl transition-all duration-300">
             <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#F6D785] to-[#F0C560] flex items-center justify-center mb-6">
               <Eye size={28} className="text-white" />
             </div>
             <h3 className="text-xl font-semibold text-gray-900 mb-3">Interactive Visualization</h3>
             <p className="text-gray-600 leading-relaxed">
               Explore your codebase through an interactive node graph with zooming, panning, and filtering capabilities.
+            </p>
+          </div>
+
+          {/* Feature 1 */}
+          <div className="w-3/4 bg-white rounded-3xl p-8 shadow-sm border border-gray-100 hover:shadow-xl transition-all duration-300">
+            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#8FBCFA] to-[#6BA3F5] flex items-center justify-center mb-6">
+              <GitBranch size={28} className="text-white" />
+            </div>
+            <h3 className="text-xl font-semibold text-gray-900 mb-3">Dependency Mapping</h3>
+            <p className="text-gray-600 leading-relaxed">
+              Automatically extract and visualize import statements across JavaScript, TypeScript, and Python files.
             </p>
           </div>
         </div>
