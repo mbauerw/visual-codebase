@@ -257,6 +257,7 @@ class StreamEvent(BaseModel):
     tool_duration_ms: Optional[int] = Field(None, description="Tool execution time in ms")
     context_info: Optional[ContextInfo] = Field(None, description="Context window info (for context_update/message_complete)")
     model_id: Optional[str] = Field(None, description="Model identifier used")
+    question_intent: Optional[str] = Field(None, description="Classified question intent (for context_update)")
 
 
 class SuggestedQuestion(BaseModel):

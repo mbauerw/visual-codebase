@@ -19,6 +19,7 @@ from .chat_constants import (
     DEFAULT_MAX_DEPTH,
     DEFAULT_FUNCTION_LIST_LIMIT,
 )
+from .intent_classifier import QuestionIntent
 
 logger = logging.getLogger(__name__)
 
@@ -461,6 +462,251 @@ Examples:
         }
     }
 ]
+
+
+# Compressed tool definitions (~60-70% fewer tokens than verbose versions)
+# Same input_schema, shorter descriptions without examples and "when to use" sections
+CHAT_TOOLS_COMPRESSED = [
+    {
+        "name": "get_file_info",
+        "description": "Get file details: path, role, description, language, imports, line count. Use for questions about specific files.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "filename": {
+                    "type": "string",
+                    "description": "File path or name (partial paths work)"
+                }
+            },
+            "required": ["filename"]
+        }
+    },
+    {
+        "name": "search_files",
+        "description": "Search files by name pattern, role, or category. Returns up to 20 matches with path, role, and description.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "query": {
+                    "type": "string",
+                    "description": "Search term for file names, paths, or descriptions"
+                },
+                "role": {
+                    "type": "string",
+                    "enum": [r.value for r in ArchitecturalRole],
+                    "description": "Filter by architectural role"
+                },
+                "category": {
+                    "type": "string",
+                    "enum": [c.value for c in Category],
+                    "description": "Filter by category"
+                }
+            }
+        }
+    },
+    {
+        "name": "get_dependencies",
+        "description": "Get import/export relationships for a file: what it imports and/or what imports it.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "filename": {
+                    "type": "string",
+                    "description": "File path or name"
+                },
+                "direction": {
+                    "type": "string",
+                    "enum": ["imports", "imported_by", "both"],
+                    "description": "'imports' = what this file uses, 'imported_by' = what uses this file, 'both' = bidirectional"
+                }
+            },
+            "required": ["filename"]
+        }
+    },
+    {
+        "name": "get_function_info",
+        "description": "Get function details: tier, call counts, file path, type, export/async status. Requires tier data.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "function_name": {
+                    "type": "string",
+                    "description": "Name of the function"
+                },
+                "file_path": {
+                    "type": "string",
+                    "description": "Optional file path to disambiguate"
+                }
+            },
+            "required": ["function_name"]
+        }
+    },
+    {
+        "name": "list_functions",
+        "description": "List functions filtered by tier, file, or minimum call count. Requires tier data.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "tier": {
+                    "type": "string",
+                    "enum": [t.value for t in TierLevel],
+                    "description": "Filter by importance tier: S (most important) through F (least)"
+                },
+                "file_path": {
+                    "type": "string",
+                    "description": "Filter to functions in a specific file"
+                },
+                "min_calls": {
+                    "type": "integer",
+                    "description": "Minimum call count threshold"
+                },
+                "limit": {
+                    "type": "integer",
+                    "description": "Max results (default 20, max 50)"
+                }
+            }
+        }
+    },
+    {
+        "name": "get_codebase_summary",
+        "description": "Get high-level codebase overview: project type, purpose, tech stack, key modules, complexity.",
+        "input_schema": {
+            "type": "object",
+            "properties": {}
+        }
+    },
+    {
+        "name": "explain_highlighted",
+        "description": "Identify and explain highlighted/selected text from the visualization. Handles files, functions, roles, imports with fuzzy matching.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "text": {
+                    "type": "string",
+                    "description": "The highlighted or selected text"
+                }
+            },
+            "required": ["text"]
+        }
+    },
+    {
+        "name": "detect_circular_dependencies",
+        "description": "Detect circular dependency chains (import cycles) in the codebase.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "involving_file": {
+                    "type": "string",
+                    "description": "Only return cycles involving this file"
+                },
+                "max_cycles": {
+                    "type": "integer",
+                    "description": "Max cycles to return (default 10)"
+                }
+            }
+        }
+    },
+    {
+        "name": "find_dependency_path",
+        "description": "Find the shortest import chain connecting two files in the dependency graph.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "source": {
+                    "type": "string",
+                    "description": "Starting file"
+                },
+                "target": {
+                    "type": "string",
+                    "description": "Target file"
+                },
+                "max_depth": {
+                    "type": "integer",
+                    "description": "Max path length (default 10)"
+                },
+                "bidirectional": {
+                    "type": "boolean",
+                    "description": "Search both import directions (default false)"
+                }
+            },
+            "required": ["source", "target"]
+        }
+    },
+    {
+        "name": "compare_files",
+        "description": "Compare two files: roles, categories, sizes, shared dependencies, and direct relationships.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "file1": {
+                    "type": "string",
+                    "description": "First file"
+                },
+                "file2": {
+                    "type": "string",
+                    "description": "Second file"
+                }
+            },
+            "required": ["file1", "file2"]
+        }
+    },
+    {
+        "name": "get_metrics",
+        "description": "Get aggregate codebase statistics: size by role, most connected files, dependency stats, role distribution.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "metric": {
+                    "type": "string",
+                    "enum": ["size_by_role", "most_connected", "dependency_stats", "role_distribution", "all"],
+                    "description": "Which metric to calculate"
+                }
+            },
+            "required": ["metric"]
+        }
+    }
+]
+
+# Tool name index for quick lookup
+_COMPRESSED_TOOLS_BY_NAME = {t["name"]: t for t in CHAT_TOOLS_COMPRESSED}
+
+# Tool subsets by intent
+_TOOL_NAMES_BY_INTENT: dict[QuestionIntent, list[str]] = {
+    QuestionIntent.HIGHLIGHTED_TEXT: [
+        "explain_highlighted", "get_file_info", "get_function_info",
+    ],
+    QuestionIntent.CODEBASE_SPECIFIC: [
+        "get_file_info", "search_files", "get_dependencies",
+        "get_function_info", "list_functions", "compare_files",
+    ],
+    QuestionIntent.CODEBASE_GENERAL: [
+        "get_codebase_summary", "get_metrics", "search_files",
+    ],
+    QuestionIntent.DEPENDENCY_ANALYSIS: [
+        "get_dependencies", "detect_circular_dependencies",
+        "find_dependency_path", "get_file_info", "search_files",
+    ],
+    QuestionIntent.FUNCTION_ANALYSIS: [
+        "get_function_info", "list_functions", "get_file_info",
+    ],
+    QuestionIntent.GENERAL_KNOWLEDGE: [],  # No tools needed
+}
+
+
+def get_tools_for_intent(intent: QuestionIntent) -> list[dict]:
+    """Get the compressed tool definitions for a given question intent.
+
+    Args:
+        intent: The classified question intent
+
+    Returns:
+        List of compressed tool definitions appropriate for the intent.
+        Returns empty list for GENERAL_KNOWLEDGE intent.
+    """
+    tool_names = _TOOL_NAMES_BY_INTENT.get(intent, [])
+    if not tool_names:
+        return []
+    return [_COMPRESSED_TOOLS_BY_NAME[name] for name in tool_names if name in _COMPRESSED_TOOLS_BY_NAME]
 
 
 class ChatToolExecutor:

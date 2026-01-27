@@ -50,6 +50,7 @@ export interface SessionMetrics {
 export interface ModelInfo {
   modelId: string;
   contextWindowSize: number;
+  questionIntent?: string;
 }
 
 /**

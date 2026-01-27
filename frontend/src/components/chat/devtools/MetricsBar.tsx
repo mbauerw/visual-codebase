@@ -1,4 +1,4 @@
-import { Cpu, Zap, Hash } from 'lucide-react';
+import { Cpu, Zap, Hash, Target } from 'lucide-react';
 import type { ModelInfo, ToolCallLog } from '../../../types/devtools';
 
 interface MetricsBarProps {
@@ -29,6 +29,14 @@ export function MetricsBar({ modelInfo, toolCalls, messageCount }: MetricsBarPro
         <Cpu size={10} className="text-slate-500" />
         <span className="font-mono">{formatModelName(modelInfo.modelId)}</span>
       </div>
+
+      {/* Intent */}
+      {modelInfo.questionIntent && (
+        <div className="flex items-center gap-1.5 text-slate-400">
+          <Target size={10} className="text-amber-500" />
+          <span className="font-mono">{modelInfo.questionIntent.replace(/_/g, ' ')}</span>
+        </div>
+      )}
 
       {/* Tool calls */}
       <div className="flex items-center gap-1.5 text-slate-400">

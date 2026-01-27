@@ -157,6 +157,7 @@ export interface StreamEvent {
   tool_duration_ms?: number;
   context_info?: ContextInfo;
   model_id?: string;
+  question_intent?: string;
 }
 
 export interface SuggestedQuestion {

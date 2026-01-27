@@ -236,8 +236,12 @@ export function useChat({
               if (event.context_info) {
                 setContextInfo(event.context_info);
               }
-              if (event.model_id) {
-                setModelInfo(prev => ({ ...prev, modelId: event.model_id! }));
+              if (event.model_id || event.question_intent) {
+                setModelInfo(prev => ({
+                  ...prev,
+                  ...(event.model_id && { modelId: event.model_id }),
+                  ...(event.question_intent && { questionIntent: event.question_intent }),
+                }));
               }
               break;
 

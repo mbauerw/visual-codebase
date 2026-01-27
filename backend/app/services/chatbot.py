@@ -24,8 +24,9 @@ from ..models.chat_schemas import (
     SelectionContext,
     ContextMode,
 )
-from .chat_tools import CHAT_TOOLS, ChatToolExecutor
+from .chat_tools import CHAT_TOOLS, ChatToolExecutor, get_tools_for_intent
 from .chat_context import build_base_context, build_general_context, format_user_message
+from .intent_classifier import IntentClassifier
 from .tool_output_formatter import ToolOutputFormatter
 from .chat_constants import MAX_RESPONSE_TOKENS, MAX_TOOL_ITERATIONS
 from .token_counter import (
@@ -336,7 +337,16 @@ class ChatbotService:
             # Get tool executor (cached) - only needed for codebase mode
             tool_executor = self._get_tool_executor(analysis_id, graph, tier_list)
             system_context = conversation.get_system_context(graph)
-            tools_to_use = CHAT_TOOLS
+
+            # Intent-based tool selection: classify the question and load
+            # only the relevant tool subset with compressed descriptions
+            intent = IntentClassifier.classify(
+                message,
+                highlighted_text=highlighted_text,
+                has_selection_context=selection_context is not None,
+            )
+            tools_to_use = get_tools_for_intent(intent) or None
+            logger.debug(f"Intent: {intent.value}, tools: {len(tools_to_use) if tools_to_use else 0}")
 
         # Format user message with highlighted text and selection context
         formatted_message = format_user_message(message, highlighted_text, selection_context)
@@ -349,7 +359,7 @@ class ChatbotService:
 
         for _ in range(MAX_TOOL_ITERATIONS):
             try:
-                # Build API call kwargs - only include tools for codebase mode
+                # Build API call kwargs - only include tools if intent requires them
                 api_kwargs = dict(
                     model=self.settings.llm_model,
                     max_tokens=MAX_RESPONSE_TOKENS,
@@ -526,7 +536,16 @@ class ChatbotService:
             # Get tool executor (cached) - only needed for codebase mode
             tool_executor = self._get_tool_executor(analysis_id, graph, tier_list)
             system_context = conversation.get_system_context(graph)
-            tools_to_use = CHAT_TOOLS
+
+            # Intent-based tool selection: classify the question and load
+            # only the relevant tool subset with compressed descriptions
+            intent = IntentClassifier.classify(
+                message,
+                highlighted_text=highlighted_text,
+                has_selection_context=selection_context is not None,
+            )
+            tools_to_use = get_tools_for_intent(intent) or None
+            logger.debug(f"Intent: {intent.value}, tools: {len(tools_to_use) if tools_to_use else 0}")
 
         # Format user message with highlighted text and selection context
         formatted_message = format_user_message(message, highlighted_text, selection_context)
@@ -545,7 +564,8 @@ class ChatbotService:
             type=StreamEventType.CONTEXT_UPDATE,
             conversation_id=conversation.conversation_id,
             context_info=initial_context_info,
-            model_id=self.settings.llm_model
+            model_id=self.settings.llm_model,
+            question_intent=intent.value if not is_general else "general",
         )
 
         for iteration in range(MAX_TOOL_ITERATIONS):
