@@ -15,6 +15,7 @@ import type {
   SelectionContext,
   ContextMode,
 } from '../types/chat';
+import { detectSelectionType } from './useTextSelection';
 import type {
   ToolCallLog,
   ContextInfo,
@@ -214,12 +215,17 @@ export function useChat({
     try {
       let toolsUsed: string[] = [];
 
+      // Enrich selection context with detected selection type
+      const enrichedContext = selectionContext && highlightedText
+        ? { ...selectionContext, selection_type: detectSelectionType(highlightedText) }
+        : selectionContext;
+
       await streamChatMessage(
         analysisId,
         {
           message,
           highlighted_text: highlightedText || undefined,
-          selection_context: selectionContext || undefined,
+          selection_context: enrichedContext || undefined,
           conversation_id: conversationId || undefined,
           context_mode: contextMode,
         },
@@ -376,10 +382,15 @@ export function useChat({
     setMessages(prev => [...prev, userMessage]);
 
     try {
+      // Enrich selection context with detected selection type
+      const enrichedContext = selectionContext && highlightedText
+        ? { ...selectionContext, selection_type: detectSelectionType(highlightedText) }
+        : selectionContext;
+
       const response = await sendChatMessage(analysisId, {
         message,
         highlighted_text: highlightedText || undefined,
-        selection_context: selectionContext || undefined,
+        selection_context: enrichedContext || undefined,
         conversation_id: conversationId || undefined,
         context_mode: contextMode,
       });

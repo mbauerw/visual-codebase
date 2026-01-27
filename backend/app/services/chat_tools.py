@@ -693,11 +693,17 @@ _TOOL_NAMES_BY_INTENT: dict[QuestionIntent, list[str]] = {
 }
 
 
-def get_tools_for_intent(intent: QuestionIntent) -> list[dict]:
+def get_tools_for_intent(
+    intent: QuestionIntent,
+    has_selection_context: bool = False,
+) -> list[dict]:
     """Get the compressed tool definitions for a given question intent.
 
     Args:
         intent: The classified question intent
+        has_selection_context: Whether rich selection context is provided.
+            When True and intent is HIGHLIGHTED_TEXT, skips explain_highlighted
+            since the model already knows the file/function from the context.
 
     Returns:
         List of compressed tool definitions appropriate for the intent.
@@ -706,6 +712,12 @@ def get_tools_for_intent(intent: QuestionIntent) -> list[dict]:
     tool_names = _TOOL_NAMES_BY_INTENT.get(intent, [])
     if not tool_names:
         return []
+
+    # Context-aware tool skipping: when selection context provides file/function
+    # info, exclude explain_highlighted to avoid redundant broad searches
+    if has_selection_context and intent == QuestionIntent.HIGHLIGHTED_TEXT:
+        tool_names = [n for n in tool_names if n != "explain_highlighted"]
+
     return [_COMPRESSED_TOOLS_BY_NAME[name] for name in tool_names if name in _COMPRESSED_TOOLS_BY_NAME]
 
 

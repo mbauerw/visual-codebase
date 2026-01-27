@@ -340,12 +340,13 @@ class ChatbotService:
 
             # Intent-based tool selection: classify the question and load
             # only the relevant tool subset with compressed descriptions
+            has_context = selection_context is not None
             intent = IntentClassifier.classify(
                 message,
                 highlighted_text=highlighted_text,
-                has_selection_context=selection_context is not None,
+                has_selection_context=has_context,
             )
-            tools_to_use = get_tools_for_intent(intent) or None
+            tools_to_use = get_tools_for_intent(intent, has_selection_context=has_context) or None
             logger.debug(f"Intent: {intent.value}, tools: {len(tools_to_use) if tools_to_use else 0}")
 
         # Format user message with highlighted text and selection context
@@ -539,12 +540,13 @@ class ChatbotService:
 
             # Intent-based tool selection: classify the question and load
             # only the relevant tool subset with compressed descriptions
+            has_context = selection_context is not None
             intent = IntentClassifier.classify(
                 message,
                 highlighted_text=highlighted_text,
-                has_selection_context=selection_context is not None,
+                has_selection_context=has_context,
             )
-            tools_to_use = get_tools_for_intent(intent) or None
+            tools_to_use = get_tools_for_intent(intent, has_selection_context=has_context) or None
             logger.debug(f"Intent: {intent.value}, tools: {len(tools_to_use) if tools_to_use else 0}")
 
         # Format user message with highlighted text and selection context

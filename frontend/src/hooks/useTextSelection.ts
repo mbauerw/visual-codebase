@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import type { SelectionType } from '../types/chat';
 
 interface UseTextSelectionOptions {
   /** Whether to track text selection */
@@ -14,10 +15,47 @@ interface UseTextSelectionOptions {
 interface UseTextSelectionReturn {
   /** Currently selected text */
   selectedText: string | null;
+  /** Detected type of the selected text */
+  selectionType: SelectionType;
   /** Clear the selected text */
   clearSelection: () => void;
   /** Whether there is currently selected text */
   hasSelection: boolean;
+}
+
+/**
+ * Detect the type of selected text based on patterns.
+ * Exported for reuse in useChat to enrich selection context.
+ */
+export function detectSelectionType(text: string): SelectionType {
+  const trimmed = text.trim();
+
+  // File name: contains a dot extension (e.g., "auth.ts", "index.js")
+  if (/^\S+\.\w{1,5}$/.test(trimmed)) {
+    return 'file_name';
+  }
+
+  // Import statement: starts with import/from/require
+  if (/^(?:import|from|require|export)\s/.test(trimmed)) {
+    return 'import';
+  }
+
+  // Code block: multiline or contains braces/semicolons
+  if (trimmed.includes('\n') || /[{};]/.test(trimmed)) {
+    return 'code_block';
+  }
+
+  // Function name: camelCase/PascalCase identifier, or ends with ()
+  if (/^[a-zA-Z_$][a-zA-Z0-9_$]*\s*\(?/.test(trimmed) && !trimmed.includes(' ')) {
+    return 'function_name';
+  }
+
+  // Variable: single identifier that looks like a variable (lowercase start, no spaces)
+  if (/^[a-z_$][a-zA-Z0-9_$]*$/.test(trimmed)) {
+    return 'variable';
+  }
+
+  return 'unknown';
 }
 
 export function useTextSelection({
@@ -27,6 +65,7 @@ export function useTextSelection({
   onSelect,
 }: UseTextSelectionOptions = {}): UseTextSelectionReturn {
   const [selectedText, setSelectedText] = useState<string | null>(null);
+  const [selectionType, setSelectionType] = useState<SelectionType>('unknown');
 
   const handleMouseUp = useCallback(() => {
     if (!enabled) return;
@@ -60,11 +99,13 @@ export function useTextSelection({
     }
 
     setSelectedText(text);
+    setSelectionType(detectSelectionType(text));
     onSelect?.(text);
   }, [enabled, minLength, maxLength, onSelect]);
 
   const clearSelection = useCallback(() => {
     setSelectedText(null);
+    setSelectionType('unknown');
     // Also clear the browser selection
     window.getSelection()?.removeAllRanges();
   }, []);
@@ -81,6 +122,7 @@ export function useTextSelection({
 
   return {
     selectedText,
+    selectionType,
     clearSelection,
     hasSelection: selectedText !== null && selectedText.length > 0,
   };
