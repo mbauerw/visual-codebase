@@ -1,6 +1,7 @@
 import { User, Bot, Wrench } from 'lucide-react';
 import type { ChatMessage as ChatMessageType } from '../../types/chat';
 import { ToolResultsList } from './ToolResultBlock';
+import { MarkdownContent } from './MarkdownContent';
 
 interface ChatMessageProps {
   message: ChatMessageType;
@@ -82,10 +83,14 @@ export function ChatMessage({ message, variant = 'widget', showToolResults = tru
 
         {/* Text content */}
         {message.content && (
-          <div className={`px-3 py-2.5 text-sm leading-relaxed ${messageClasses}`}>
-            <p className="whitespace-pre-wrap break-words">
-              {message.content}
-            </p>
+          <div className={`px-3 py-2.5 ${messageClasses}`}>
+            {isUser ? (
+              <p className="whitespace-pre-wrap break-words text-sm leading-relaxed">
+                {message.content}
+              </p>
+            ) : (
+              <MarkdownContent content={message.content} variant={variant} />
+            )}
           </div>
         )}
 
