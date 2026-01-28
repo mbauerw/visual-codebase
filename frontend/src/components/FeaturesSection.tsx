@@ -33,19 +33,28 @@ export default function FeaturesSection() {
             </p>
           </motion.div>
         </div>
-        <div className="grid md:grid-cols-[3fr_2fr] gap-6 md:gap-x-12 md:gap-y-12 ">
+        <div className="grid lg:grid-cols-[3fr_2fr] gap-12 lg:gap-x-12 lg:gap-y-12 ">
           {/* Feature 1 */}
-          <div className="bg-white h-[400px] rounded-3xl shadow-sm border border-gray-100 hover:shadow-xl transition-all duration-300 relative overflow-hidden">
-            <img src='/blueprint.jpeg' alt='ai' className='absolute bottom-0 right-0 w-3/4 h-3/4 blur-[2px]' />
-          <div className='w-full h-full p-8 z-20 flex flex-col justify-start gap-12'>
+          <div className="bg-white h-[380px] rounded-3xl shadow-sm border border-gray-100 hover:shadow-xl transition-all duration-300 relative overflow-hidden">
+            <img src='/blueprint.jpeg' alt='ai' className='absolute top-0 left-0 w-full h-full blur-[2px]' />
+            <div className='w-full h-full p-8 z-20 flex flex-col justify-start gap-12'>
 
-            
-            <h3 className="text-5xl font-semibold text-black z-20">AI-powered Analysis</h3>
-            <p className="text-black text-lg leading-relaxed z-10 relative">
-              Automatically generate a full analysis <br/> suite for unfamiliar codebases.
-                Uncover tech stacks and key modules without having to parse through thousands of lines of code.
 
-            </p>
+              <h3 className="text-5xl font-semibold text-white z-20">AI-powered Analysis</h3>
+              
+              <div className='w-full flex flex-row z-20'>
+                <span className='w-2/3 sm:w-1/2 md:w-1/2 lg:1/2 xl:1/2'>
+                  <p className="text-gray-100 text-lg leading-relaxed z-10 relative">
+                    Automatically generate a full analysis suite for unfamiliar codebases.
+                    Uncover tech stacks and key modules without having to parse through thousands of lines of code.
+                  </p>
+                </span>
+                <span className='max-w-1/2 w-1/2 p-8'>
+                  <img src="/analysis-api.png" alt="analysis api" className='w-full' />
+                  
+                </span>
+              </div>
+
             </div>
           </div>
 
