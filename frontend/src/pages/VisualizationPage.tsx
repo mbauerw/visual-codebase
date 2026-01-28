@@ -1481,6 +1481,7 @@ function VisualizationPageInner() {
 
   return (
     <div className="min-h-screen max-h-screen w-screen bg-gray-100 flex flex-col overflow-hidden ">
+      {/* <div className="min-h-screen h-[100%] w-[100%] min-w-screen absolute top-0 left-0 blur-lg z-10 " /> */}
       {/* Header */}
       <div className="h-14 fixed top-0 left-0 w-full bg-slate-800 flex items-center justify-between px-4 z-50">
         <div className="flex items-center gap-4">
@@ -1498,6 +1499,17 @@ function VisualizationPageInner() {
             {getAnalysisDisplayName(graphData.metadata)}
           </h1>
         </div>
+        <button
+            onClick={() => setChatModalOpen(prev => !prev)}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded transition-colors ${
+              chatModalOpen
+                ? 'bg-blue-600 text-white'
+                : 'bg-slate-700 text-slate-400 hover:text-white hover:bg-slate-600'
+            }`}
+          >
+            <MessageSquare size={16} />
+            <span className="text-sm font-medium">AI Assistant</span>
+          </button> 
 
         {/* Desktop Stats and Auth */}
         <div className="hidden md:flex items-center gap-4">
@@ -1518,7 +1530,7 @@ function VisualizationPageInner() {
 
           <div className="h-6 w-px bg-slate-700" />
 
-          <button
+          {/* <button
             onClick={() => setChatModalOpen(prev => !prev)}
             className={`flex items-center gap-2 px-3 py-1.5 rounded transition-colors ${
               chatModalOpen
@@ -1528,7 +1540,7 @@ function VisualizationPageInner() {
           >
             <MessageSquare size={16} />
             <span className="text-sm font-medium">AI Chat</span>
-          </button>
+          </button> */}
 
           <div className="h-6 w-px bg-slate-700" />
 
@@ -2015,7 +2027,7 @@ function VisualizationPageInner() {
 
       {/* AI Chat Modal */}
       <DraggableModal
-        title="AI Chat"
+        title=""
         isOpen={chatModalOpen}
         onClose={() => setChatModalOpen(false)}
         width={450}

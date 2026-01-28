@@ -650,11 +650,11 @@ class DatabaseService:
         if tier:
             query = query.eq("tier", tier)
         if file_filter:
-            query = query.ilike("node_id", f"%{file_filter}%")
+            query = query.ilike("node_id", f"*{file_filter}*")
         if function_type:
             query = query.eq("function_type", function_type)
         if search:
-            query = query.ilike("function_name", f"%{search}%")
+            query = query.ilike("function_name", f"*{search}*")
 
         # Apply sorting
         sort_column = {

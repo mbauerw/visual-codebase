@@ -75,7 +75,7 @@ export default function HowItWorksSection() {
   }, [iterationComplete, showAllCards]);
 
   return (
-    <section ref={sectionRef} id="how-it-works" className="py-12 md:py-20 px-4 min-h-[800px] md:h-[90vh] flex flex-col justify-center bg-white gap-6">
+    <section ref={sectionRef} id="how-it-works" className="py-12 md:py-20 px-4 min-h-[800px] md:h-[100vh] flex flex-col justify-center bg-white gap-6">
       <motion.div
         className="text-center mb-8 md:mb-20"
         initial={{ opacity: 0, y: 20 }}
@@ -131,47 +131,52 @@ export default function HowItWorksSection() {
               {howItWorksSteps.map((step, index) => {
                 // Card 1: center to left, Card 2: bottom to center, Card 3: center to right
                 const initialPosition =
-                  index === 0 ? { opacity: 0, x: 100, y: 0 } :
-                  index === 1 ? { opacity: 0, x: 0, y: 50 } :
-                  { opacity: 0, x: -100, y: 0 };
+                  index === 0 ? { opacity: 0, x: 100, y: 200 } :
+                    index === 1 ? { opacity: 0, x: 0, y: 50 } :
+                      { opacity: 0, x: -100, y: 200 };
+
+                const finalPosition =
+                  index === 0 ? { opacity: 1, x: 0, y: -30 } :
+                    index === 1 ? { opacity: 1, x: 0, y: 20 } :
+                      { opacity: 1, x: 0, y: -30 };
 
                 // Each card waits for the previous to complete (0.6s duration each)
-                const animationDelay = index * 0.6;
+                const animationDelay = index * 1;
 
                 return (
-                <motion.div
-                  key={step.number}
-                  initial={initialPosition}
-                  animate={{ opacity: 1, x: 0, y: 0 }}
-                  transition={{
-                    duration: 0.6,
-                    delay: animationDelay,
-                    ease: 'easeOut'
-                  }}
-                  className="w-full md:flex-1 text-center text-wrap max-w-md mx-auto"
-                >
-                  <div
-                    className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl font-bold"
-                    style={{
-                      background: `linear-gradient(to bottom right, ${step.gradientFrom}33, ${step.gradientTo}1a)`,
-                      color: step.gradientFrom,
+                  <motion.div
+                    key={step.number}
+                    initial={initialPosition}
+                    animate={finalPosition}
+                    transition={{
+                      duration: 0.6,
+                      delay: animationDelay,
+                      ease: 'easeOut'
                     }}
+                    className="w-full md:flex-1 text-center text-wrap max-w-md mx-auto"
                   >
-                    {step.number}
-                  </div>
-                  <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                    {step.title}
-                  </h3>
-                  <p className="text-gray-600 text-lg">
-                    {step.description}
-                  </p>
-                  <img
-                    src={step.image}
-                    alt={step.title}
-                    className="mt-4 rounded-lg shadow-md mx-auto max-h-[180px] md:max-h-[280px] object-cover"
-                  />
-                </motion.div>
-              );
+                    <div
+                      className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl font-bold"
+                      style={{
+                        background: `linear-gradient(to bottom right, ${step.gradientFrom}33, ${step.gradientTo}1a)`,
+                        color: step.gradientFrom,
+                      }}
+                    >
+                      {step.number}
+                    </div>
+                    <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                      {step.title}
+                    </h3>
+                    <p className="text-gray-600 text-lg">
+                      {step.description}
+                    </p>
+                    <img
+                      src={step.image}
+                      alt={step.title}
+                      className="mt-4 rounded-lg shadow-md mx-auto max-h-[180px] md:max-h-[280px] object-cover"
+                    />
+                  </motion.div>
+                );
               })}
             </motion.div>
           )}

@@ -42,6 +42,9 @@ describe('CustomNode', () => {
     dragging: false,
     positionAbsoluteX: 0,
     positionAbsoluteY: 0,
+    draggable: true,
+    selectable: true,
+    deletable: true,
   };
 
   describe('rendering', () => {

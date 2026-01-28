@@ -4,7 +4,7 @@ import { BlueVideoBackground } from './backgrounds';
 
 export default function FeaturesSection() {
   return (
-    <section id="features" className="py-20 md:py-14 min-h-[100vh] flex flex-col justify-end px-4 relative overflow-hidden">
+    <section id="features" className="py-20 md:py-14 min-h-[130vh] flex flex-col justify-center px-4 relative overflow-hidden">
       {/* <img className="absolute top-0 left-0 w-full h-full opacity-[0.6] z-0  scale-108 pointer-events-none" src="/hills-grey.jpeg" /> */}
       {/* Dome-shaped fade overlay - fades top corners, reveals image in dome shape */}
       <BlueVideoBackground />
@@ -33,44 +33,46 @@ export default function FeaturesSection() {
             </p>
           </motion.div>
         </div>
-      </div>
-      <div className="max-w-6xl mx-auto z-10 relative">
-        <div className="grid md:grid-cols-2 gap-6 md:gap-x-12 md:gap-y-12 place-items-center  ">
+        <div className="grid md:grid-cols-[3fr_2fr] gap-6 md:gap-x-12 md:gap-y-12 ">
           {/* Feature 1 */}
-          <div className="w-3/4 bg-white rounded-3xl p-8 shadow-sm border border-gray-100 hover:shadow-xl transition-all duration-300">
-            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#8FBCFA] to-[#6BA3F5] flex items-center justify-center mb-6">
-              <GitBranch size={28} className="text-white" />
-            </div>
-            <h3 className="text-xl font-semibold text-gray-900 mb-3">Dependency Mapping</h3>
-            <p className="text-gray-600 leading-relaxed">
-              Automatically extract and visualize import statements across JavaScript, TypeScript, and Python files.
+          <div className="bg-white h-[400px] rounded-3xl shadow-sm border border-gray-100 hover:shadow-xl transition-all duration-300 relative overflow-hidden">
+            <img src='/blueprint.jpeg' alt='ai' className='absolute bottom-0 right-0 w-3/4 h-3/4 blur-[2px]' />
+          <div className='w-full h-full p-8 z-20 flex flex-col justify-start gap-12'>
+
+            
+            <h3 className="text-5xl font-semibold text-black z-20">AI-powered Analysis</h3>
+            <p className="text-black text-lg leading-relaxed z-10 relative">
+              Automatically generate a full analysis <br/> suite for unfamiliar codebases.
+                Uncover tech stacks and key modules without having to parse through thousands of lines of code.
+
             </p>
+            </div>
           </div>
 
           {/* Feature 2 */}
-          <div className="w-3/4 bg-white rounded-3xl p-8 shadow-sm border border-gray-100 hover:shadow-xl  transition-all duration-300">
-            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#FF9A9D] to-[#FF7A7D] flex items-center justify-center mb-6">
+          <div className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100 hover:shadow-xl  transition-all duration-300">
+            {/* <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#FF9A9D] to-[#FF7A7D] flex items-center justify-center mb-6">
               <Zap size={28} className="text-white" />
-            </div>
-            <h3 className="text-xl font-semibold text-gray-900 mb-3">AI-Powered Analysis</h3>
+            </div> */}
+            <h3 className="text-xl font-semibold text-gray-900 mb-3">Interactive Visualization</h3>
             <p className="text-gray-600 leading-relaxed">
-              Leverage AI to understand the role of each file and categorize them by their function in your architecture.
+              Build a more complete mental model by exploring your codebase through an interactive medium. Visualize function calls and dependency relationships
+              through an interactive graph. Understand archetecture at a glance.
             </p>
           </div>
 
           {/* Feature 3 */}
-          <div className="w-3/4 bg-white rounded-3xl p-8 shadow-sm border border-gray-100 hover:shadow-xl transition-all duration-300">
-            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#F6D785] to-[#F0C560] flex items-center justify-center mb-6">
-              <Eye size={28} className="text-white" />
-            </div>
-            <h3 className="text-xl font-semibold text-gray-900 mb-3">Interactive Visualization</h3>
+          <div className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100 hover:shadow-xl transition-all duration-300">
+
+            <h3 className="text-xl font-semibold text-gray-900 mb-3">On-demand AI Assistance</h3>
             <p className="text-gray-600 leading-relaxed">
-              Explore your codebase through an interactive node graph with zooming, panning, and filtering capabilities.
+              Our in app AI assistant leverages the pre-existing codebase analysis as additional context to provide valuable answers whenever you have a question about the code.
+              In addition, by highlighting text from the analysis suite you can automatically provide specific context for any question you might have.
             </p>
           </div>
 
           {/* Feature 1 */}
-          <div className="w-3/4 bg-white rounded-3xl p-8 shadow-sm border border-gray-100 hover:shadow-xl transition-all duration-300">
+          {/* <div className="w-3/4 bg-white rounded-3xl p-8 shadow-sm border border-gray-100 hover:shadow-xl transition-all duration-300">
             <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#8FBCFA] to-[#6BA3F5] flex items-center justify-center mb-6">
               <GitBranch size={28} className="text-white" />
             </div>
@@ -78,7 +80,7 @@ export default function FeaturesSection() {
             <p className="text-gray-600 leading-relaxed">
               Automatically extract and visualize import statements across JavaScript, TypeScript, and Python files.
             </p>
-          </div>
+          </div> */}
         </div>
       </div>
     </section>
