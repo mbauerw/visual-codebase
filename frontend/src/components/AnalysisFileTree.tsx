@@ -37,6 +37,7 @@ interface AnalysisFileTreeProps {
   nodes: ReactFlowNode[];
   onFileSelect?: (nodeId: string, nodeData: ReactFlowNodeData) => void;
   selectedFileId?: string | null;
+  selectionSource?: 'node' | 'tierlist' | null; // Track where selection originated
 }
 
 // Extended tree item to hold file metadata
@@ -321,6 +322,7 @@ const AnalysisFileTree = ({
   nodes,
   onFileSelect,
   selectedFileId,
+  selectionSource,
 }: AnalysisFileTreeProps) => {
   const [expandedItems, setExpandedItems] = useState<string[]>([]);
   const apiRef = useTreeViewApiRef();
@@ -363,7 +365,14 @@ const AnalysisFileTree = ({
 
   // Auto-expand parent directories and scroll to file when selected externally (from graph or tier list)
   useEffect(() => {
-    if (!selectedFileId || selectedFileId === lastExternalSelectionRef.current) {
+    // Only trigger for external selections (from graph node click or tier list)
+    // Skip if selection came from within the tree itself (selectionSource would be null/undefined)
+    if (!selectedFileId || !selectionSource) {
+      return;
+    }
+
+    // Skip if we've already processed this selection
+    if (selectedFileId === lastExternalSelectionRef.current) {
       return;
     }
 
@@ -388,7 +397,7 @@ const AnalysisFileTree = ({
         element.scrollIntoView({ behavior: 'smooth', block: 'center' });
       }
     });
-  }, [selectedFileId, nodeIdToPath, getParentPaths, apiRef]);
+  }, [selectedFileId, selectionSource, nodeIdToPath, getParentPaths, apiRef]);
 
   // Create a flat map of all items for quick lookup
   const itemsById = useMemo(() => {

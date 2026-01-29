@@ -1691,6 +1691,7 @@ function VisualizationPageInner() {
                   nodes={graphData.nodes}
                   onFileSelect={handleFileTreeSelect}
                   selectedFileId={selectedNodeId}
+                  selectionSource={selectionSource}
                 />
               </div>
             </div>
@@ -1714,7 +1715,10 @@ function VisualizationPageInner() {
                     onClose={() => {
                       setIsSourcePanelOpen(false);
                       setSourceCodeFile(null);
+                      setHighlightedLines(null);
                     }}
+                    highlightedLines={highlightedLines}
+                    onHighlightClear={() => setHighlightedLines(null)}
                   />
 
                 )}
