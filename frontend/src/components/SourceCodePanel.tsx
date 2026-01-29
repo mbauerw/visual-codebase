@@ -100,6 +100,11 @@ interface SourceCodePanelProps {
   error?: string | null;
   isOpen: boolean;
   onClose: () => void;
+  highlightedLines?: {
+    startLine: number;
+    endLine: number | null;
+  } | null;
+  onHighlightClear?: () => void;
 }
 
 export default function SourceCodePanel({
@@ -111,6 +116,8 @@ export default function SourceCodePanel({
   error = null,
   isOpen,
   onClose,
+  highlightedLines = null,
+  onHighlightClear,
 }: SourceCodePanelProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);

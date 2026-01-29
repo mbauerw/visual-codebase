@@ -818,6 +818,12 @@ function VisualizationPageInner() {
   const [selectedEdge, setSelectedEdge] = useState<Edge | null>(null);
   const [edgePopoverPosition, setEdgePopoverPosition] = useState<{ x: number; y: number } | null>(null);
 
+  // Highlighted lines state for source code panel (used when selecting functions from tier list)
+  const [highlightedLines, setHighlightedLines] = useState<{
+    startLine: number;
+    endLine: number | null;
+  } | null>(null);
+
   // Right panel tab state
   type RightPanelTab = 'details' | 'tierlist';
   const [rightPanelTab, setRightPanelTab] = useState<RightPanelTab>('details');
@@ -1264,6 +1270,9 @@ function VisualizationPageInner() {
           lineCount: nodeData.line_count,
         });
         setIsSourcePanelOpen(true);
+
+        // Clear highlighted lines when selecting via node click (not function selection)
+        setHighlightedLines(null);
       }
       if (node.type === 'category') {
         setSelectedNode(null);
@@ -1375,6 +1384,12 @@ function VisualizationPageInner() {
         lineCount: nodeData.line_count,
       });
       setIsSourcePanelOpen(true);
+
+      // Set highlighted lines for source code panel
+      setHighlightedLines({
+        startLine: func.start_line,
+        endLine: func.end_line,
+      });
     }
   }, [nodes]);
 
@@ -1404,6 +1419,9 @@ function VisualizationPageInner() {
       lineCount: nodeData.line_count,
     });
     setIsSourcePanelOpen(true);
+
+    // Clear highlighted lines when selecting via file tree (not function selection)
+    setHighlightedLines(null);
   }, []);
 
   // Track viewport changes for background sync
@@ -1676,8 +1694,8 @@ function VisualizationPageInner() {
                 />
               </div>
             </div>
-            {/* Source Code Panel - appears below React Flow when a file is selected */}
 
+            {/* Source Code Panel */}
             <div className="w-3/5 h-full flex flex-col items-start justify-center">
               <div className='flex w-full items-center justify-center relative h-16'>
 

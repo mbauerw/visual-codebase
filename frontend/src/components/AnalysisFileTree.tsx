@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { RichTreeView } from '@mui/x-tree-view/RichTreeView';
 import { TreeItem } from '@mui/x-tree-view/TreeItem';
 import { TreeViewBaseItem } from '@mui/x-tree-view/models';
@@ -335,6 +335,51 @@ const AnalysisFileTree = ({
     return map;
   }, [nodes]);
 
+  // Reverse lookup: nodeId -> file path (for external selection sync)
+  const nodeIdToPath = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const node of nodes) {
+      map.set(node.id, node.data.path);
+    }
+    return map;
+  }, [nodes]);
+
+  // Track last externally processed selection to prevent redundant processing
+  const lastExternalSelectionRef = useRef<string | null>(null);
+
+  // Utility function to get all parent directory paths for a file
+  const getParentPaths = useCallback((filePath: string): string[] => {
+    const parts = filePath.split('/').filter(Boolean);
+    const paths: string[] = [];
+    let current = '';
+    for (let i = 0; i < parts.length - 1; i++) {
+      current = current ? `${current}/${parts[i]}` : parts[i];
+      paths.push(current);
+    }
+    return paths;
+  }, []);
+
+  // Auto-expand parent directories when a file is selected externally (from graph or tier list)
+  useEffect(() => {
+    if (!selectedFileId || selectedFileId === lastExternalSelectionRef.current) {
+      return;
+    }
+
+    const filePath = nodeIdToPath.get(selectedFileId);
+    if (!filePath) return;
+
+    // Mark this selection as processed
+    lastExternalSelectionRef.current = selectedFileId;
+
+    // Expand all parent directories to reveal the selected file
+    const parentPaths = getParentPaths(filePath);
+    setExpandedItems(prev => {
+      const newExpanded = new Set(prev);
+      parentPaths.forEach(p => newExpanded.add(p));
+      return Array.from(newExpanded);
+    });
+  }, [selectedFileId, nodeIdToPath, getParentPaths]);
+
   // Create a flat map of all items for quick lookup
   const itemsById = useMemo(() => {
     const map = new Map<string, ExtendedTreeItem>();
@@ -355,6 +400,8 @@ const AnalysisFileTree = ({
     (_event: React.SyntheticEvent, itemId: string) => {
       const nodeInfo = nodeDataByPath.get(itemId);
       if (nodeInfo && onFileSelect) {
+        // Mark this as the current selection so the external selection effect doesn't re-process it
+        lastExternalSelectionRef.current = nodeInfo.nodeId;
         onFileSelect(nodeInfo.nodeId, nodeInfo.nodeData);
       }
     },
