@@ -4,11 +4,6 @@ import re
 from pathlib import Path
 from typing import Optional
 
-import tree_sitter_javascript as tsjs
-import tree_sitter_python as tspy
-import tree_sitter_typescript as tsts
-import tree_sitter_java as tsjava
-import tree_sitter_c_sharp as tscsharp
 from tree_sitter import Language, Parser
 
 from ..settings import get_settings
@@ -26,53 +21,89 @@ from ..models.schemas import (
 
 
 class FileParser:
-    """Parser service using Tree-sitter for AST-based import extraction."""
+    """Parser service using Tree-sitter for AST-based import extraction.
+
+    Uses lazy initialization for parsers to improve startup performance.
+    Parsers are only created when first needed for a specific language.
+    """
 
     def __init__(self):
-        """Initialize parsers for supported languages."""
+        """Initialize parser with lazy loading support."""
         self.settings = get_settings()
 
-        # Initialize Tree-sitter languages (modern API for tree-sitter >= 0.23)
-        # Language() wraps the language pointer returned by the binding
-        self.js_language = Language(tsjs.language())
-        self.ts_language = Language(tsts.language_typescript())
-        self.tsx_language = Language(tsts.language_tsx())
-        self.py_language = Language(tspy.language())
-        self.java_language = Language(tsjava.language())
-        self.csharp_language = Language(tscsharp.language())
+        # Lazy-loaded parsers (created on first use)
+        self._parsers: dict[str, Parser] = {}
+        self._languages: dict[str, Language] = {}
 
-        # Create parsers with the language
-        self.js_parser = Parser(self.js_language)
-        self.ts_parser = Parser(self.ts_language)
-        self.tsx_parser = Parser(self.tsx_language)
-        self.py_parser = Parser(self.py_language)
-        self.java_parser = Parser(self.java_language)
-        self.csharp_parser = Parser(self.csharp_language)
-
-        # Extension to language/parser mapping
-        self.extension_map = {
-            ".js": (LangEnum.JAVASCRIPT, self.js_parser),
-            ".jsx": (LangEnum.JAVASCRIPT, self.js_parser),
-            ".ts": (LangEnum.TYPESCRIPT, self.ts_parser),
-            ".tsx": (LangEnum.TYPESCRIPT, self.tsx_parser),
-            ".py": (LangEnum.PYTHON, self.py_parser),
-            ".java": (LangEnum.JAVA, self.java_parser),
-            ".cs": (LangEnum.CSHARP, self.csharp_parser),
+        # Extension to language enum mapping (parser loaded lazily)
+        self._extension_to_lang = {
+            ".js": LangEnum.JAVASCRIPT,
+            ".jsx": LangEnum.JAVASCRIPT,
+            ".ts": LangEnum.TYPESCRIPT,
+            ".tsx": LangEnum.TYPESCRIPT,
+            ".py": LangEnum.PYTHON,
+            ".java": LangEnum.JAVA,
+            ".cs": LangEnum.CSHARP,
         }
+
+    def _get_parser_for_extension(self, ext: str) -> Optional[Parser]:
+        """Get or create parser for a file extension (lazy initialization).
+
+        This approach delays parser creation until needed, improving startup
+        time for projects that don't use all supported languages.
+        """
+        if ext not in self._extension_to_lang:
+            return None
+
+        # Check if parser already created
+        if ext in self._parsers:
+            return self._parsers[ext]
+
+        # Create parser based on extension
+        parser = None
+        try:
+            if ext in (".js", ".jsx"):
+                import tree_sitter_javascript as tsjs
+                lang = Language(tsjs.language())
+                parser = Parser(lang)
+            elif ext == ".ts":
+                import tree_sitter_typescript as tsts
+                lang = Language(tsts.language_typescript())
+                parser = Parser(lang)
+            elif ext == ".tsx":
+                import tree_sitter_typescript as tsts
+                lang = Language(tsts.language_tsx())
+                parser = Parser(lang)
+            elif ext == ".py":
+                import tree_sitter_python as tspy
+                lang = Language(tspy.language())
+                parser = Parser(lang)
+            elif ext == ".java":
+                import tree_sitter_java as tsjava
+                lang = Language(tsjava.language())
+                parser = Parser(lang)
+            elif ext == ".cs":
+                import tree_sitter_c_sharp as tscsharp
+                lang = Language(tscsharp.language())
+                parser = Parser(lang)
+        except ImportError as e:
+            print(f"Warning: Could not load parser for {ext}: {e}")
+            return None
+
+        if parser:
+            self._parsers[ext] = parser
+
+        return parser
 
     def detect_language(self, file_path: str) -> LangEnum:
         """Detect the programming language from file extension."""
         ext = Path(file_path).suffix.lower()
-        if ext in self.extension_map:
-            return self.extension_map[ext][0]
-        return LangEnum.UNKNOWN
+        return self._extension_to_lang.get(ext, LangEnum.UNKNOWN)
 
     def get_parser(self, file_path: str) -> Optional[Parser]:
-        """Get the appropriate parser for a file."""
+        """Get the appropriate parser for a file (lazy initialization)."""
         ext = Path(file_path).suffix.lower()
-        if ext in self.extension_map:
-            return self.extension_map[ext][1]
-        return None
+        return self._get_parser_for_extension(ext)
 
     def parse_file(
         self, file_path: str, base_path: str, include_content: bool = False
@@ -629,22 +660,41 @@ class FileParser:
         is_static = False
         alias_name = None
         namespace = None
+        has_equals = False
+        first_identifier = None
 
         for child in node.children:
             if child.type == "global":
                 is_global = True
             elif child.type == "static":
                 is_static = True
-            elif child.type == "name_equals":
+            elif child.type == "=":
                 # Alias using: using Alias = Namespace.Type;
+                has_equals = True
+            elif child.type == "name_equals":
+                # Some C# grammars use name_equals node
+                has_equals = True
                 for subchild in child.children:
                     if subchild.type == "identifier":
                         alias_name = self._get_node_text(subchild, content)
                         break
-            elif child.type in ("qualified_name", "identifier_name", "identifier", "generic_name"):
+            elif child.type == "identifier":
+                # Could be alias name (before =) or simple namespace
+                if first_identifier is None:
+                    first_identifier = self._get_node_text(child, content)
+                else:
+                    namespace = self._get_node_text(child, content)
+            elif child.type in ("qualified_name", "identifier_name", "generic_name"):
                 namespace = self._get_node_text(child, content)
             elif child.type == "alias_qualified_name":
                 namespace = self._get_node_text(child, content)
+
+        # Handle alias pattern: using Alias = Namespace;
+        if has_equals and first_identifier and namespace:
+            alias_name = first_identifier
+        elif first_identifier and not namespace:
+            # Simple using like: using System;
+            namespace = first_identifier
 
         if namespace:
             if is_static:

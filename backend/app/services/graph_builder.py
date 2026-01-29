@@ -10,6 +10,7 @@ from ..models.schemas import (
     DependencyEdge,
     FileNode,
     ImportType,
+    Language,
     LLMFileAnalysis,
     ParsedFile,
     ReactFlowEdge,
@@ -360,6 +361,12 @@ class GraphBuilder:
             pf.relative_path: pf for pf in parsed_files
         }
 
+        # Build lookup of node ID to language for cross-language detection
+        id_to_language: dict[str, Language] = {}
+        for pf in parsed_files:
+            node_id = self._generate_node_id(pf.relative_path)
+            id_to_language[node_id] = pf.language
+
         # Aggregate imports by edge (source-target pair)
         # This combines multiple import statements between the same files
         edge_data: dict[tuple[str, str], dict] = {}
@@ -405,6 +412,15 @@ class GraphBuilder:
                 module = data["module_path"]
                 label = module if len(module) < 30 else None
 
+            # Get source and target languages for cross-language detection
+            source_lang = id_to_language.get(target_id, Language.UNKNOWN)  # target_id is the exporting file
+            target_lang = id_to_language.get(source_id, Language.UNKNOWN)  # source_id is the importing file
+            is_cross_language = (
+                source_lang != Language.UNKNOWN and
+                target_lang != Language.UNKNOWN and
+                source_lang != target_lang
+            )
+
             edges.append(
                 DependencyEdge(
                     id=edge_id,
@@ -414,6 +430,9 @@ class GraphBuilder:
                     label=label,
                     imported_names=imported_names,
                     module_path=data["module_path"],
+                    source_language=source_lang,
+                    target_language=target_lang,
+                    is_cross_language=is_cross_language,
                 )
             )
 
@@ -503,6 +522,15 @@ class GraphBuilder:
 
         # Convert edges
         for edge in edges:
+            # Use different style for cross-language edges
+            edge_style = {"stroke": "#888", "strokeWidth": 1.5}
+            if edge.is_cross_language:
+                edge_style = {
+                    "stroke": "#f59e0b",  # amber-500 for cross-language
+                    "strokeWidth": 2,
+                    "strokeDasharray": "5,5",  # dashed line
+                }
+
             rf_edge = ReactFlowEdge(
                 id=edge.id,
                 source=edge.source,
@@ -510,11 +538,14 @@ class GraphBuilder:
                 type="import",  # Use custom import edge type
                 animated=False,
                 label=edge.label,
-                style={"stroke": "#888", "strokeWidth": 1.5},
+                style=edge_style,
                 data=ReactFlowEdgeData(
                     imported_names=edge.imported_names,
                     module_path=edge.module_path,
                     import_type=edge.import_type,
+                    source_language=edge.source_language,
+                    target_language=edge.target_language,
+                    is_cross_language=edge.is_cross_language,
                 ),
             )
             rf_edges.append(rf_edge)

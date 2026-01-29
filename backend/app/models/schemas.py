@@ -444,6 +444,15 @@ class DependencyEdge(BaseModel):
     module_path: Optional[str] = Field(
         default=None, description="Original module path from import statement"
     )
+    source_language: Language = Field(
+        default=Language.UNKNOWN, description="Language of the source file"
+    )
+    target_language: Language = Field(
+        default=Language.UNKNOWN, description="Language of the target file"
+    )
+    is_cross_language: bool = Field(
+        default=False, description="True if edge crosses language boundaries"
+    )
 
 
 # Codebase summary schemas
@@ -609,6 +618,15 @@ class ReactFlowEdgeData(BaseModel):
         default=None, description="Original module path"
     )
     import_type: ImportType = Field(..., description="Type of import")
+    source_language: Language = Field(
+        default=Language.UNKNOWN, description="Language of the source file"
+    )
+    target_language: Language = Field(
+        default=Language.UNKNOWN, description="Language of the target file"
+    )
+    is_cross_language: bool = Field(
+        default=False, description="True if edge crosses language boundaries"
+    )
 
 
 class ReactFlowEdge(BaseModel):

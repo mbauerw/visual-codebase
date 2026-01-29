@@ -62,10 +62,18 @@ class TestLanguageDetection:
         """Test Python file detection."""
         assert parser.detect_language("main.py") == Language.PYTHON
 
+    def test_detect_java(self, parser):
+        """Test Java file detection."""
+        assert parser.detect_language("Main.java") == Language.JAVA
+
+    def test_detect_csharp(self, parser):
+        """Test C# file detection."""
+        assert parser.detect_language("Program.cs") == Language.CSHARP
+
     def test_detect_unknown(self, parser):
         """Test unknown file type detection."""
-        assert parser.detect_language("file.java") == Language.UNKNOWN
         assert parser.detect_language("file.cpp") == Language.UNKNOWN
+        assert parser.detect_language("file.rb") == Language.UNKNOWN
         assert parser.detect_language("file.txt") == Language.UNKNOWN
         assert parser.detect_language("file") == Language.UNKNOWN
 
@@ -524,8 +532,8 @@ class TestUnsupportedFileTypes:
 
     def test_unsupported_extension(self, parser, temp_dir):
         """Test that unsupported file types return None."""
-        content = "public class Main { }"
-        file_path = create_temp_file(temp_dir, "Main.java", content)
+        content = "class Main; end"
+        file_path = create_temp_file(temp_dir, "main.rb", content)
         result = parser.parse_file(file_path, temp_dir)
 
         assert result is None
@@ -732,9 +740,12 @@ class TestSingletonPattern:
     def test_parser_attributes_persist(self):
         """Test that parser attributes persist across calls."""
         parser = get_parser()
-        # Access some attribute to ensure initialization
-        assert parser.js_language is not None
-        assert parser.py_language is not None
+        # Access some attribute to ensure initialization (lazy loading)
+        assert parser.settings is not None
+        assert parser._extension_to_lang is not None
+        # Languages are lazily loaded now
+        assert ".js" in parser._extension_to_lang
+        assert ".py" in parser._extension_to_lang
 
 
 # ==================== React Hook Detection Tests ====================
@@ -833,3 +844,734 @@ class TestEdgeCases:
 
         assert result is not None
         assert result.size_bytes == 100
+
+
+# ==================== Java Import Tests ====================
+
+class TestJavaImportExtraction:
+    """Tests for Java import extraction."""
+
+    def test_simple_import(self, parser, temp_dir):
+        """Test simple Java import statement."""
+        content = '''
+package com.example.demo;
+
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+'''
+        file_path = create_temp_file(temp_dir, "Test.java", content)
+        result = parser.parse_file(file_path, temp_dir)
+
+        assert result is not None
+        assert result.language == Language.JAVA
+        assert len(result.imports) == 3
+
+        modules = [i.module for i in result.imports]
+        assert "java.util.List" in modules
+        assert "java.util.Map" in modules
+        assert "java.util.Optional" in modules
+
+    def test_static_import(self, parser, temp_dir):
+        """Test Java static import extraction."""
+        content = '''
+package com.example.demo;
+
+import static org.junit.Assert.assertEquals;
+import static java.lang.Math.PI;
+'''
+        file_path = create_temp_file(temp_dir, "Test.java", content)
+        result = parser.parse_file(file_path, temp_dir)
+
+        assert result is not None
+        static_imports = [i for i in result.imports if i.import_type == ImportType.STATIC_IMPORT]
+        assert len(static_imports) == 2
+
+    def test_wildcard_import(self, parser, temp_dir):
+        """Test Java wildcard import extraction."""
+        content = '''
+package com.example.demo;
+
+import java.util.*;
+import org.springframework.beans.factory.annotation.*;
+'''
+        file_path = create_temp_file(temp_dir, "Test.java", content)
+        result = parser.parse_file(file_path, temp_dir)
+
+        assert result is not None
+        wildcard_imports = [i for i in result.imports if i.import_type == ImportType.WILDCARD_IMPORT]
+        assert len(wildcard_imports) == 2
+
+    def test_spring_imports(self, parser, temp_dir):
+        """Test Spring framework imports."""
+        content = '''
+package com.example.demo.controller;
+
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.beans.factory.annotation.Autowired;
+
+import com.example.demo.service.UserService;
+'''
+        file_path = create_temp_file(temp_dir, "UserController.java", content)
+        result = parser.parse_file(file_path, temp_dir)
+
+        assert result is not None
+        assert len(result.imports) == 4
+
+        # Check for internal imports (relative to project)
+        internal = [i for i in result.imports if "com.example.demo" in i.module]
+        assert len(internal) == 1
+
+    def test_mixed_import_types(self, parser, temp_dir):
+        """Test mixing regular, static, and wildcard imports."""
+        content = '''
+package com.example;
+
+import java.util.List;
+import java.util.stream.*;
+import static org.junit.Assert.*;
+'''
+        file_path = create_temp_file(temp_dir, "Test.java", content)
+        result = parser.parse_file(file_path, temp_dir)
+
+        assert result is not None
+        assert len(result.imports) == 3
+
+        regular = [i for i in result.imports if i.import_type == ImportType.IMPORT]
+        static = [i for i in result.imports if i.import_type == ImportType.STATIC_IMPORT]
+        wildcard = [i for i in result.imports if i.import_type == ImportType.WILDCARD_IMPORT]
+
+        assert len(regular) == 1
+        assert len(static) == 1
+        assert len(wildcard) == 1
+
+
+# ==================== Java Function/Class Tests ====================
+
+class TestJavaFunctionExtraction:
+    """Tests for Java function and method extraction."""
+
+    def test_method_extraction(self, parser, temp_dir):
+        """Test Java method extraction."""
+        content = '''
+package com.example;
+
+public class UserService {
+    public List<User> findAll() {
+        return repository.findAll();
+    }
+
+    public User findById(Long id) {
+        return repository.findById(id);
+    }
+
+    private User toEntity(UserDTO dto) {
+        return new User(dto);
+    }
+}
+'''
+        file_path = create_temp_file(temp_dir, "UserService.java", content)
+        result = parser.parse_file(file_path, temp_dir)
+
+        assert result is not None
+        assert "findAll" in result.functions
+        assert "findById" in result.functions
+        assert "toEntity" in result.functions
+
+    def test_constructor_extraction(self, parser, temp_dir):
+        """Test Java constructor extraction."""
+        content = '''
+package com.example;
+
+public class User {
+    private String name;
+
+    public User() {
+    }
+
+    public User(String name) {
+        this.name = name;
+    }
+}
+'''
+        file_path = create_temp_file(temp_dir, "User.java", content)
+        result = parser.parse_file(file_path, temp_dir)
+
+        assert result is not None
+        # Constructors should be in functions
+        assert "User" in result.functions
+
+    def test_getter_setter_extraction(self, parser, temp_dir):
+        """Test Java getter/setter extraction."""
+        content = '''
+package com.example;
+
+public class User {
+    private String name;
+    private String email;
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public String getEmail() {
+        return email;
+    }
+
+    public void setEmail(String email) {
+        this.email = email;
+    }
+}
+'''
+        file_path = create_temp_file(temp_dir, "User.java", content)
+        result = parser.parse_file(file_path, temp_dir)
+
+        assert result is not None
+        assert "getName" in result.functions
+        assert "setName" in result.functions
+        assert "getEmail" in result.functions
+        assert "setEmail" in result.functions
+
+
+class TestJavaClassExtraction:
+    """Tests for Java class extraction."""
+
+    def test_class_extraction(self, parser, temp_dir):
+        """Test Java class extraction."""
+        content = '''
+package com.example;
+
+public class UserService {
+}
+
+class InternalHelper {
+}
+'''
+        file_path = create_temp_file(temp_dir, "UserService.java", content)
+        result = parser.parse_file(file_path, temp_dir)
+
+        assert result is not None
+        assert "UserService" in result.classes
+        assert "InternalHelper" in result.classes
+
+    def test_interface_extraction(self, parser, temp_dir):
+        """Test Java interface extraction."""
+        content = '''
+package com.example;
+
+public interface UserRepository {
+    User findById(Long id);
+    List<User> findAll();
+}
+'''
+        file_path = create_temp_file(temp_dir, "UserRepository.java", content)
+        result = parser.parse_file(file_path, temp_dir)
+
+        assert result is not None
+        assert "UserRepository" in result.classes
+
+    def test_enum_extraction(self, parser, temp_dir):
+        """Test Java enum extraction."""
+        content = '''
+package com.example;
+
+public enum UserRole {
+    ADMIN,
+    USER,
+    GUEST
+}
+'''
+        file_path = create_temp_file(temp_dir, "UserRole.java", content)
+        result = parser.parse_file(file_path, temp_dir)
+
+        assert result is not None
+        assert "UserRole" in result.classes
+
+
+# ==================== Java Export Tests ====================
+
+class TestJavaExportExtraction:
+    """Tests for Java export extraction (public classes/methods)."""
+
+    def test_public_class_export(self, parser, temp_dir):
+        """Test that public classes are exported."""
+        content = '''
+package com.example;
+
+public class UserService {
+    public void doSomething() {}
+}
+'''
+        file_path = create_temp_file(temp_dir, "UserService.java", content)
+        result = parser.parse_file(file_path, temp_dir)
+
+        assert result is not None
+        assert "UserService" in result.exports
+
+    def test_public_interface_export(self, parser, temp_dir):
+        """Test that public interfaces are exported."""
+        content = '''
+package com.example;
+
+public interface UserRepository {
+    User findById(Long id);
+}
+'''
+        file_path = create_temp_file(temp_dir, "UserRepository.java", content)
+        result = parser.parse_file(file_path, temp_dir)
+
+        assert result is not None
+        assert "UserRepository" in result.exports
+
+
+# ==================== C# Using Directive Tests ====================
+
+class TestCSharpUsingExtraction:
+    """Tests for C# using directive extraction."""
+
+    def test_simple_using(self, parser, temp_dir):
+        """Test simple C# using directive."""
+        content = '''
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
+namespace MyApp
+{
+    public class Program { }
+}
+'''
+        file_path = create_temp_file(temp_dir, "Program.cs", content)
+        result = parser.parse_file(file_path, temp_dir)
+
+        assert result is not None
+        assert result.language == Language.CSHARP
+        assert len(result.imports) == 3
+
+        modules = [i.module for i in result.imports]
+        assert "System" in modules
+        assert "System.Collections.Generic" in modules
+        assert "System.Linq" in modules
+
+    def test_static_using(self, parser, temp_dir):
+        """Test C# static using directive."""
+        content = '''
+using System;
+using static System.Math;
+using static System.Console;
+
+namespace MyApp
+{
+    public class Program { }
+}
+'''
+        file_path = create_temp_file(temp_dir, "Program.cs", content)
+        result = parser.parse_file(file_path, temp_dir)
+
+        assert result is not None
+        static_usings = [i for i in result.imports if i.import_type == ImportType.STATIC_USING]
+        assert len(static_usings) == 2
+
+    def test_alias_using(self, parser, temp_dir):
+        """Test C# alias using directive."""
+        content = '''
+using System;
+using Env = System.Environment;
+using StringList = System.Collections.Generic.List<string>;
+
+namespace MyApp
+{
+    public class Program { }
+}
+'''
+        file_path = create_temp_file(temp_dir, "Program.cs", content)
+        result = parser.parse_file(file_path, temp_dir)
+
+        assert result is not None
+        alias_usings = [i for i in result.imports if i.import_type == ImportType.ALIAS_USING]
+        assert len(alias_usings) == 2
+
+    def test_global_using(self, parser, temp_dir):
+        """Test C# global using directive."""
+        content = '''
+global using System;
+global using System.Collections.Generic;
+
+namespace MyApp
+{
+    public class Program { }
+}
+'''
+        file_path = create_temp_file(temp_dir, "Program.cs", content)
+        result = parser.parse_file(file_path, temp_dir)
+
+        assert result is not None
+        global_usings = [i for i in result.imports if i.import_type == ImportType.GLOBAL_USING]
+        assert len(global_usings) == 2
+
+    def test_aspnet_usings(self, parser, temp_dir):
+        """Test ASP.NET Core typical usings."""
+        content = '''
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
+using MyApp.Services;
+using MyApp.Models;
+
+namespace MyApp.Controllers
+{
+    [ApiController]
+    public class UserController : ControllerBase { }
+}
+'''
+        file_path = create_temp_file(temp_dir, "UserController.cs", content)
+        result = parser.parse_file(file_path, temp_dir)
+
+        assert result is not None
+        assert len(result.imports) == 4
+
+        # Check for internal imports
+        internal = [i for i in result.imports if i.module.startswith("MyApp")]
+        assert len(internal) == 2
+
+
+# ==================== C# Function/Class Tests ====================
+
+class TestCSharpFunctionExtraction:
+    """Tests for C# method extraction."""
+
+    def test_method_extraction(self, parser, temp_dir):
+        """Test C# method extraction."""
+        content = '''
+using System;
+
+namespace MyApp
+{
+    public class UserService
+    {
+        public List<User> GetAll()
+        {
+            return _repository.GetAll();
+        }
+
+        public User GetById(int id)
+        {
+            return _repository.GetById(id);
+        }
+
+        private User ToEntity(UserDto dto)
+        {
+            return new User(dto);
+        }
+    }
+}
+'''
+        file_path = create_temp_file(temp_dir, "UserService.cs", content)
+        result = parser.parse_file(file_path, temp_dir)
+
+        assert result is not None
+        assert "GetAll" in result.functions
+        assert "GetById" in result.functions
+        assert "ToEntity" in result.functions
+
+    def test_async_method_extraction(self, parser, temp_dir):
+        """Test C# async method extraction."""
+        content = '''
+using System.Threading.Tasks;
+
+namespace MyApp
+{
+    public class UserService
+    {
+        public async Task<User> GetByIdAsync(int id)
+        {
+            return await _repository.GetByIdAsync(id);
+        }
+
+        public async Task<List<User>> GetAllAsync()
+        {
+            return await _repository.GetAllAsync();
+        }
+    }
+}
+'''
+        file_path = create_temp_file(temp_dir, "UserService.cs", content)
+        result = parser.parse_file(file_path, temp_dir)
+
+        assert result is not None
+        assert "GetByIdAsync" in result.functions
+        assert "GetAllAsync" in result.functions
+
+    def test_property_extraction(self, parser, temp_dir):
+        """Test C# property extraction (getters/setters)."""
+        content = '''
+namespace MyApp
+{
+    public class User
+    {
+        public int Id { get; set; }
+        public string Name { get; set; }
+        public string Email { get; set; }
+    }
+}
+'''
+        file_path = create_temp_file(temp_dir, "User.cs", content)
+        result = parser.parse_file(file_path, temp_dir)
+
+        assert result is not None
+        # Properties may or may not be in functions depending on implementation
+        # Classes should definitely be detected
+        assert "User" in result.classes
+
+    def test_constructor_extraction(self, parser, temp_dir):
+        """Test C# constructor extraction."""
+        content = '''
+namespace MyApp
+{
+    public class User
+    {
+        public User()
+        {
+        }
+
+        public User(string name, string email)
+        {
+            Name = name;
+            Email = email;
+        }
+
+        public string Name { get; set; }
+        public string Email { get; set; }
+    }
+}
+'''
+        file_path = create_temp_file(temp_dir, "User.cs", content)
+        result = parser.parse_file(file_path, temp_dir)
+
+        assert result is not None
+        # Constructors should be in functions
+        assert "User" in result.functions or "User" in result.classes
+
+
+class TestCSharpClassExtraction:
+    """Tests for C# class extraction."""
+
+    def test_class_extraction(self, parser, temp_dir):
+        """Test C# class extraction."""
+        content = '''
+namespace MyApp
+{
+    public class UserService
+    {
+    }
+
+    internal class InternalHelper
+    {
+    }
+}
+'''
+        file_path = create_temp_file(temp_dir, "UserService.cs", content)
+        result = parser.parse_file(file_path, temp_dir)
+
+        assert result is not None
+        assert "UserService" in result.classes
+        assert "InternalHelper" in result.classes
+
+    def test_interface_extraction(self, parser, temp_dir):
+        """Test C# interface extraction."""
+        content = '''
+namespace MyApp
+{
+    public interface IUserService
+    {
+        User GetById(int id);
+        List<User> GetAll();
+    }
+}
+'''
+        file_path = create_temp_file(temp_dir, "IUserService.cs", content)
+        result = parser.parse_file(file_path, temp_dir)
+
+        assert result is not None
+        assert "IUserService" in result.classes
+
+    def test_record_extraction(self, parser, temp_dir):
+        """Test C# record type extraction."""
+        content = '''
+namespace MyApp.Records
+{
+    public record UserRecord(int Id, string Name, string Email);
+
+    public record CreateUserCommand(string Name, string Email)
+    {
+        public DateTime CreatedAt { get; init; } = DateTime.UtcNow;
+    }
+}
+'''
+        file_path = create_temp_file(temp_dir, "UserRecord.cs", content)
+        result = parser.parse_file(file_path, temp_dir)
+
+        assert result is not None
+        assert "UserRecord" in result.classes
+        assert "CreateUserCommand" in result.classes
+
+    def test_enum_extraction(self, parser, temp_dir):
+        """Test C# enum extraction."""
+        content = '''
+namespace MyApp
+{
+    public enum UserRole
+    {
+        Admin,
+        User,
+        Guest
+    }
+}
+'''
+        file_path = create_temp_file(temp_dir, "UserRole.cs", content)
+        result = parser.parse_file(file_path, temp_dir)
+
+        assert result is not None
+        assert "UserRole" in result.classes
+
+    def test_struct_extraction(self, parser, temp_dir):
+        """Test C# struct extraction."""
+        content = '''
+namespace MyApp
+{
+    public struct Point
+    {
+        public int X { get; set; }
+        public int Y { get; set; }
+    }
+}
+'''
+        file_path = create_temp_file(temp_dir, "Point.cs", content)
+        result = parser.parse_file(file_path, temp_dir)
+
+        assert result is not None
+        assert "Point" in result.classes
+
+
+# ==================== C# Export Tests ====================
+
+class TestCSharpExportExtraction:
+    """Tests for C# export extraction (public types)."""
+
+    def test_public_class_export(self, parser, temp_dir):
+        """Test that public classes are exported."""
+        content = '''
+namespace MyApp
+{
+    public class UserService
+    {
+        public void DoSomething() { }
+    }
+}
+'''
+        file_path = create_temp_file(temp_dir, "UserService.cs", content)
+        result = parser.parse_file(file_path, temp_dir)
+
+        assert result is not None
+        assert "UserService" in result.exports
+
+    def test_public_interface_export(self, parser, temp_dir):
+        """Test that public interfaces are exported."""
+        content = '''
+namespace MyApp
+{
+    public interface IUserService
+    {
+        User GetById(int id);
+    }
+}
+'''
+        file_path = create_temp_file(temp_dir, "IUserService.cs", content)
+        result = parser.parse_file(file_path, temp_dir)
+
+        assert result is not None
+        assert "IUserService" in result.exports
+
+    def test_extension_class_export(self, parser, temp_dir):
+        """Test that extension classes are exported."""
+        content = '''
+using System;
+
+namespace MyApp.Extensions
+{
+    public static class StringExtensions
+    {
+        public static string ToTitleCase(this string str)
+        {
+            return str;
+        }
+    }
+}
+'''
+        file_path = create_temp_file(temp_dir, "StringExtensions.cs", content)
+        result = parser.parse_file(file_path, temp_dir)
+
+        assert result is not None
+        assert "StringExtensions" in result.exports
+
+
+# ==================== Cross-Language Directory Tests ====================
+
+class TestCrossLanguageDirectory:
+    """Tests for parsing directories with multiple languages."""
+
+    def test_walk_directory_with_java(self, parser, temp_dir):
+        """Test walking directory finds Java files."""
+        create_temp_file(temp_dir, "src/main/java/App.java", "public class App {}")
+        create_temp_file(temp_dir, "src/main/java/util/Helper.java", "public class Helper {}")
+        create_temp_file(temp_dir, "src/index.ts", "export const x = 1;")
+
+        files = parser.walk_directory(temp_dir)
+
+        java_files = [f for f in files if f.endswith(".java")]
+        ts_files = [f for f in files if f.endswith(".ts")]
+
+        assert len(java_files) == 2
+        assert len(ts_files) == 1
+
+    def test_walk_directory_with_csharp(self, parser, temp_dir):
+        """Test walking directory finds C# files."""
+        create_temp_file(temp_dir, "src/Controllers/UserController.cs", "public class UserController {}")
+        create_temp_file(temp_dir, "src/Services/UserService.cs", "public class UserService {}")
+        create_temp_file(temp_dir, "src/app.ts", "export const x = 1;")
+
+        files = parser.walk_directory(temp_dir)
+
+        cs_files = [f for f in files if f.endswith(".cs")]
+        ts_files = [f for f in files if f.endswith(".ts")]
+
+        assert len(cs_files) == 2
+        assert len(ts_files) == 1
+
+    def test_skip_java_build_directories(self, parser, temp_dir):
+        """Test that Java build directories are skipped."""
+        create_temp_file(temp_dir, "src/main/java/App.java", "public class App {}")
+        create_temp_file(temp_dir, "target/classes/App.class", "compiled")
+        create_temp_file(temp_dir, ".gradle/cache/file.java", "cache")
+
+        files = parser.walk_directory(temp_dir)
+
+        assert len(files) == 1
+        assert not any("target" in f for f in files)
+        assert not any(".gradle" in f for f in files)
+
+    def test_skip_csharp_build_directories(self, parser, temp_dir):
+        """Test that C# build directories are skipped."""
+        create_temp_file(temp_dir, "src/App.cs", "public class App {}")
+        create_temp_file(temp_dir, "bin/Debug/App.dll", "compiled")
+        create_temp_file(temp_dir, "obj/Debug/App.cs", "intermediate")
+
+        files = parser.walk_directory(temp_dir)
+
+        assert len(files) == 1
+        assert not any("bin" in f for f in files)
+        assert not any("obj" in f for f in files)

@@ -150,6 +150,9 @@ export interface ReactFlowEdgeData {
   imported_names: string[];
   module_path: string | null;
   import_type: ImportType;
+  source_language?: Language;
+  target_language?: Language;
+  is_cross_language?: boolean;
 }
 
 export interface ReactFlowEdge {

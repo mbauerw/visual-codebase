@@ -56,7 +56,7 @@ Supabase migrations are in `supabase/migrations/`. Apply them through the Supaba
 
 The core analysis flow is orchestrated by `AnalysisService` (backend/app/services/analysis.py):
 
-1. **Parsing** (`FileParser` in parser.py): Uses Tree-sitter to extract imports/exports from JS/TS/Python files
+1. **Parsing** (`FileParser` in parser.py): Uses Tree-sitter to extract imports/exports from JS/TS/Python/Java/C# files
 2. **LLM Analysis** (`LLMAnalyzer` in llm_analyzer.py): Claude Sonnet 4.5 categorizes files by architectural role (react_component, utility, api_service, etc.)
 3. **Graph Building** (`GraphBuilder` in graph_builder.py): Resolves dependencies and creates React Flow graph structure
 4. **Persistence** (`DatabaseService` in database.py): Stores results in Supabase (if authenticated)
@@ -122,6 +122,20 @@ Cascading deletes: analyses → nodes/edges when analysis is deleted.
   - Node module imports (excluded from graph)
 - Common path aliases: `@/` maps to `src/`, `~/` maps to project root
 
+**Java Import Resolution:**
+- Detects source roots (src/main/java patterns)
+- Builds package-to-file index for resolving fully-qualified imports
+- Maps `com.example.package.Class` to actual file paths
+
+**C# Import Resolution:**
+- Builds namespace-to-file index
+- Maps using directives to actual source files
+- Handles type-to-file resolution for namespace-based imports
+
+**Cross-Language Edges:**
+- Edges between files of different languages are styled distinctly (dashed amber lines)
+- Edge data includes `source_language`, `target_language`, and `is_cross_language` fields
+
 ### Error Handling
 - Analysis errors are captured in `AnalysisJob.error` and stored in DB
 - Frontend displays errors from `AnalysisStatusResponse.error`
@@ -148,9 +162,21 @@ Cascading deletes: analyses → nodes/edges when analysis is deleted.
 - GET `/api/github/repos` - List user's GitHub repos (auth required)
 - GET `/api/health` - Health check
 
+## Supported Languages
+
+The parser supports the following languages with Tree-sitter:
+- **JavaScript/TypeScript** (.js, .jsx, .ts, .tsx): ES6 imports, CommonJS require, dynamic imports
+- **Python** (.py): import statements, from imports, relative imports
+- **Java** (.java): regular imports, static imports, wildcard imports
+- **C#** (.cs): using directives, static using, alias using, global using
+
+Parsers are lazy-loaded for performance - only initialized when needed.
+
 ## File Categorization Roles
 
 LLM categorizes files into these architectural roles:
+
+**General Roles:**
 - `react_component` - React/UI components
 - `utility` - Helper/utility functions
 - `api_service` - API clients and services
@@ -164,6 +190,21 @@ LLM categorizes files into these architectural roles:
 - `controller` - Controllers
 - `router` - Routing definitions
 - `schema` - Schema definitions
+
+**Java/C# Specific Roles:**
+- `entity` - JPA/EF entities, database models
+- `repository` - Data access layer (Spring Data, EF Core)
+- `service` - Business logic services
+- `dto` - Data transfer objects
+- `exception` - Custom exception classes
+- `enum_type` - Enum definitions
+- `interface` - Interface definitions
+- `annotation` - Java annotations / C# attributes
+
+**C# Specific Roles:**
+- `extension` - Extension method classes
+- `record` - C# record types
+- `delegate` - Delegate definitions
 
 ## Environment Variables
 
@@ -181,10 +222,18 @@ Vite env vars are in .env.local (if needed), but Supabase config is hardcoded in
 ## Common Tasks
 
 ### Adding Support for a New Language
-1. Add Tree-sitter parser in backend/requirements.txt
-2. Update `FileParser` in parser.py to handle new file extensions
-3. Add language-specific import extraction logic
-4. Test with sample files
+1. **Add dependencies**: Add Tree-sitter parser package in backend/requirements.txt (e.g., `tree-sitter-java>=0.23.0`)
+2. **Update schemas**: Add new `Language` enum value in backend/app/models/schemas.py
+3. **Update parser**:
+   - Add file extension to `supported_extensions` in backend/app/settings.py
+   - Add extension-to-language mapping in `FileParser._extension_to_lang`
+   - Implement `_get_parser_for_extension()` case for lazy loading
+   - Implement `_extract_<lang>_imports()`, `_extract_<lang>_exports()`, `_extract_<lang>_functions()`, `_extract_<lang>_classes()` methods
+4. **Update graph builder**: Add import resolution logic in `_resolve_import_path()` for the new language
+5. **Update LLM prompt**: Add language-specific role detection hints in llm_analyzer.py
+6. **Update frontend**: Add language color, labels, and any new roles in frontend/src/types/index.ts
+7. **Add tests**: Create test fixtures in backend/tests/fixtures/<lang>/ and add parser tests
+8. **Add skip directories**: Update `skip_dirs` in parser.py for language-specific build directories (e.g., target, bin, obj)
 
 ### Modifying Graph Layout
 - Layout algorithm is in `GraphBuilder.build_graph()` using dagre
