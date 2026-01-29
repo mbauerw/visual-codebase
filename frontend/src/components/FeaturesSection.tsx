@@ -16,7 +16,7 @@ export default function FeaturesSection() {
           `
         }}
       />
-      <div className="max-w-6xl mx-auto z-10 relative">
+      <div className="max-w-7xl mx-auto z-10 relative">
         <div className="text-center mb-28">
           <span className="text-red-500 font-semibold text-lg uppercase tracking-wider">Features</span>
           <motion.div
@@ -33,41 +33,49 @@ export default function FeaturesSection() {
             </p>
           </motion.div>
         </div>
-        <div className="grid lg:grid-cols-[3fr_2fr] gap-12 lg:gap-x-12 lg:gap-y-12 ">
+        <div className="grid p-12 md:p-0 md:grid-cols-[2fr_2fr] gap-y-12 lg:gap-x-12 lg:gap-y-12 ">
           {/* Feature 1 */}
-          <div className="bg-white h-[380px] rounded-3xl shadow-sm border border-gray-100 hover:shadow-xl transition-all duration-300 relative overflow-hidden">
+          <div className="bg-white h-[420px] rounded-3xl shadow-sm border border-gray-100 hover:shadow-xl transition-all duration-300 relative overflow-hidden">
             <img src='/blueprint.jpeg' alt='ai' className='absolute top-0 left-0 w-full h-full blur-[2px]' />
-            <div className='w-full h-full p-8 z-20 flex flex-col justify-start gap-12'>
+            <div className='w-full h-full p-8 z-20 flex flex-col justify-start gap-4 lg:gap-12'>
 
-
-              <h3 className="text-5xl font-semibold text-white z-20">AI-powered Analysis</h3>
+              <h3 className="text-3xl sm:text-4xl font-semibold text-white z-20">AI-powered Analysis</h3>
               
-              <div className='w-full flex flex-row z-20'>
-                <span className='w-2/3 sm:w-1/2 md:w-1/2 lg:1/2 xl:1/2'>
-                  <p className="text-gray-100 text-lg leading-relaxed z-10 relative">
-                    Automatically generate a full analysis suite for unfamiliar codebases.
-                    Uncover tech stacks and key modules without having to parse through thousands of lines of code.
-                  </p>
-                </span>
-                <span className='max-w-1/2 w-1/2 p-8'>
-                  <img src="/analysis-api.png" alt="analysis api" className='w-full' />
-                  
-                </span>
+              <div className='z-20 h-full overflow-hidden'>
+                {/* Pusher element - pushes the floated image to bottom half */}
+                <div className='float-right h-[50%] sm:h-[30%] w-0' />
+                <img
+                  src="/analysis-api.png"
+                  alt="analysis api"
+                  className='float-right clear-right max-h-[50%] lg:max-h-[80%] w-auto ml-4 rounded-lg object-contain'
+                />
+                <p className="text-gray-100 text-lg md:text-xl pr-8 leading-relaxed ">
+                  Automatically generate a full analysis suite for your codebases.
+                  Uncover tech stacks and key modules without having to parse through thousands of lines of code. 
+                </p>
               </div>
 
             </div>
           </div>
 
           {/* Feature 2 */}
-          <div className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100 hover:shadow-xl  transition-all duration-300">
-            {/* <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#FF9A9D] to-[#FF7A7D] flex items-center justify-center mb-6">
-              <Zap size={28} className="text-white" />
-            </div> */}
-            <h3 className="text-xl font-semibold text-gray-900 mb-3">Interactive Visualization</h3>
-            <p className="text-gray-600 leading-relaxed">
-              Build a more complete mental model by exploring your codebase through an interactive medium. Visualize function calls and dependency relationships
+          <div className="bg-neutral-100  h-[420px] rounded-3xl p-8 space-y-4 shadow-sm border-4 border-gray-300 hover:shadow-xl  transition-all duration-300 relative overflow-hidden">
+            {/* <img src='/visualization.png' alt='vis' className='absolute top-0 left-0 ml-5 mt-10 w-full h-full object-contain opacity-70 z-0' /> */}
+
+            <h3 className="text-2xl md:text-3xl lg:text-4xl font-semibold text-gray-900 mb-3 relative z-20">Interactive Visualization</h3>
+            <div className='relative z-20 h-full overflow-hidden'>
+                {/* Pusher element - pushes the floated image to bottom half */}
+                <div className='float-left sm:h-[20%] w-0' />
+                <img
+                  src="/visualization.png"
+                  alt="analysis api"
+                  className='float-left clear-left max-h-[35%] md:max-h-[45%] mr-8 w-auto rounded-lg object-contain opacity-80'
+                />
+            <p className="text-gray-600 text-lg lg:text-xl leading-relaxed z-20">
+              Build a more complete mental model by exploring your codebase through a visual medium. Visualize function calls and dependency relationships
               through an interactive graph. Understand archetecture at a glance.
             </p>
+            </div>
           </div>
 
           {/* Feature 3 */}
