@@ -93,8 +93,14 @@ class GitHubService:
         # Build clone URL (never embed credentials in URL)
         clone_url = f"https://github.com/{repo_info.owner}/{repo_info.repo}.git"
 
+        # Determine branch to clone - use specified branch or fetch default from GitHub API
+        if repo_info.branch:
+            branch = repo_info.branch
+        else:
+            branch = await self.get_default_branch(repo_info.owner, repo_info.repo)
+            logger.info(f"Using default branch '{branch}' for {repo_info.owner}/{repo_info.repo}")
+
         # Build git clone command
-        branch = repo_info.branch or "main"
         cmd = [
             "git",
             "clone",
