@@ -4,7 +4,7 @@ import { BlueVideoBackground } from './backgrounds';
 
 export default function FeaturesSection() {
   return (
-    <section id="features" className="py-20 md:py-14 min-h-[130vh] flex flex-col justify-center px-4 relative overflow-hidden">
+    <section id="features" className="py-20 md:py-40 min-h-[130vh] flex flex-col justify-center px-4 relative overflow-hidden">
       {/* <img className="absolute top-0 left-0 w-full h-full opacity-[0.6] z-0  scale-108 pointer-events-none" src="/hills-grey.jpeg" /> */}
       {/* Dome-shaped fade overlay - fades top corners, reveals image in dome shape */}
       <BlueVideoBackground />
@@ -36,7 +36,7 @@ export default function FeaturesSection() {
         <div className="grid p-12 md:p-0 md:grid-cols-[2fr_2fr] gap-y-12 lg:gap-x-12 lg:gap-y-12 ">
           {/* Feature 1 */}
           <div className="bg-white h-[420px] rounded-3xl shadow-sm border border-gray-100 hover:shadow-xl transition-all duration-300 relative overflow-hidden">
-            <img src='/blueprint.jpeg' alt='ai' className='absolute top-0 left-0 w-full h-full blur-[2px]' />
+            <img src='/blueprint.jpeg' alt='ai' className='absolute top-0 left-0 w-full h-full blur-[2px] ' />
             <div className='w-full h-full p-8 z-20 flex flex-col justify-start gap-4 lg:gap-12'>
 
               <h3 className="text-3xl sm:text-4xl font-semibold text-white z-20">AI-powered Analysis</h3>
@@ -69,7 +69,7 @@ export default function FeaturesSection() {
                 <img
                   src="/visualization.png"
                   alt="analysis api"
-                  className='float-left clear-left max-h-[35%] md:max-h-[45%] mr-8 w-auto rounded-lg object-contain opacity-80'
+                  className='float-left clear-left max-h-[35%] md:max-h-[45%] mr-8 w-auto rounded-lg object-contain opacity-90'
                 />
             <p className="text-gray-600 text-lg lg:text-xl leading-relaxed z-20">
               Build a more complete mental model by exploring your codebase through a visual medium. Visualize function calls and dependency relationships
@@ -80,7 +80,7 @@ export default function FeaturesSection() {
 
           {/* Feature 3 */}
           <div className="bg-neutral-100 h-[420px] rounded-3xl p-4 space-y-4 shadow-sm border-4 border-gray-300 hover:shadow-xl transition-all duration-300 relative overflow-hidden">
-          <img src='/assistant.png' alt='AI Assistant' className='absolute top-[150px] right-0 h-[65%] rounded-lg !opacity-40' />
+          <img src='/assistant.png' alt='AI Assistant' className='absolute top-[150px] right-0 h-[65%] rounded-lg !opacity-60' />
 
             <h3 className="text-2xl md:text-3xl lg:text-4xl font-semibold text-gray-900 mb-3 relative z-20">On-demand AI Assistance</h3>
             <div className='relative z-20 h-full overflow-hidden'>
