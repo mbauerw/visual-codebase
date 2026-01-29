@@ -79,13 +79,23 @@ export default function FeaturesSection() {
           </div>
 
           {/* Feature 3 */}
-          <div className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100 hover:shadow-xl transition-all duration-300">
+          <div className="bg-neutral-100 h-[420px] rounded-3xl p-4 space-y-4 shadow-sm border-4 border-gray-300 hover:shadow-xl transition-all duration-300 relative overflow-hidden">
+          <img src='/assistant.png' alt='AI Assistant' className='absolute top-[150px] right-0 h-[65%] rounded-lg !opacity-40' />
 
-            <h3 className="text-xl font-semibold text-gray-900 mb-3">On-demand AI Assistance</h3>
-            <p className="text-gray-600 leading-relaxed">
-              Our in app AI assistant leverages the pre-existing codebase analysis as additional context to provide valuable answers whenever you have a question about the code.
-              In addition, by highlighting text from the analysis suite you can automatically provide specific context for any question you might have.
-            </p>
+            <h3 className="text-2xl md:text-3xl lg:text-4xl font-semibold text-gray-900 mb-3 relative z-20">On-demand AI Assistance</h3>
+            <div className='relative z-20 h-full overflow-hidden'>
+              {/* Pusher element - pushes the floated image to bottom half */}
+              <div className='float-right sm:h-[20%] w-0' />
+              <img
+                src="/assistant.png"
+                alt="AI chatbot"
+                className='float-right clear-right max-h-[35%] md:max-h-[45%] w-auto rounded-lg object-contain opacity-0'
+              />
+              <p className="text-gray-600 text-lg lg:text-xl leading-relaxed z-20">
+                Our in-app AI assistant leverages the pre-existing codebase analysis as additional context to provide valuable answers whenever you have a question about the code.
+                In addition, by highlighting text from the analysis suite you can automatically provide specific context for any question you might have.
+              </p>
+            </div>
           </div>
 
           {/* Feature 1 */}
