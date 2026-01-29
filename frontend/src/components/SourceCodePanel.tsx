@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { X, FileCode, Copy, Check, ChevronDown, ChevronUp, Loader2, AlertCircle, Maximize2, Minimize2 } from 'lucide-react';
 import { PrismLight as SyntaxHighlighter } from 'react-syntax-highlighter';
 import typescript from 'react-syntax-highlighter/dist/esm/languages/prism/typescript';
@@ -125,6 +125,25 @@ export default function SourceCodePanel({
   const [panelHeight, setPanelHeight] = useState<number | null>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const resizeRef = useRef<HTMLDivElement>(null);
+  const codeContainerRef = useRef<HTMLDivElement>(null);
+
+  // Generate line props for highlighting specific lines
+  const getLineProps = useCallback((lineNumber: number): { style: React.CSSProperties } => {
+    const style: React.CSSProperties = { display: 'block' };
+
+    if (highlightedLines) {
+      const { startLine, endLine } = highlightedLines;
+      const effectiveEndLine = endLine ?? startLine;
+
+      if (lineNumber >= startLine && lineNumber <= effectiveEndLine) {
+        style.backgroundColor = 'rgba(59, 130, 246, 0.2)'; // blue-500 at 20% opacity
+        style.borderLeft = '3px solid #3b82f6';
+        style.marginLeft = '-3px';
+      }
+    }
+
+    return { style };
+  }, [highlightedLines]);
 
   // Map our Language type to Prism language identifiers
   const getPrismLanguage = (lang: Language): string => {
@@ -198,6 +217,24 @@ export default function SourceCodePanel({
       document.removeEventListener('mouseup', handleMouseUp);
     };
   }, [panelHeight]);
+
+  // Scroll to highlighted lines when they change
+  useEffect(() => {
+    if (!highlightedLines || !codeContainerRef.current || !sourceCode) return;
+
+    // Calculate approximate line height (from theme: lineHeight: 1.6, fontSize: 13px)
+    const lineHeight = 13 * 1.6; // ~20.8px
+    const targetLine = highlightedLines.startLine;
+
+    // Calculate scroll position with some padding above (3 lines of context)
+    const scrollPosition = (targetLine - 3) * lineHeight;
+
+    // Scroll the container
+    codeContainerRef.current.scrollTo({
+      top: Math.max(0, scrollPosition),
+      behavior: 'smooth',
+    });
+  }, [highlightedLines, sourceCode]);
 
   if (!isOpen) return null;
 
@@ -316,13 +353,17 @@ export default function SourceCodePanel({
               <span className="text-sm text-center">{error}</span>
             </div>
           ) : sourceCode ? (
-            <div className="h-full overflow-y-auto overflow-x-hidden min-w-max [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-slate-800 [&::-webkit-scrollbar-thumb]:bg-slate-600 [&::-webkit-scrollbar-thumb]:rounded">
+            <div
+              ref={codeContainerRef}
+              className="h-full overflow-y-auto overflow-x-hidden min-w-max [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-slate-800 [&::-webkit-scrollbar-thumb]:bg-slate-600 [&::-webkit-scrollbar-thumb]:rounded"
+            >
               <SyntaxHighlighter
                 language={getPrismLanguage(language)}
                 style={customTheme}
                 showLineNumbers
                 lineNumberStyle={lineNumberStyle}
-                wrapLines={false}
+                wrapLines={true}
+                lineProps={(lineNumber) => getLineProps(lineNumber)}
                 customStyle={{
                   margin: 0,
                   background: '#0f172a',

@@ -1,5 +1,6 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { RichTreeView } from '@mui/x-tree-view/RichTreeView';
+import { useTreeViewApiRef } from '@mui/x-tree-view/hooks';
 import { TreeItem } from '@mui/x-tree-view/TreeItem';
 import { TreeViewBaseItem } from '@mui/x-tree-view/models';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
@@ -322,6 +323,7 @@ const AnalysisFileTree = ({
   selectedFileId,
 }: AnalysisFileTreeProps) => {
   const [expandedItems, setExpandedItems] = useState<string[]>([]);
+  const apiRef = useTreeViewApiRef();
 
   // Build tree structure from nodes
   const treeItems = useMemo(() => buildTreeFromPaths(nodes), [nodes]);
@@ -359,7 +361,7 @@ const AnalysisFileTree = ({
     return paths;
   }, []);
 
-  // Auto-expand parent directories when a file is selected externally (from graph or tier list)
+  // Auto-expand parent directories and scroll to file when selected externally (from graph or tier list)
   useEffect(() => {
     if (!selectedFileId || selectedFileId === lastExternalSelectionRef.current) {
       return;
@@ -378,7 +380,15 @@ const AnalysisFileTree = ({
       parentPaths.forEach(p => newExpanded.add(p));
       return Array.from(newExpanded);
     });
-  }, [selectedFileId, nodeIdToPath, getParentPaths]);
+
+    // Scroll the selected file into view after DOM updates
+    requestAnimationFrame(() => {
+      const element = apiRef.current?.getItemDOMElement(filePath);
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    });
+  }, [selectedFileId, nodeIdToPath, getParentPaths, apiRef]);
 
   // Create a flat map of all items for quick lookup
   const itemsById = useMemo(() => {
@@ -517,6 +527,7 @@ const AnalysisFileTree = ({
       {/* Tree View */}
       <Box sx={{ minHeight: 200 }}>
         <RichTreeView
+          apiRef={apiRef}
           items={treeItems}
           expandedItems={expandedItems}
           onItemExpansionToggle={handleItemExpansionToggle}
