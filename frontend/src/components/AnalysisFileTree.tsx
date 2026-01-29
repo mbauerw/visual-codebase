@@ -363,7 +363,7 @@ const AnalysisFileTree = ({
     return paths;
   }, []);
 
-  // Auto-expand parent directories and scroll to file when selected externally (from graph or tier list)
+  // Auto-expand parent directories when a file is selected externally (from graph or tier list)
   useEffect(() => {
     // Only trigger for external selections (from graph node click or tier list)
     // Skip if selection came from within the tree itself (selectionSource would be null/undefined)
@@ -389,15 +389,7 @@ const AnalysisFileTree = ({
       parentPaths.forEach(p => newExpanded.add(p));
       return Array.from(newExpanded);
     });
-
-    // Scroll the selected file into view after DOM updates
-    requestAnimationFrame(() => {
-      const element = apiRef.current?.getItemDOMElement(filePath);
-      if (element) {
-        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }
-    });
-  }, [selectedFileId, selectionSource, nodeIdToPath, getParentPaths, apiRef]);
+  }, [selectedFileId, selectionSource, nodeIdToPath, getParentPaths]);
 
   // Create a flat map of all items for quick lookup
   const itemsById = useMemo(() => {
