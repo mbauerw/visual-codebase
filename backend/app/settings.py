@@ -23,7 +23,7 @@ class Settings(BaseSettings):
     # Analysis settings
     max_files_per_batch: int = 20
     max_file_size_bytes: int = 100000  # 100KB max per file
-    supported_extensions: list[str] = [".js", ".jsx", ".ts", ".tsx", ".py", ".java"]
+    supported_extensions: list[str] = [".js", ".jsx", ".ts", ".tsx", ".py", ".java", ".cs"]
 
     # LLM settings
     llm_model: str = "claude-sonnet-4-20250514"

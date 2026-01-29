@@ -1,6 +1,6 @@
 import { memo } from 'react';
 import { Handle, Position, type NodeProps, type Node } from '@xyflow/react';
-import { FileCode, Settings, TestTube, Layers, Box, Cog, Database, Archive, AlertTriangle, ListOrdered, FileType, AtSign } from 'lucide-react';
+import { FileCode, Settings, TestTube, Layers, Box, Cog, Database, Archive, AlertTriangle, ListOrdered, FileType, AtSign, Puzzle, CircleDot, Link } from 'lucide-react';
 import type { ReactFlowNodeData, ArchitecturalRole } from '../types';
 import { roleColors, languageColors, roleLabels } from '../types';
 
@@ -30,6 +30,10 @@ const roleIcons: Record<ArchitecturalRole, React.ReactNode> = {
   enum_type: <ListOrdered size={14} />,
   interface: <FileType size={14} />,
   annotation: <AtSign size={14} />,
+  // C# specific roles
+  extension: <Puzzle size={14} />,
+  record: <CircleDot size={14} />,
+  delegate: <Link size={14} />,
   unknown: <FileCode size={14} />,
 };
 

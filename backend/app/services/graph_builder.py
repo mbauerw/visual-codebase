@@ -30,6 +30,9 @@ class GraphBuilder:
         self._path_to_id: dict[str, str] = {}
         self._java_source_roots: list[str] = []
         self._java_package_index: dict[str, str] = {}  # Maps FQN to relative path
+        # C# namespace resolution
+        self._csharp_namespace_to_files: dict[str, list[str]] = {}  # Maps namespace to file paths
+        self._csharp_type_to_file: dict[str, str] = {}  # Maps FQN type to file path
 
     def _generate_node_id(self, path: str) -> str:
         """Generate a stable node ID from a file path."""
@@ -120,6 +123,95 @@ class GraphBuilder:
 
         return None
 
+    def _build_csharp_namespace_index(
+        self, all_files: dict[str, ParsedFile]
+    ) -> tuple[dict[str, list[str]], dict[str, str]]:
+        """Build an index mapping C# namespaces and types to file paths.
+
+        Unlike Java, C# namespaces don't directly map to directories,
+        so we need to parse the actual namespace declarations from files.
+        """
+        namespace_to_files: dict[str, list[str]] = {}
+        type_to_file: dict[str, str] = {}
+
+        for file_path, parsed_file in all_files.items():
+            if not file_path.endswith(".cs"):
+                continue
+
+            # For C#, we extract namespace from the file path pattern
+            # and use the class names from exports
+            normalized = file_path.replace("\\", "/")
+
+            # Try to infer namespace from path
+            # Common patterns: src/Namespace/SubNamespace/Class.cs
+            inferred_namespace = self._infer_csharp_namespace(normalized)
+
+            if inferred_namespace:
+                if inferred_namespace not in namespace_to_files:
+                    namespace_to_files[inferred_namespace] = []
+                namespace_to_files[inferred_namespace].append(file_path)
+
+            # Index types from exports (class/interface names)
+            for type_name in parsed_file.classes:
+                # Index by simple name
+                if type_name not in type_to_file:
+                    type_to_file[type_name] = file_path
+
+                # Index by fully qualified name if we have namespace
+                if inferred_namespace:
+                    fqn = f"{inferred_namespace}.{type_name}"
+                    type_to_file[fqn] = file_path
+
+        return namespace_to_files, type_to_file
+
+    def _infer_csharp_namespace(self, file_path: str) -> Optional[str]:
+        """Infer C# namespace from file path structure."""
+        # Remove common root patterns
+        path = file_path
+        for prefix in ["src/", "Source/", "Src/", "lib/", "app/"]:
+            if path.lower().startswith(prefix.lower()):
+                path = path[len(prefix):]
+                break
+
+        # Remove the filename
+        if "/" in path:
+            path = path.rsplit("/", 1)[0]
+        else:
+            return None
+
+        # Convert path to namespace: Controllers/UserController -> Controllers
+        namespace = path.replace("/", ".")
+
+        return namespace if namespace else None
+
+    def _resolve_csharp_using(
+        self,
+        using_namespace: str,
+        all_files: dict[str, ParsedFile],
+    ) -> list[str]:
+        """Resolve a C# using directive to file paths.
+
+        Returns a list because a namespace can span multiple files.
+        """
+        resolved = []
+
+        # Check if it's a namespace match
+        if using_namespace in self._csharp_namespace_to_files:
+            resolved.extend(self._csharp_namespace_to_files[using_namespace])
+
+        # Check if it's a type match (using static or specific type)
+        if using_namespace in self._csharp_type_to_file:
+            resolved.append(self._csharp_type_to_file[using_namespace])
+
+        # Try partial namespace matching (e.g., "MyApp.Services" matches "MyApp.Services.UserService")
+        for namespace, files in self._csharp_namespace_to_files.items():
+            if namespace.startswith(using_namespace + "."):
+                for f in files:
+                    if f not in resolved:
+                        resolved.append(f)
+
+        return resolved
+
     def _resolve_import_path(
         self,
         import_module: str,
@@ -138,6 +230,19 @@ class GraphBuilder:
             if any(import_module.startswith(prefix) for prefix in java_stdlib_prefixes):
                 return None
             return self._resolve_java_import(import_module, all_files)
+
+        # Handle C# using directives (namespace-based)
+        if source_file_path.endswith(".cs"):
+            # Skip .NET BCL and common NuGet packages
+            csharp_stdlib_prefixes = (
+                "System", "Microsoft", "Newtonsoft", "AutoMapper",
+                "FluentValidation", "Serilog", "NLog", "Dapper",
+            )
+            if any(import_module.startswith(prefix) for prefix in csharp_stdlib_prefixes):
+                return None
+            # C# using directives can resolve to multiple files, return first match
+            resolved = self._resolve_csharp_using(import_module, all_files)
+            return resolved[0] if resolved else None
 
         # Skip external packages for JS/TS/Python
         if not import_module.startswith("."):
@@ -183,6 +288,7 @@ class GraphBuilder:
             ".jsx",
             ".py",
             ".java",
+            ".cs",
             "/index.ts",
             "/index.tsx",
             "/index.js",
@@ -337,6 +443,15 @@ class GraphBuilder:
         else:
             self._java_source_roots = []
             self._java_package_index = {}
+
+        # Initialize C#-specific indices if C# files are present
+        has_csharp = any(pf.relative_path.endswith(".cs") for pf in parsed_files)
+        if has_csharp:
+            self._csharp_namespace_to_files, self._csharp_type_to_file = \
+                self._build_csharp_namespace_index(files_by_path)
+        else:
+            self._csharp_namespace_to_files = {}
+            self._csharp_type_to_file = {}
 
         nodes = self.build_nodes(parsed_files, llm_analysis)
         edges = self.build_edges(parsed_files, base_path)

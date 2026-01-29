@@ -76,7 +76,8 @@ class LLMAnalyzer:
         For each file, provide:
         1. architectural_role: The role this file plays. Use one of these values:
            - Common: react_component, utility, api_service, model, config, test, hook, context, store, middleware, controller, router, schema
-           - Java/Backend: entity, repository, service, dto, exception, enum_type, interface, annotation
+           - Java/C# Backend: entity, repository, service, dto, exception, enum_type, interface, annotation
+           - C# specific: extension, record, delegate
            - unknown (if none fit)
         2. description: 1-3 sentence description of what this file does. Base this on the function names, class names, and imports. Be specific - mention key functions/classes by name when relevant. Do not just describe the file path.
         3. category: High-level category. Use one of: frontend, backend, shared, infrastructure, test, config, unknown
@@ -92,6 +93,18 @@ class LLMAnalyzer:
         - annotation: Custom annotation definitions (@interface)
         - enum_type: Enum definitions
         - config: Classes with @Configuration or config-related
+
+        For C# files, consider these role mappings:
+        - controller: Classes with [ApiController], *Controller.cs, inheriting ControllerBase
+        - service: *Service.cs in Services folder
+        - entity: DbContext entities, classes with DbSet<>, IEntityTypeConfiguration
+        - dto: *Dto.cs, *Request.cs, *Response.cs
+        - interface: I*.cs with interface declaration
+        - extension: Static classes with extension methods (this parameter)
+        - record: Classes using 'record' keyword
+        - delegate: Delegate type definitions
+        - enum_type: Enum definitions
+        - exception: Custom exception classes
 
         Return ONLY a valid JSON array with no additional text. Format:
         [{{"filename": "example.ts", "architectural_role": "utility", "description": "Provides helper functions for...", "category": "shared"}}]
@@ -193,6 +206,7 @@ class LLMAnalyzer:
         name = os.path.basename(path_lower)
         name_without_ext = name.rsplit(".", 1)[0] if "." in name else name
         is_java = name.endswith(".java")
+        is_csharp = name.endswith(".cs")
 
         # Test files (highest priority)
         if "test" in path_lower or "spec" in path_lower or name.startswith("test_"):
@@ -245,6 +259,44 @@ class LLMAnalyzer:
             # Interface pattern (I* prefix is common in Java)
             if "interface/" in path_lower:
                 return ArchitecturalRole.INTERFACE
+
+            # Configuration pattern
+            if "config/" in path_lower or name_without_ext.endswith("config") or name_without_ext.endswith("configuration"):
+                return ArchitecturalRole.CONFIG
+
+        # C#-specific patterns (check early for C# files)
+        if is_csharp:
+            # Controller pattern
+            if name_without_ext.endswith("controller") or "controllers/" in path_lower:
+                return ArchitecturalRole.CONTROLLER
+
+            # Service pattern
+            if name_without_ext.endswith("service") or "services/" in path_lower:
+                return ArchitecturalRole.SERVICE
+
+            # Repository pattern
+            if name_without_ext.endswith("repository") or "repositories/" in path_lower:
+                return ArchitecturalRole.REPOSITORY
+
+            # Entity pattern
+            if "entities/" in path_lower or "models/" in path_lower or "domain/" in path_lower:
+                return ArchitecturalRole.ENTITY
+
+            # DTO pattern
+            if name_without_ext.endswith("dto") or name_without_ext.endswith("request") or name_without_ext.endswith("response"):
+                return ArchitecturalRole.DTO
+
+            # Interface pattern (I* prefix is common in C#)
+            if name_without_ext.startswith("i") and name_without_ext[1:2].isupper():
+                return ArchitecturalRole.INTERFACE
+
+            # Extension pattern
+            if name_without_ext.endswith("extensions") or "extensions/" in path_lower:
+                return ArchitecturalRole.EXTENSION
+
+            # Exception pattern
+            if name_without_ext.endswith("exception") or "exceptions/" in path_lower:
+                return ArchitecturalRole.EXCEPTION
 
             # Configuration pattern
             if "config/" in path_lower or name_without_ext.endswith("config") or name_without_ext.endswith("configuration"):
@@ -334,7 +386,7 @@ class LLMAnalyzer:
         ):
             return Category.FRONTEND
 
-        # Backend patterns (including Java)
+        # Backend patterns (including Java and C#)
         if any(
             x in path_lower
             for x in (
@@ -351,6 +403,8 @@ class LLMAnalyzer:
                 "controller/",
                 "entity/",
                 ".java",
+                # C# backend patterns
+                ".cs",
             )
         ):
             return Category.BACKEND

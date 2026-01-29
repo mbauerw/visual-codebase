@@ -13,6 +13,7 @@ class Language(str, Enum):
     TYPESCRIPT = "typescript"
     PYTHON = "python"
     JAVA = "java"
+    CSHARP = "csharp"
     UNKNOWN = "unknown"
 
 
@@ -27,6 +28,11 @@ class ImportType(str, Enum):
     # Java
     STATIC_IMPORT = "static_import"
     WILDCARD_IMPORT = "wildcard_import"
+    # C#
+    USING = "using"
+    STATIC_USING = "static_using"
+    ALIAS_USING = "alias_using"
+    GLOBAL_USING = "global_using"
 
 
 class ArchitecturalRole(str, Enum):
@@ -55,6 +61,10 @@ class ArchitecturalRole(str, Enum):
     ENUM_TYPE = "enum_type"
     INTERFACE = "interface"
     ANNOTATION = "annotation"
+    # C# specific roles
+    EXTENSION = "extension"
+    RECORD = "record"
+    DELEGATE = "delegate"
     UNKNOWN = "unknown"
 
 

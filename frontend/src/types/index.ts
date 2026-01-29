@@ -1,8 +1,8 @@
 // Types for the Codebase Remap application
 
-export type Language = 'javascript' | 'typescript' | 'python' | 'java' | 'unknown';
+export type Language = 'javascript' | 'typescript' | 'python' | 'java' | 'csharp' | 'unknown';
 
-export type ImportType = 'import' | 'require' | 'from_import' | 'dynamic_import' | 'static_import' | 'wildcard_import';
+export type ImportType = 'import' | 'require' | 'from_import' | 'dynamic_import' | 'static_import' | 'wildcard_import' | 'using' | 'static_using' | 'alias_using' | 'global_using';
 
 export type ArchitecturalRole =
   | 'react_component'
@@ -27,6 +27,10 @@ export type ArchitecturalRole =
   | 'enum_type'
   | 'interface'
   | 'annotation'
+  // C# specific roles
+  | 'extension'
+  | 'record'
+  | 'delegate'
   | 'unknown';
 
 export type Category =
@@ -213,6 +217,7 @@ export const languageColors: Record<Language, string> = {
   typescript: '#3178c6',
   python: '#3776ab',
   java: '#b07219',
+  csharp: '#178600',
   unknown: '#6b7280',
 };
 
@@ -239,6 +244,10 @@ export const roleColors: Record<ArchitecturalRole, string> = {
   enum_type: '#6366f1',
   interface: '#14b8a6',
   annotation: '#ec4899',
+  // C# specific roles
+  extension: '#84cc16',
+  record: '#0ea5e9',
+  delegate: '#f97316',
   unknown: '#6b7280',
 };
 
@@ -276,5 +285,9 @@ export const roleLabels: Record<ArchitecturalRole, string> = {
   enum_type: 'Enum',
   interface: 'Interface',
   annotation: 'Annotation',
+  // C# specific roles
+  extension: 'Extension',
+  record: 'Record',
+  delegate: 'Delegate',
   unknown: 'Unknown',
 };

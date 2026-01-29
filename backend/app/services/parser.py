@@ -8,6 +8,7 @@ import tree_sitter_javascript as tsjs
 import tree_sitter_python as tspy
 import tree_sitter_typescript as tsts
 import tree_sitter_java as tsjava
+import tree_sitter_c_sharp as tscsharp
 from tree_sitter import Language, Parser
 
 from ..settings import get_settings
@@ -38,6 +39,7 @@ class FileParser:
         self.tsx_language = Language(tsts.language_tsx())
         self.py_language = Language(tspy.language())
         self.java_language = Language(tsjava.language())
+        self.csharp_language = Language(tscsharp.language())
 
         # Create parsers with the language
         self.js_parser = Parser(self.js_language)
@@ -45,6 +47,7 @@ class FileParser:
         self.tsx_parser = Parser(self.tsx_language)
         self.py_parser = Parser(self.py_language)
         self.java_parser = Parser(self.java_language)
+        self.csharp_parser = Parser(self.csharp_language)
 
         # Extension to language/parser mapping
         self.extension_map = {
@@ -54,6 +57,7 @@ class FileParser:
             ".tsx": (LangEnum.TYPESCRIPT, self.tsx_parser),
             ".py": (LangEnum.PYTHON, self.py_parser),
             ".java": (LangEnum.JAVA, self.java_parser),
+            ".cs": (LangEnum.CSHARP, self.csharp_parser),
         }
 
     def detect_language(self, file_path: str) -> LangEnum:
@@ -111,6 +115,11 @@ class FileParser:
                 exports = self._extract_java_exports(tree, content)
                 functions = self._extract_java_functions(tree, content)
                 classes = self._extract_java_classes(tree, content)
+            elif language == LangEnum.CSHARP:
+                imports = self._extract_csharp_imports(tree, content)
+                exports = self._extract_csharp_exports(tree, content)
+                functions = self._extract_csharp_functions(tree, content)
+                classes = self._extract_csharp_classes(tree, content)
             else:  # Python
                 imports = self._extract_python_imports(tree, content)
                 exports = []  # Python exports are implicit
@@ -598,6 +607,140 @@ class FileParser:
         traverse(root)
         return classes
 
+    def _extract_csharp_imports(self, tree, content: str) -> list[ImportInfo]:
+        """Extract using directives from C# files."""
+        imports = []
+        root = tree.root_node
+
+        def traverse(node):
+            if node.type == "using_directive":
+                import_info = self._parse_csharp_using(node, content)
+                if import_info:
+                    imports.append(import_info)
+            for child in node.children:
+                traverse(child)
+
+        traverse(root)
+        return imports
+
+    def _parse_csharp_using(self, node, content: str) -> Optional[ImportInfo]:
+        """Parse a C# using directive into ImportInfo."""
+        is_global = False
+        is_static = False
+        alias_name = None
+        namespace = None
+
+        for child in node.children:
+            if child.type == "global":
+                is_global = True
+            elif child.type == "static":
+                is_static = True
+            elif child.type == "name_equals":
+                # Alias using: using Alias = Namespace.Type;
+                for subchild in child.children:
+                    if subchild.type == "identifier":
+                        alias_name = self._get_node_text(subchild, content)
+                        break
+            elif child.type in ("qualified_name", "identifier_name", "identifier", "generic_name"):
+                namespace = self._get_node_text(child, content)
+            elif child.type == "alias_qualified_name":
+                namespace = self._get_node_text(child, content)
+
+        if namespace:
+            if is_static:
+                import_type = ImportType.STATIC_USING
+            elif alias_name:
+                import_type = ImportType.ALIAS_USING
+            elif is_global:
+                import_type = ImportType.GLOBAL_USING
+            else:
+                import_type = ImportType.USING
+
+            return ImportInfo(
+                module=namespace,
+                import_type=import_type,
+                is_relative=False,
+                imported_names=[alias_name] if alias_name else [],
+            )
+        return None
+
+    def _extract_csharp_exports(self, tree, content: str) -> list[str]:
+        """Extract public class/interface/struct/record names from C# files."""
+        exports = []
+        root = tree.root_node
+
+        def traverse(node):
+            if node.type in ("class_declaration", "interface_declaration", "struct_declaration",
+                            "record_declaration", "enum_declaration", "delegate_declaration"):
+                # Check if it has public modifier
+                is_public = False
+                name = None
+                for child in node.children:
+                    if child.type == "modifier" and self._get_node_text(child, content) == "public":
+                        is_public = True
+                    elif child.type == "identifier":
+                        name = self._get_node_text(child, content)
+
+                if is_public and name:
+                    exports.append(name)
+
+            for child in node.children:
+                traverse(child)
+
+        traverse(root)
+        return exports
+
+    def _extract_csharp_functions(self, tree, content: str) -> list[str]:
+        """Extract method names from C# files."""
+        functions = []
+        root = tree.root_node
+
+        def traverse(node):
+            if node.type == "method_declaration":
+                name = node.child_by_field_name("name")
+                if name:
+                    func_name = self._get_node_text(name, content)
+                    functions.append(func_name)
+            elif node.type == "constructor_declaration":
+                name = node.child_by_field_name("name")
+                if name:
+                    func_name = self._get_node_text(name, content)
+                    functions.append(func_name)
+            elif node.type == "property_declaration":
+                # Properties with get/set are like methods
+                name = node.child_by_field_name("name")
+                if name:
+                    prop_name = self._get_node_text(name, content)
+                    functions.append(prop_name)
+
+            for child in node.children:
+                traverse(child)
+
+        traverse(root)
+        return functions
+
+    def _extract_csharp_classes(self, tree, content: str) -> list[str]:
+        """Extract class, interface, struct, record, enum, and delegate names from C# files."""
+        classes = []
+        root = tree.root_node
+
+        def traverse(node):
+            if node.type in ("class_declaration", "interface_declaration", "struct_declaration",
+                            "record_declaration", "enum_declaration", "delegate_declaration"):
+                name = None
+                for child in node.children:
+                    if child.type == "identifier":
+                        name = self._get_node_text(child, content)
+                        break
+                if name:
+                    classes.append(name)
+
+            for child in node.children:
+                traverse(child)
+
+        traverse(root)
+        return classes
+
     def _get_node_text(self, node, content: str) -> str:
         """Get the text content of a node.
 
@@ -634,6 +777,8 @@ class FileParser:
             return self._extract_python_calls(tree, content, file_path)
         elif language == LangEnum.JAVA:
             return self._extract_java_calls(tree, content, file_path)
+        elif language == LangEnum.CSHARP:
+            return self._extract_csharp_calls(tree, content, file_path)
 
         return []
 
@@ -656,6 +801,8 @@ class FileParser:
             return self._extract_python_function_definitions(tree, content, file_path)
         elif language == LangEnum.JAVA:
             return self._extract_java_function_definitions(tree, content, file_path, exports)
+        elif language == LangEnum.CSHARP:
+            return self._extract_csharp_function_definitions(tree, content, file_path, exports)
 
         return []
 
@@ -1267,6 +1414,225 @@ class FileParser:
                     return True
         return False
 
+    def _extract_csharp_calls(
+        self, tree, content: str, file_path: str
+    ) -> list[FunctionCallInfo]:
+        """Extract function call sites from C# files."""
+        calls = []
+        root = tree.root_node
+
+        def traverse(node):
+            if node.type == "invocation_expression":
+                call_info = self._parse_csharp_invocation(node, content, file_path)
+                if call_info:
+                    calls.append(call_info)
+            elif node.type == "object_creation_expression":
+                call_info = self._parse_csharp_constructor_call(node, content, file_path)
+                if call_info:
+                    calls.append(call_info)
+
+            for child in node.children:
+                traverse(child)
+
+        traverse(root)
+        return calls
+
+    def _parse_csharp_invocation(
+        self, node, content: str, file_path: str
+    ) -> Optional[FunctionCallInfo]:
+        """Parse a C# method invocation."""
+        line = node.start_point[0] + 1
+        column = node.start_point[1]
+
+        method_name = None
+        obj_name = None
+
+        for child in node.children:
+            if child.type == "identifier":
+                method_name = self._get_node_text(child, content)
+            elif child.type == "member_access_expression":
+                # obj.Method()
+                for subchild in child.children:
+                    if subchild.type == "identifier":
+                        if obj_name is None:
+                            obj_name = self._get_node_text(subchild, content)
+                        else:
+                            method_name = self._get_node_text(subchild, content)
+                    elif subchild.type == "simple_name":
+                        method_name = self._get_node_text(subchild, content)
+
+        if not method_name:
+            return None
+
+        # Skip common system calls
+        if obj_name and obj_name.lower() in ("console", "debug", "trace"):
+            return None
+
+        return FunctionCallInfo(
+            callee_name=method_name,
+            qualified_name=f"{obj_name}.{method_name}" if obj_name else method_name,
+            call_type=CallType.METHOD if obj_name else CallType.FUNCTION,
+            origin=CallOrigin.LOCAL,
+            source_file=file_path,
+            line_number=line,
+            column=column,
+        )
+
+    def _parse_csharp_constructor_call(
+        self, node, content: str, file_path: str
+    ) -> Optional[FunctionCallInfo]:
+        """Parse a C# constructor call (new expression)."""
+        line = node.start_point[0] + 1
+        column = node.start_point[1]
+
+        class_name = None
+        for child in node.children:
+            if child.type == "identifier":
+                class_name = self._get_node_text(child, content)
+                break
+            elif child.type == "generic_name":
+                # Get the base type from generic (e.g., List from List<string>)
+                for subchild in child.children:
+                    if subchild.type == "identifier":
+                        class_name = self._get_node_text(subchild, content)
+                        break
+
+        if not class_name:
+            return None
+
+        return FunctionCallInfo(
+            callee_name=class_name,
+            call_type=CallType.CONSTRUCTOR,
+            origin=CallOrigin.LOCAL,
+            source_file=file_path,
+            line_number=line,
+            column=column,
+        )
+
+    def _extract_csharp_function_definitions(
+        self, tree, content: str, file_path: str, exports: list[str]
+    ) -> list[FunctionDefinition]:
+        """Extract detailed method definitions from C# files."""
+        definitions = []
+        root = tree.root_node
+        file_name = os.path.basename(file_path).rsplit(".", 1)[0]
+        export_set = set(exports)
+
+        def traverse(node, parent_class: Optional[str] = None):
+            if node.type in ("class_declaration", "interface_declaration", "struct_declaration", "record_declaration"):
+                class_name = None
+                for child in node.children:
+                    if child.type == "identifier":
+                        class_name = self._get_node_text(child, content)
+                        break
+                if class_name:
+                    # Traverse class body
+                    for child in node.children:
+                        if child.type == "declaration_list":
+                            for body_child in child.children:
+                                traverse(body_child, parent_class=class_name)
+                return
+
+            elif node.type == "method_declaration":
+                name = node.child_by_field_name("name")
+                if name:
+                    method_name = self._get_node_text(name, content)
+                    params = node.child_by_field_name("parameters")
+                    param_count = self._count_csharp_parameters(params) if params else 0
+
+                    # Check if method is public
+                    is_public = self._is_csharp_public(node, content)
+                    is_async = self._is_csharp_async(node, content)
+
+                    qualified = f"{file_name}.{parent_class}.{method_name}" if parent_class else f"{file_name}.{method_name}"
+
+                    definitions.append(FunctionDefinition(
+                        name=method_name,
+                        qualified_name=qualified,
+                        function_type=FunctionType.METHOD,
+                        file_path=file_path,
+                        start_line=node.start_point[0] + 1,
+                        end_line=node.end_point[0] + 1,
+                        is_exported=is_public or (parent_class in export_set if parent_class else False),
+                        is_async=is_async,
+                        is_entry_point=self._is_csharp_entry_point(method_name, node, content),
+                        parameters_count=param_count,
+                        parent_class=parent_class,
+                    ))
+
+            elif node.type == "constructor_declaration":
+                name = node.child_by_field_name("name")
+                if name:
+                    ctor_name = self._get_node_text(name, content)
+                    params = node.child_by_field_name("parameters")
+                    param_count = self._count_csharp_parameters(params) if params else 0
+                    is_public = self._is_csharp_public(node, content)
+
+                    qualified = f"{file_name}.{parent_class}.{ctor_name}" if parent_class else f"{file_name}.{ctor_name}"
+
+                    definitions.append(FunctionDefinition(
+                        name=ctor_name,
+                        qualified_name=qualified,
+                        function_type=FunctionType.CONSTRUCTOR,
+                        file_path=file_path,
+                        start_line=node.start_point[0] + 1,
+                        end_line=node.end_point[0] + 1,
+                        is_exported=is_public,
+                        is_async=False,
+                        is_entry_point=False,
+                        parameters_count=param_count,
+                        parent_class=parent_class,
+                    ))
+
+            for child in node.children:
+                traverse(child, parent_class)
+
+        traverse(root)
+        return definitions
+
+    def _count_csharp_parameters(self, params_node) -> int:
+        """Count parameters in C# method."""
+        if not params_node:
+            return 0
+        count = 0
+        for child in params_node.children:
+            if child.type == "parameter":
+                count += 1
+        return count
+
+    def _is_csharp_public(self, node, content: str) -> bool:
+        """Check if a C# declaration has public modifier."""
+        for child in node.children:
+            if child.type == "modifier":
+                if self._get_node_text(child, content) == "public":
+                    return True
+        return False
+
+    def _is_csharp_async(self, node, content: str) -> bool:
+        """Check if a C# method is async."""
+        for child in node.children:
+            if child.type == "modifier":
+                if self._get_node_text(child, content) == "async":
+                    return True
+        return False
+
+    def _is_csharp_entry_point(self, method_name: str, node, content: str) -> bool:
+        """Check if method is a C# entry point."""
+        # Main method
+        if method_name == "Main":
+            return True
+
+        # ASP.NET Core attributes
+        for child in node.children:
+            if child.type == "attribute_list":
+                attr_text = self._get_node_text(child, content)
+                if any(attr in attr_text for attr in (
+                    "[HttpGet", "[HttpPost", "[HttpPut", "[HttpDelete",
+                    "[Route", "[ApiController"
+                )):
+                    return True
+        return False
+
     def walk_directory(
         self,
         directory: str,
@@ -1313,6 +1679,11 @@ class FileParser:
                     ".gradle",
                     ".idea",
                     "out",
+                    # C#/.NET build directories
+                    "bin",
+                    "obj",
+                    ".vs",
+                    "packages",
                 )
             ]
 
