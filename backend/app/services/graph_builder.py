@@ -28,6 +28,8 @@ class GraphBuilder:
     def __init__(self):
         """Initialize the graph builder."""
         self._path_to_id: dict[str, str] = {}
+        self._java_source_roots: list[str] = []
+        self._java_package_index: dict[str, str] = {}  # Maps FQN to relative path
 
     def _generate_node_id(self, path: str) -> str:
         """Generate a stable node ID from a file path."""
@@ -39,6 +41,85 @@ class GraphBuilder:
         self._path_to_id[path] = node_id
         return node_id
 
+    def _detect_java_source_roots(self, all_files: dict[str, ParsedFile]) -> list[str]:
+        """Detect Java source root directories from file paths."""
+        patterns = ["src/main/java/", "src/test/java/", "src/", "app/src/main/java/"]
+        source_roots = set()
+
+        for file_path in all_files.keys():
+            if not file_path.endswith(".java"):
+                continue
+            normalized = file_path.replace("\\", "/")
+            for pattern in patterns:
+                if f"/{pattern}" in f"/{normalized}" or normalized.startswith(pattern):
+                    idx = normalized.find(pattern)
+                    if idx >= 0:
+                        source_roots.add(normalized[:idx + len(pattern)].rstrip("/"))
+
+        # Sort by length descending (prefer more specific roots)
+        return sorted(source_roots, key=len, reverse=True)
+
+    def _build_java_package_index(
+        self, all_files: dict[str, ParsedFile], source_roots: list[str]
+    ) -> dict[str, str]:
+        """Build an index mapping Java FQN to relative file paths."""
+        index = {}
+
+        for file_path, parsed_file in all_files.items():
+            if not file_path.endswith(".java"):
+                continue
+
+            normalized = file_path.replace("\\", "/")
+
+            # Find the source root for this file
+            source_root = ""
+            for root in source_roots:
+                if normalized.startswith(root + "/") or normalized.startswith(root):
+                    source_root = root
+                    break
+
+            # Extract package path after source root
+            if source_root:
+                relative_to_root = normalized[len(source_root):].lstrip("/")
+            else:
+                relative_to_root = normalized
+
+            # Convert path to package name: com/example/MyClass.java -> com.example.MyClass
+            if relative_to_root.endswith(".java"):
+                package_path = relative_to_root[:-5].replace("/", ".")
+                index[package_path] = file_path
+
+                # Also index just the class name for simpler lookups
+                class_name = package_path.split(".")[-1]
+                if class_name not in index:
+                    index[class_name] = file_path
+
+        return index
+
+    def _resolve_java_import(
+        self,
+        import_module: str,
+        all_files: dict[str, ParsedFile],
+    ) -> Optional[str]:
+        """Resolve a Java import to a file path."""
+        # Check direct FQN match
+        if import_module in self._java_package_index:
+            return self._java_package_index[import_module]
+
+        # Try converting package to path and searching
+        path_from_package = import_module.replace(".", "/") + ".java"
+        for source_root in self._java_source_roots:
+            candidate = source_root + "/" + path_from_package if source_root else path_from_package
+            candidate = candidate.lstrip("/")
+            if candidate in all_files:
+                return candidate
+
+        # Also try without source root (direct path)
+        if path_from_package in all_files:
+            return path_from_package
+
+        return None
+
     def _resolve_import_path(
         self,
         import_module: str,
@@ -47,7 +128,18 @@ class GraphBuilder:
         base_path: str,
     ) -> Optional[str]:
         """Resolve an import module to an actual file path."""
-        # Skip external packages
+        # Handle Java imports (package-based, non-relative)
+        if source_file_path.endswith(".java"):
+            # Skip common Java standard library packages
+            java_stdlib_prefixes = (
+                "java.", "javax.", "sun.", "com.sun.",
+                "org.w3c.", "org.xml.", "org.ietf.",
+            )
+            if any(import_module.startswith(prefix) for prefix in java_stdlib_prefixes):
+                return None
+            return self._resolve_java_import(import_module, all_files)
+
+        # Skip external packages for JS/TS/Python
         if not import_module.startswith("."):
             # Check if it might be an internal alias (like @/components)
             if import_module.startswith("@/") or import_module.startswith("~/"):
@@ -90,6 +182,7 @@ class GraphBuilder:
             ".js",
             ".jsx",
             ".py",
+            ".java",
             "/index.ts",
             "/index.tsx",
             "/index.js",
@@ -230,6 +323,20 @@ class GraphBuilder:
         """Build the complete dependency graph."""
         # Reset path to ID mapping
         self._path_to_id = {}
+
+        # Build lookup for parsed files
+        files_by_path = {pf.relative_path: pf for pf in parsed_files}
+
+        # Initialize Java-specific indices if Java files are present
+        has_java = any(pf.relative_path.endswith(".java") for pf in parsed_files)
+        if has_java:
+            self._java_source_roots = self._detect_java_source_roots(files_by_path)
+            self._java_package_index = self._build_java_package_index(
+                files_by_path, self._java_source_roots
+            )
+        else:
+            self._java_source_roots = []
+            self._java_package_index = {}
 
         nodes = self.build_nodes(parsed_files, llm_analysis)
         edges = self.build_edges(parsed_files, base_path)

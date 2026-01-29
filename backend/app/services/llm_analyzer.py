@@ -74,9 +74,24 @@ class LLMAnalyzer:
         {file_summary}
 
         For each file, provide:
-        1. architectural_role: The role this file plays. Use one of these values: react_component, utility, api_service, model, config, test, hook, context, store, middleware, controller, router, schema, unknown
+        1. architectural_role: The role this file plays. Use one of these values:
+           - Common: react_component, utility, api_service, model, config, test, hook, context, store, middleware, controller, router, schema
+           - Java/Backend: entity, repository, service, dto, exception, enum_type, interface, annotation
+           - unknown (if none fit)
         2. description: 1-3 sentence description of what this file does. Base this on the function names, class names, and imports. Be specific - mention key functions/classes by name when relevant. Do not just describe the file path.
         3. category: High-level category. Use one of: frontend, backend, shared, infrastructure, test, config, unknown
+
+        For Java files, consider these role mappings:
+        - entity: Classes with @Entity, @Table, or representing database entities
+        - repository: Classes with @Repository or extending JpaRepository/CrudRepository
+        - service: Classes with @Service or *Service.java naming
+        - controller: Classes with @Controller, @RestController, or *Controller.java
+        - dto: Data transfer objects (*DTO.java, *Request.java, *Response.java)
+        - exception: Custom exception classes
+        - interface: Interface definitions
+        - annotation: Custom annotation definitions (@interface)
+        - enum_type: Enum definitions
+        - config: Classes with @Configuration or config-related
 
         Return ONLY a valid JSON array with no additional text. Format:
         [{{"filename": "example.ts", "architectural_role": "utility", "description": "Provides helper functions for...", "category": "shared"}}]
@@ -176,6 +191,8 @@ class LLMAnalyzer:
         """
         path_lower = path.lower()
         name = os.path.basename(path_lower)
+        name_without_ext = name.rsplit(".", 1)[0] if "." in name else name
+        is_java = name.endswith(".java")
 
         # Test files (highest priority)
         if "test" in path_lower or "spec" in path_lower or name.startswith("test_"):
@@ -198,6 +215,40 @@ class LLMAnalyzer:
             )
         ):
             return ArchitecturalRole.CONFIG
+
+        # Java-specific patterns (check early for Java files)
+        if is_java:
+            # Repository pattern
+            if name_without_ext.endswith("repository") or "repository/" in path_lower:
+                return ArchitecturalRole.REPOSITORY
+
+            # Service pattern
+            if name_without_ext.endswith("service") or name_without_ext.endswith("serviceimpl"):
+                return ArchitecturalRole.SERVICE
+
+            # Controller pattern
+            if name_without_ext.endswith("controller"):
+                return ArchitecturalRole.CONTROLLER
+
+            # Entity pattern
+            if "entity/" in path_lower or "entities/" in path_lower or "domain/" in path_lower:
+                return ArchitecturalRole.ENTITY
+
+            # DTO pattern
+            if name_without_ext.endswith("dto") or name_without_ext.endswith("request") or name_without_ext.endswith("response"):
+                return ArchitecturalRole.DTO
+
+            # Exception pattern
+            if name_without_ext.endswith("exception") or "exception/" in path_lower:
+                return ArchitecturalRole.EXCEPTION
+
+            # Interface pattern (I* prefix is common in Java)
+            if "interface/" in path_lower:
+                return ArchitecturalRole.INTERFACE
+
+            # Configuration pattern
+            if "config/" in path_lower or name_without_ext.endswith("config") or name_without_ext.endswith("configuration"):
+                return ArchitecturalRole.CONFIG
 
         # Directory-based patterns (check BEFORE extension/naming patterns)
 
@@ -233,7 +284,6 @@ class LLMAnalyzer:
         if any(x in path_lower for x in ("utils/", "util.", "helpers/", "lib/")):
             return ArchitecturalRole.UTILITY
         # Also match files named utils.* or helper.* directly
-        name_without_ext = name.rsplit(".", 1)[0] if "." in name else name
         if name_without_ext in ("utils", "util", "helpers", "helper", "common"):
             return ArchitecturalRole.UTILITY
 
@@ -284,7 +334,7 @@ class LLMAnalyzer:
         ):
             return Category.FRONTEND
 
-        # Backend patterns
+        # Backend patterns (including Java)
         if any(
             x in path_lower
             for x in (
@@ -294,6 +344,13 @@ class LLMAnalyzer:
                 "controllers/",
                 "routes/",
                 "middleware/",
+                # Java backend patterns
+                "src/main/java",
+                "repository/",
+                "service/",
+                "controller/",
+                "entity/",
+                ".java",
             )
         ):
             return Category.BACKEND

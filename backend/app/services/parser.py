@@ -7,6 +7,7 @@ from typing import Optional
 import tree_sitter_javascript as tsjs
 import tree_sitter_python as tspy
 import tree_sitter_typescript as tsts
+import tree_sitter_java as tsjava
 from tree_sitter import Language, Parser
 
 from ..settings import get_settings
@@ -36,12 +37,14 @@ class FileParser:
         self.ts_language = Language(tsts.language_typescript())
         self.tsx_language = Language(tsts.language_tsx())
         self.py_language = Language(tspy.language())
+        self.java_language = Language(tsjava.language())
 
         # Create parsers with the language
         self.js_parser = Parser(self.js_language)
         self.ts_parser = Parser(self.ts_language)
         self.tsx_parser = Parser(self.tsx_language)
         self.py_parser = Parser(self.py_language)
+        self.java_parser = Parser(self.java_language)
 
         # Extension to language/parser mapping
         self.extension_map = {
@@ -50,6 +53,7 @@ class FileParser:
             ".ts": (LangEnum.TYPESCRIPT, self.ts_parser),
             ".tsx": (LangEnum.TYPESCRIPT, self.tsx_parser),
             ".py": (LangEnum.PYTHON, self.py_parser),
+            ".java": (LangEnum.JAVA, self.java_parser),
         }
 
     def detect_language(self, file_path: str) -> LangEnum:
@@ -102,6 +106,11 @@ class FileParser:
                 exports = self._extract_js_ts_exports(tree, content)
                 functions = self._extract_js_ts_functions(tree, content)
                 classes = self._extract_js_ts_classes(tree, content)
+            elif language == LangEnum.JAVA:
+                imports = self._extract_java_imports(tree, content)
+                exports = self._extract_java_exports(tree, content)
+                functions = self._extract_java_functions(tree, content)
+                classes = self._extract_java_classes(tree, content)
             else:  # Python
                 imports = self._extract_python_imports(tree, content)
                 exports = []  # Python exports are implicit
@@ -453,6 +462,142 @@ class FileParser:
         traverse(root)
         return classes
 
+    def _extract_java_imports(self, tree, content: str) -> list[ImportInfo]:
+        """Extract import statements from Java files."""
+        imports = []
+        root = tree.root_node
+
+        def traverse(node):
+            if node.type == "import_declaration":
+                import_info = self._parse_java_import(node, content)
+                if import_info:
+                    imports.append(import_info)
+            for child in node.children:
+                traverse(child)
+
+        traverse(root)
+        return imports
+
+    def _parse_java_import(self, node, content: str) -> Optional[ImportInfo]:
+        """Parse a Java import declaration node."""
+        is_static = False
+        is_wildcard = False
+        import_path_parts = []
+
+        for child in node.children:
+            if child.type == "static":
+                is_static = True
+            elif child.type == "asterisk":
+                is_wildcard = True
+            elif child.type == "scoped_identifier":
+                import_path_parts = self._extract_scoped_identifier(child, content)
+            elif child.type == "identifier":
+                import_path_parts = [self._get_node_text(child, content)]
+
+        if not import_path_parts:
+            return None
+
+        module = ".".join(import_path_parts)
+
+        if is_static:
+            import_type = ImportType.STATIC_IMPORT
+        elif is_wildcard:
+            import_type = ImportType.WILDCARD_IMPORT
+        else:
+            import_type = ImportType.IMPORT
+
+        return ImportInfo(
+            module=module,
+            import_type=import_type,
+            is_relative=False,
+            imported_names=[import_path_parts[-1]] if not is_wildcard else [],
+        )
+
+    def _extract_scoped_identifier(self, node, content: str) -> list[str]:
+        """Extract parts of a scoped identifier (e.g., com.example.MyClass)."""
+        parts = []
+
+        def traverse(n):
+            if n.type == "identifier":
+                parts.append(self._get_node_text(n, content))
+            elif n.type == "scoped_identifier":
+                for child in n.children:
+                    traverse(child)
+
+        traverse(node)
+        return parts
+
+    def _extract_java_exports(self, tree, content: str) -> list[str]:
+        """Extract public class/interface names from Java files (Java's 'exports')."""
+        exports = []
+        root = tree.root_node
+
+        def traverse(node):
+            if node.type in ("class_declaration", "interface_declaration", "enum_declaration", "annotation_type_declaration"):
+                # Check if it has public modifier
+                is_public = False
+                name = None
+                for child in node.children:
+                    if child.type == "modifiers":
+                        modifier_text = self._get_node_text(child, content)
+                        if "public" in modifier_text:
+                            is_public = True
+                    elif child.type == "identifier":
+                        name = self._get_node_text(child, content)
+
+                if is_public and name:
+                    exports.append(name)
+
+            for child in node.children:
+                traverse(child)
+
+        traverse(root)
+        return exports
+
+    def _extract_java_functions(self, tree, content: str) -> list[str]:
+        """Extract method names from Java files."""
+        functions = []
+        root = tree.root_node
+
+        def traverse(node):
+            if node.type == "method_declaration":
+                name = node.child_by_field_name("name")
+                if name:
+                    func_name = self._get_node_text(name, content)
+                    functions.append(func_name)
+            elif node.type == "constructor_declaration":
+                name = node.child_by_field_name("name")
+                if name:
+                    func_name = self._get_node_text(name, content)
+                    functions.append(func_name)
+
+            for child in node.children:
+                traverse(child)
+
+        traverse(root)
+        return functions
+
+    def _extract_java_classes(self, tree, content: str) -> list[str]:
+        """Extract class, interface, enum, and annotation names from Java files."""
+        classes = []
+        root = tree.root_node
+
+        def traverse(node):
+            if node.type in ("class_declaration", "interface_declaration", "enum_declaration", "annotation_type_declaration"):
+                name = None
+                for child in node.children:
+                    if child.type == "identifier":
+                        name = self._get_node_text(child, content)
+                        break
+                if name:
+                    classes.append(name)
+
+            for child in node.children:
+                traverse(child)
+
+        traverse(root)
+        return classes
+
     def _get_node_text(self, node, content: str) -> str:
         """Get the text content of a node.
 
@@ -487,6 +632,8 @@ class FileParser:
             return self._extract_js_ts_calls(tree, content, file_path)
         elif language == LangEnum.PYTHON:
             return self._extract_python_calls(tree, content, file_path)
+        elif language == LangEnum.JAVA:
+            return self._extract_java_calls(tree, content, file_path)
 
         return []
 
@@ -507,6 +654,8 @@ class FileParser:
             return self._extract_js_ts_function_definitions(tree, content, file_path, exports)
         elif language == LangEnum.PYTHON:
             return self._extract_python_function_definitions(tree, content, file_path)
+        elif language == LangEnum.JAVA:
+            return self._extract_java_function_definitions(tree, content, file_path, exports)
 
         return []
 
@@ -908,6 +1057,216 @@ class FileParser:
                     return True
         return False
 
+    def _extract_java_calls(
+        self, tree, content: str, file_path: str
+    ) -> list[FunctionCallInfo]:
+        """Extract function call sites from Java files."""
+        calls = []
+        root = tree.root_node
+
+        def traverse(node):
+            if node.type == "method_invocation":
+                call_info = self._parse_java_method_invocation(node, content, file_path)
+                if call_info:
+                    calls.append(call_info)
+            elif node.type == "object_creation_expression":
+                call_info = self._parse_java_constructor_call(node, content, file_path)
+                if call_info:
+                    calls.append(call_info)
+
+            for child in node.children:
+                traverse(child)
+
+        traverse(root)
+        return calls
+
+    def _parse_java_method_invocation(
+        self, node, content: str, file_path: str
+    ) -> Optional[FunctionCallInfo]:
+        """Parse a Java method invocation."""
+        line = node.start_point[0] + 1
+        column = node.start_point[1]
+
+        method_name = None
+        obj_name = None
+
+        for child in node.children:
+            if child.type == "identifier":
+                # Could be method name or object
+                if method_name is None:
+                    method_name = self._get_node_text(child, content)
+                else:
+                    obj_name = method_name
+                    method_name = self._get_node_text(child, content)
+            elif child.type == "field_access":
+                # Get the rightmost identifier as method name
+                for subchild in child.children:
+                    if subchild.type == "identifier":
+                        obj_name = self._get_node_text(subchild, content)
+
+        if not method_name:
+            return None
+
+        # Skip common system calls
+        if obj_name and obj_name.lower() in ("system", "out", "err"):
+            return None
+
+        return FunctionCallInfo(
+            callee_name=method_name,
+            qualified_name=f"{obj_name}.{method_name}" if obj_name else method_name,
+            call_type=CallType.METHOD if obj_name else CallType.FUNCTION,
+            origin=CallOrigin.LOCAL,
+            source_file=file_path,
+            line_number=line,
+            column=column,
+        )
+
+    def _parse_java_constructor_call(
+        self, node, content: str, file_path: str
+    ) -> Optional[FunctionCallInfo]:
+        """Parse a Java constructor call (new expression)."""
+        line = node.start_point[0] + 1
+        column = node.start_point[1]
+
+        class_name = None
+        for child in node.children:
+            if child.type == "type_identifier":
+                class_name = self._get_node_text(child, content)
+                break
+            elif child.type == "generic_type":
+                # Get the base type from generic (e.g., ArrayList from ArrayList<String>)
+                for subchild in child.children:
+                    if subchild.type == "type_identifier":
+                        class_name = self._get_node_text(subchild, content)
+                        break
+
+        if not class_name:
+            return None
+
+        return FunctionCallInfo(
+            callee_name=class_name,
+            call_type=CallType.CONSTRUCTOR,
+            origin=CallOrigin.LOCAL,
+            source_file=file_path,
+            line_number=line,
+            column=column,
+        )
+
+    def _extract_java_function_definitions(
+        self, tree, content: str, file_path: str, exports: list[str]
+    ) -> list[FunctionDefinition]:
+        """Extract detailed method definitions from Java files."""
+        definitions = []
+        root = tree.root_node
+        file_name = os.path.basename(file_path).rsplit(".", 1)[0]
+        export_set = set(exports)
+
+        def traverse(node, parent_class: Optional[str] = None):
+            if node.type in ("class_declaration", "interface_declaration", "enum_declaration"):
+                class_name = None
+                for child in node.children:
+                    if child.type == "identifier":
+                        class_name = self._get_node_text(child, content)
+                        break
+                if class_name:
+                    body = node.child_by_field_name("body")
+                    if body:
+                        for child in body.children:
+                            traverse(child, parent_class=class_name)
+                return
+
+            elif node.type == "method_declaration":
+                name = node.child_by_field_name("name")
+                if name:
+                    method_name = self._get_node_text(name, content)
+                    params = node.child_by_field_name("parameters")
+                    param_count = self._count_java_parameters(params) if params else 0
+
+                    # Check if method is public/exported
+                    is_public = self._is_java_public(node, content)
+
+                    qualified = f"{file_name}.{parent_class}.{method_name}" if parent_class else f"{file_name}.{method_name}"
+
+                    definitions.append(FunctionDefinition(
+                        name=method_name,
+                        qualified_name=qualified,
+                        function_type=FunctionType.METHOD,
+                        file_path=file_path,
+                        start_line=node.start_point[0] + 1,
+                        end_line=node.end_point[0] + 1,
+                        is_exported=is_public or (parent_class in export_set if parent_class else False),
+                        is_async=False,
+                        is_entry_point=self._is_java_entry_point(method_name, node, content),
+                        parameters_count=param_count,
+                        parent_class=parent_class,
+                    ))
+
+            elif node.type == "constructor_declaration":
+                name = node.child_by_field_name("name")
+                if name:
+                    ctor_name = self._get_node_text(name, content)
+                    params = node.child_by_field_name("parameters")
+                    param_count = self._count_java_parameters(params) if params else 0
+                    is_public = self._is_java_public(node, content)
+
+                    qualified = f"{file_name}.{parent_class}.{ctor_name}" if parent_class else f"{file_name}.{ctor_name}"
+
+                    definitions.append(FunctionDefinition(
+                        name=ctor_name,
+                        qualified_name=qualified,
+                        function_type=FunctionType.CONSTRUCTOR,
+                        file_path=file_path,
+                        start_line=node.start_point[0] + 1,
+                        end_line=node.end_point[0] + 1,
+                        is_exported=is_public,
+                        is_async=False,
+                        is_entry_point=False,
+                        parameters_count=param_count,
+                        parent_class=parent_class,
+                    ))
+
+            for child in node.children:
+                traverse(child, parent_class)
+
+        traverse(root)
+        return definitions
+
+    def _count_java_parameters(self, params_node) -> int:
+        """Count parameters in Java method."""
+        if not params_node:
+            return 0
+        count = 0
+        for child in params_node.children:
+            if child.type == "formal_parameter":
+                count += 1
+        return count
+
+    def _is_java_public(self, node, content: str) -> bool:
+        """Check if a Java declaration has public modifier."""
+        for child in node.children:
+            if child.type == "modifiers":
+                modifier_text = self._get_node_text(child, content)
+                if "public" in modifier_text:
+                    return True
+        return False
+
+    def _is_java_entry_point(self, method_name: str, node, content: str) -> bool:
+        """Check if method is a Java entry point."""
+        # Main method
+        if method_name == "main":
+            return True
+
+        # Spring annotations
+        for child in node.children:
+            if child.type in ("marker_annotation", "annotation"):
+                annotation_text = self._get_node_text(child, content)
+                if any(ann in annotation_text for ann in (
+                    "@GetMapping", "@PostMapping", "@PutMapping", "@DeleteMapping",
+                    "@RequestMapping", "@Scheduled", "@EventListener"
+                )):
+                    return True
+        return False
+
     def walk_directory(
         self,
         directory: str,
@@ -949,6 +1308,11 @@ class FileParser:
                     ".next",
                     ".nuxt",
                     "coverage",
+                    # Java/Gradle/Maven build directories
+                    "target",
+                    ".gradle",
+                    ".idea",
+                    "out",
                 )
             ]
 

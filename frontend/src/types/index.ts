@@ -1,8 +1,8 @@
 // Types for the Codebase Remap application
 
-export type Language = 'javascript' | 'typescript' | 'python' | 'unknown';
+export type Language = 'javascript' | 'typescript' | 'python' | 'java' | 'unknown';
 
-export type ImportType = 'import' | 'require' | 'from_import' | 'dynamic_import';
+export type ImportType = 'import' | 'require' | 'from_import' | 'dynamic_import' | 'static_import' | 'wildcard_import';
 
 export type ArchitecturalRole =
   | 'react_component'
@@ -18,6 +18,15 @@ export type ArchitecturalRole =
   | 'controller'
   | 'router'
   | 'schema'
+  // Java/C# specific roles
+  | 'entity'
+  | 'repository'
+  | 'service'
+  | 'dto'
+  | 'exception'
+  | 'enum_type'
+  | 'interface'
+  | 'annotation'
   | 'unknown';
 
 export type Category =
@@ -203,6 +212,7 @@ export const languageColors: Record<Language, string> = {
   javascript: '#f7df1e',
   typescript: '#3178c6',
   python: '#3776ab',
+  java: '#b07219',
   unknown: '#6b7280',
 };
 
@@ -220,6 +230,15 @@ export const roleColors: Record<ArchitecturalRole, string> = {
   controller: '#f97316',
   router: '#84cc16',
   schema: '#eab308',
+  // Java/C# specific roles
+  entity: '#3b82f6',
+  repository: '#8b5cf6',
+  service: '#10b981',
+  dto: '#f59e0b',
+  exception: '#ef4444',
+  enum_type: '#6366f1',
+  interface: '#14b8a6',
+  annotation: '#ec4899',
   unknown: '#6b7280',
 };
 
@@ -248,5 +267,14 @@ export const roleLabels: Record<ArchitecturalRole, string> = {
   controller: 'Controller',
   router: 'Router',
   schema: 'Schema',
+  // Java/C# specific roles
+  entity: 'Entity',
+  repository: 'Repository',
+  service: 'Service',
+  dto: 'DTO',
+  exception: 'Exception',
+  enum_type: 'Enum',
+  interface: 'Interface',
+  annotation: 'Annotation',
   unknown: 'Unknown',
 };

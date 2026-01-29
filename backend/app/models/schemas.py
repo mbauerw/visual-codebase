@@ -12,21 +12,27 @@ class Language(str, Enum):
     JAVASCRIPT = "javascript"
     TYPESCRIPT = "typescript"
     PYTHON = "python"
+    JAVA = "java"
     UNKNOWN = "unknown"
 
 
 class ImportType(str, Enum):
     """Types of import statements."""
 
+    # JavaScript/TypeScript/Python
     IMPORT = "import"
     REQUIRE = "require"
     FROM_IMPORT = "from_import"
     DYNAMIC_IMPORT = "dynamic_import"
+    # Java
+    STATIC_IMPORT = "static_import"
+    WILDCARD_IMPORT = "wildcard_import"
 
 
 class ArchitecturalRole(str, Enum):
     """Architectural roles for files."""
 
+    # Common roles
     REACT_COMPONENT = "react_component"
     UTILITY = "utility"
     API_SERVICE = "api_service"
@@ -40,6 +46,15 @@ class ArchitecturalRole(str, Enum):
     CONTROLLER = "controller"
     ROUTER = "router"
     SCHEMA = "schema"
+    # Java/C# specific roles
+    ENTITY = "entity"
+    REPOSITORY = "repository"
+    SERVICE = "service"
+    DTO = "dto"
+    EXCEPTION = "exception"
+    ENUM_TYPE = "enum_type"
+    INTERFACE = "interface"
+    ANNOTATION = "annotation"
     UNKNOWN = "unknown"
 
 
