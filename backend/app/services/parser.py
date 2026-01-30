@@ -45,6 +45,7 @@ class FileParser:
             ".java": LangEnum.JAVA,
             ".cs": LangEnum.CSHARP,
             ".go": LangEnum.GO,
+            ".rs": LangEnum.RUST,
         }
 
     def _get_parser_for_extension(self, ext: str) -> Optional[Parser]:
@@ -90,6 +91,10 @@ class FileParser:
             elif ext == ".go":
                 import tree_sitter_go as tsgo
                 lang = Language(tsgo.language())
+                parser = Parser(lang)
+            elif ext == ".rs":
+                import tree_sitter_rust as tsrust
+                lang = Language(tsrust.language())
                 parser = Parser(lang)
         except ImportError as e:
             print(f"Warning: Could not load parser for {ext}: {e}")
@@ -161,6 +166,11 @@ class FileParser:
                 exports = self._extract_go_exports(tree, content)
                 functions = self._extract_go_functions(tree, content)
                 classes = self._extract_go_classes(tree, content)
+            elif language == LangEnum.RUST:
+                imports = self._extract_rust_imports(tree, content)
+                exports = self._extract_rust_exports(tree, content)
+                functions = self._extract_rust_functions(tree, content)
+                classes = self._extract_rust_classes(tree, content)
             else:  # Python
                 imports = self._extract_python_imports(tree, content)
                 exports = []  # Python exports are implicit
@@ -2078,6 +2088,232 @@ class FileParser:
         )
         return any(name.endswith(p) or name.startswith(p) for p in handler_patterns)
 
+    # ==================== Rust Extraction Methods ====================
+
+    def _extract_rust_imports(self, tree, content: str) -> list[ImportInfo]:
+        """Extract use statements and mod declarations from Rust files."""
+        imports = []
+        root = tree.root_node
+
+        def traverse(node):
+            # use statement: use crate::module::Item;
+            if node.type == "use_declaration":
+                import_info = self._parse_rust_use(node, content)
+                if import_info:
+                    imports.append(import_info)
+
+            # extern crate: extern crate serde;
+            elif node.type == "extern_crate_declaration":
+                crate_name = None
+                for child in node.children:
+                    if child.type == "identifier":
+                        crate_name = content[child.start_byte:child.end_byte]
+                        break
+                if crate_name:
+                    imports.append(ImportInfo(
+                        module=crate_name,
+                        import_type=ImportType.EXTERN_CRATE,
+                        imported_names=[crate_name],
+                        is_relative=False,
+                    ))
+
+            # mod declaration: mod module_name;
+            elif node.type == "mod_item":
+                # Check if this is a file-based mod (ends with semicolon, no body)
+                has_body = any(child.type == "declaration_list" for child in node.children)
+                if not has_body:
+                    mod_name = None
+                    for child in node.children:
+                        if child.type == "identifier":
+                            mod_name = content[child.start_byte:child.end_byte]
+                            break
+                    if mod_name:
+                        imports.append(ImportInfo(
+                            module=mod_name,
+                            import_type=ImportType.MOD,
+                            imported_names=[mod_name],
+                            is_relative=True,  # mod declarations are relative
+                        ))
+
+            # Recurse into children
+            for child in node.children:
+                traverse(child)
+
+        traverse(root)
+        return imports
+
+    def _parse_rust_use(self, node, content: str) -> Optional[ImportInfo]:
+        """Parse a Rust use declaration node."""
+        # Get the full text of the use statement for fallback parsing
+        full_text = content[node.start_byte:node.end_byte]
+
+        # Remove 'use ' prefix and trailing semicolon
+        use_text = full_text.strip()
+        if use_text.startswith("use "):
+            use_text = use_text[4:]
+        if use_text.endswith(";"):
+            use_text = use_text[:-1]
+        use_text = use_text.strip()
+
+        # Determine import type based on path keywords
+        import_type = ImportType.USE
+        is_relative = False
+
+        if use_text.startswith("self::"):
+            import_type = ImportType.USE_SELF
+            is_relative = True
+        elif use_text.startswith("super::"):
+            is_relative = True
+        elif use_text.startswith("crate::"):
+            is_relative = True
+
+        # Check for wildcard
+        if use_text.endswith("::*") or use_text.endswith("::{*}"):
+            import_type = ImportType.USE_WILDCARD
+
+        # Extract module path and imported names
+        imported_names = []
+        module_path = use_text
+
+        # Handle grouped imports like std::collections::{HashMap, HashSet}
+        if "::{" in use_text and use_text.endswith("}"):
+            brace_start = use_text.index("::{")
+            base_path = use_text[:brace_start]
+            items_str = use_text[brace_start + 3:-1]  # Remove ::{ and }
+            imported_names = [item.strip() for item in items_str.split(",")]
+            module_path = base_path
+        elif "::" in use_text:
+            # Simple path like std::collections::HashMap
+            parts = use_text.split("::")
+            imported_names = [parts[-1]]
+        else:
+            # Simple use like: use serde;
+            imported_names = [use_text]
+
+        if not module_path:
+            return None
+
+        # If no specific names extracted, use the last path component
+        if not imported_names:
+            parts = module_path.split("::")
+            imported_names = [parts[-1]] if parts else [module_path]
+
+        return ImportInfo(
+            module=module_path,
+            import_type=import_type,
+            imported_names=imported_names,
+            is_relative=is_relative,
+        )
+
+    def _extract_rust_exports(self, tree, content: str) -> list[str]:
+        """Extract public items from Rust files."""
+        exports = []
+        root = tree.root_node
+
+        def traverse(node):
+            # Check for pub visibility on various items
+            if node.type in ("function_item", "struct_item", "enum_item",
+                            "trait_item", "impl_item", "type_item",
+                            "const_item", "static_item", "mod_item"):
+                is_pub = False
+                name = None
+
+                for child in node.children:
+                    if child.type == "visibility_modifier":
+                        vis_text = content[child.start_byte:child.end_byte]
+                        if vis_text.startswith("pub"):
+                            is_pub = True
+                    elif child.type == "identifier":
+                        name = content[child.start_byte:child.end_byte]
+                    elif child.type == "type_identifier":
+                        name = content[child.start_byte:child.end_byte]
+
+                if is_pub and name:
+                    exports.append(name)
+
+            # Recurse into children (but skip function bodies, impl bodies, etc.)
+            if node.type not in ("block", "declaration_list", "field_declaration_list"):
+                for child in node.children:
+                    traverse(child)
+
+        traverse(root)
+        return exports
+
+    def _extract_rust_functions(self, tree, content: str) -> list[str]:
+        """Extract function names from Rust files."""
+        functions = []
+        root = tree.root_node
+
+        def traverse(node):
+            if node.type == "function_item":
+                for child in node.children:
+                    if child.type == "identifier":
+                        name = content[child.start_byte:child.end_byte]
+                        functions.append(name)
+                        break
+
+            # Also get methods from impl blocks
+            elif node.type == "impl_item":
+                for child in node.children:
+                    if child.type == "declaration_list":
+                        for impl_child in child.children:
+                            if impl_child.type == "function_item":
+                                for fn_child in impl_child.children:
+                                    if fn_child.type == "identifier":
+                                        name = content[fn_child.start_byte:fn_child.end_byte]
+                                        functions.append(name)
+                                        break
+
+            # Recurse
+            for child in node.children:
+                traverse(child)
+
+        traverse(root)
+        return functions
+
+    def _extract_rust_classes(self, tree, content: str) -> list[str]:
+        """Extract struct, enum, and trait names from Rust files."""
+        classes = []
+        root = tree.root_node
+
+        def traverse(node):
+            if node.type in ("struct_item", "enum_item", "trait_item", "type_item"):
+                for child in node.children:
+                    if child.type in ("identifier", "type_identifier"):
+                        name = content[child.start_byte:child.end_byte]
+                        classes.append(name)
+                        break
+
+            # Recurse (but skip bodies)
+            if node.type not in ("declaration_list", "field_declaration_list", "enum_variant_list"):
+                for child in node.children:
+                    traverse(child)
+
+        traverse(root)
+        return classes
+
+    def _is_rust_internal_import(self, module_path: str) -> bool:
+        """Check if a Rust import is internal to the project."""
+        # crate::, self::, super:: are always internal
+        if module_path.startswith(("crate::", "self::", "super::")):
+            return True
+
+        # Standard library and common crates are external
+        external_crates = (
+            "std", "core", "alloc", "proc_macro", "test",
+            "serde", "tokio", "async_std", "futures", "hyper",
+            "reqwest", "actix", "rocket", "axum", "warp",
+            "diesel", "sqlx", "rusqlite", "mongodb",
+            "clap", "structopt", "tracing", "log", "env_logger",
+            "anyhow", "thiserror", "eyre",
+            "rand", "chrono", "uuid", "regex", "lazy_static",
+            "itertools", "rayon", "crossbeam",
+            "syn", "quote", "proc_macro2",
+        )
+
+        first_part = module_path.split("::")[0]
+        return first_part not in external_crates
+
     def walk_directory(
         self,
         directory: str,
@@ -2132,6 +2368,8 @@ class FileParser:
                     # Go build directories
                     "vendor",
                     "testdata",
+                    # Rust build directories
+                    ".cargo",
                 )
             ]
 

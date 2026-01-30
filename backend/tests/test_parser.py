@@ -2010,3 +2010,317 @@ class TestGoDirectoryWalking:
         assert len(go_files) == 1
         assert len(tsx_files) == 1
         assert len(py_files) == 1
+
+
+# ==================== Rust Import Tests ====================
+
+class TestRustImportExtraction:
+    """Tests for Rust import (use/mod) extraction."""
+
+    def test_detect_rust_language(self, parser):
+        """Test Rust file detection."""
+        assert parser.detect_language("main.rs") == Language.RUST
+        assert parser.detect_language("lib.rs") == Language.RUST
+
+    def test_simple_use(self, parser, temp_dir):
+        """Test simple Rust use statement."""
+        content = '''
+use std::collections::HashMap;
+
+fn main() {
+    let map: HashMap<String, i32> = HashMap::new();
+}
+'''
+        file_path = create_temp_file(temp_dir, "main.rs", content)
+        result = parser.parse_file(file_path, temp_dir)
+
+        assert result is not None
+        assert result.language == Language.RUST
+        assert len(result.imports) == 1
+        assert "std::collections::HashMap" in result.imports[0].module
+
+    def test_grouped_use(self, parser, temp_dir):
+        """Test grouped Rust use statement."""
+        content = '''
+use std::collections::{HashMap, HashSet};
+use std::io::{Read, Write};
+
+fn main() {}
+'''
+        file_path = create_temp_file(temp_dir, "main.rs", content)
+        result = parser.parse_file(file_path, temp_dir)
+
+        assert result is not None
+        assert len(result.imports) == 2
+
+    def test_crate_use(self, parser, temp_dir):
+        """Test crate:: prefix use."""
+        content = '''
+use crate::models::User;
+use crate::services::user_service;
+
+fn main() {}
+'''
+        file_path = create_temp_file(temp_dir, "main.rs", content)
+        result = parser.parse_file(file_path, temp_dir)
+
+        assert result is not None
+        assert len(result.imports) == 2
+        crate_imports = [i for i in result.imports if "crate::" in i.module]
+        assert len(crate_imports) == 2
+
+    def test_self_super_use(self, parser, temp_dir):
+        """Test self:: and super:: use statements."""
+        content = '''
+use self::submodule::Item;
+use super::parent::Thing;
+
+fn helper() {}
+'''
+        file_path = create_temp_file(temp_dir, "module.rs", content)
+        result = parser.parse_file(file_path, temp_dir)
+
+        assert result is not None
+        assert len(result.imports) == 2
+
+        self_imports = [i for i in result.imports if i.import_type == ImportType.USE_SELF]
+        assert len(self_imports) >= 1
+
+    def test_wildcard_use(self, parser, temp_dir):
+        """Test wildcard use statement."""
+        content = '''
+use std::io::*;
+
+fn main() {}
+'''
+        file_path = create_temp_file(temp_dir, "main.rs", content)
+        result = parser.parse_file(file_path, temp_dir)
+
+        assert result is not None
+        assert len(result.imports) == 1
+        wildcard_imports = [i for i in result.imports if i.import_type == ImportType.USE_WILDCARD]
+        assert len(wildcard_imports) == 1
+
+    def test_mod_declaration(self, parser, temp_dir):
+        """Test mod declaration."""
+        content = '''
+mod handlers;
+mod models;
+pub mod services;
+
+fn main() {}
+'''
+        file_path = create_temp_file(temp_dir, "main.rs", content)
+        result = parser.parse_file(file_path, temp_dir)
+
+        assert result is not None
+        mod_imports = [i for i in result.imports if i.import_type == ImportType.MOD]
+        assert len(mod_imports) == 3
+
+
+# ==================== Rust Function/Class Tests ====================
+
+class TestRustFunctionExtraction:
+    """Tests for Rust function extraction."""
+
+    def test_simple_function(self, parser, temp_dir):
+        """Test simple Rust function extraction."""
+        content = '''
+fn hello() -> String {
+    "Hello".to_string()
+}
+
+fn add(a: i32, b: i32) -> i32 {
+    a + b
+}
+'''
+        file_path = create_temp_file(temp_dir, "lib.rs", content)
+        result = parser.parse_file(file_path, temp_dir)
+
+        assert result is not None
+        assert "hello" in result.functions
+        assert "add" in result.functions
+
+    def test_impl_methods(self, parser, temp_dir):
+        """Test method extraction from impl blocks."""
+        content = '''
+struct User {
+    name: String,
+}
+
+impl User {
+    fn new(name: String) -> Self {
+        Self { name }
+    }
+
+    fn get_name(&self) -> &str {
+        &self.name
+    }
+}
+'''
+        file_path = create_temp_file(temp_dir, "user.rs", content)
+        result = parser.parse_file(file_path, temp_dir)
+
+        assert result is not None
+        assert "new" in result.functions
+        assert "get_name" in result.functions
+
+    def test_async_function(self, parser, temp_dir):
+        """Test async function extraction."""
+        content = '''
+async fn fetch_data() -> Result<String, Error> {
+    Ok("data".to_string())
+}
+
+async fn process() {
+    let data = fetch_data().await;
+}
+'''
+        file_path = create_temp_file(temp_dir, "async.rs", content)
+        result = parser.parse_file(file_path, temp_dir)
+
+        assert result is not None
+        assert "fetch_data" in result.functions
+        assert "process" in result.functions
+
+
+class TestRustClassExtraction:
+    """Tests for Rust struct/enum/trait extraction."""
+
+    def test_struct_extraction(self, parser, temp_dir):
+        """Test Rust struct extraction."""
+        content = '''
+struct User {
+    id: u64,
+    name: String,
+}
+
+struct Config {
+    host: String,
+    port: u16,
+}
+'''
+        file_path = create_temp_file(temp_dir, "models.rs", content)
+        result = parser.parse_file(file_path, temp_dir)
+
+        assert result is not None
+        assert "User" in result.classes
+        assert "Config" in result.classes
+
+    def test_enum_extraction(self, parser, temp_dir):
+        """Test Rust enum extraction."""
+        content = '''
+enum Status {
+    Active,
+    Inactive,
+    Pending,
+}
+
+enum Result<T, E> {
+    Ok(T),
+    Err(E),
+}
+'''
+        file_path = create_temp_file(temp_dir, "types.rs", content)
+        result = parser.parse_file(file_path, temp_dir)
+
+        assert result is not None
+        assert "Status" in result.classes
+        assert "Result" in result.classes
+
+    def test_trait_extraction(self, parser, temp_dir):
+        """Test Rust trait extraction."""
+        content = '''
+trait Repository {
+    fn find_by_id(&self, id: u64) -> Option<User>;
+    fn save(&self, user: &User) -> Result<(), Error>;
+}
+
+trait Service {
+    fn process(&self);
+}
+'''
+        file_path = create_temp_file(temp_dir, "traits.rs", content)
+        result = parser.parse_file(file_path, temp_dir)
+
+        assert result is not None
+        assert "Repository" in result.classes
+        assert "Service" in result.classes
+
+
+# ==================== Rust Export Tests ====================
+
+class TestRustExportExtraction:
+    """Tests for Rust export extraction (pub items)."""
+
+    def test_pub_function(self, parser, temp_dir):
+        """Test that pub functions are exported."""
+        content = '''
+pub fn public_function() {}
+
+fn private_function() {}
+
+pub(crate) fn crate_function() {}
+'''
+        file_path = create_temp_file(temp_dir, "lib.rs", content)
+        result = parser.parse_file(file_path, temp_dir)
+
+        assert result is not None
+        assert "public_function" in result.exports
+        assert "crate_function" in result.exports
+        assert "private_function" not in result.exports
+
+    def test_pub_struct(self, parser, temp_dir):
+        """Test that pub structs are exported."""
+        content = '''
+pub struct PublicUser {
+    pub id: u64,
+}
+
+struct PrivateUser {
+    id: u64,
+}
+'''
+        file_path = create_temp_file(temp_dir, "models.rs", content)
+        result = parser.parse_file(file_path, temp_dir)
+
+        assert result is not None
+        assert "PublicUser" in result.exports
+        assert "PrivateUser" not in result.exports
+
+
+# ==================== Rust Directory Tests ====================
+
+class TestRustDirectoryWalking:
+    """Tests for Rust-specific directory walking."""
+
+    def test_walk_directory_with_rust(self, parser, temp_dir):
+        """Test walking directory finds Rust files."""
+        create_temp_file(temp_dir, "src/main.rs", "fn main() {}")
+        create_temp_file(temp_dir, "src/lib.rs", "pub mod models;")
+        create_temp_file(temp_dir, "src/models/mod.rs", "pub struct User {}")
+
+        files = parser.walk_directory(temp_dir)
+
+        rs_files = [f for f in files if f.endswith(".rs")]
+        assert len(rs_files) == 3
+
+    def test_skip_rust_target_directory(self, parser, temp_dir):
+        """Test that target directory is skipped."""
+        create_temp_file(temp_dir, "src/main.rs", "fn main() {}")
+        create_temp_file(temp_dir, "target/debug/main.rs", "compiled")
+
+        files = parser.walk_directory(temp_dir)
+
+        assert len(files) == 1
+        assert not any("target" in f for f in files)
+
+    def test_skip_cargo_directory(self, parser, temp_dir):
+        """Test that .cargo directory is skipped."""
+        create_temp_file(temp_dir, "src/lib.rs", "pub fn lib() {}")
+        create_temp_file(temp_dir, ".cargo/config.toml", "[build]")
+
+        files = parser.walk_directory(temp_dir)
+
+        assert len(files) == 1
+        assert not any(".cargo" in f for f in files)

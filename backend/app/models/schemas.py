@@ -15,6 +15,7 @@ class Language(str, Enum):
     JAVA = "java"
     CSHARP = "csharp"
     GO = "go"
+    RUST = "rust"
     UNKNOWN = "unknown"
 
 
@@ -39,6 +40,12 @@ class ImportType(str, Enum):
     GO_DOT_IMPORT = "go_dot_import"
     GO_BLANK_IMPORT = "go_blank_import"
     GO_ALIAS_IMPORT = "go_alias_import"
+    # Rust
+    USE = "use"
+    USE_WILDCARD = "use_wildcard"
+    USE_SELF = "use_self"
+    EXTERN_CRATE = "extern_crate"
+    MOD = "mod"
 
 
 class ArchitecturalRole(str, Enum):
@@ -83,6 +90,17 @@ class ArchitecturalRole(str, Enum):
     GO_TRANSPORT = "go_transport"
     GO_CONFIG = "go_config"
     GO_UTIL = "go_util"
+    # Rust specific roles
+    RUST_LIB = "rust_lib"
+    RUST_BIN = "rust_bin"
+    RUST_MOD = "rust_mod"
+    RUST_TRAIT = "rust_trait"
+    RUST_IMPL = "rust_impl"
+    RUST_HANDLER = "rust_handler"
+    RUST_ERROR = "rust_error"
+    RUST_MACRO = "rust_macro"
+    RUST_TYPES = "rust_types"
+    RUST_TESTS = "rust_tests"
     UNKNOWN = "unknown"
 
 

@@ -37,6 +37,9 @@ class GraphBuilder:
         # Go module resolution
         self._go_module_path: Optional[str] = None
         self._go_package_index: dict[str, str] = {}  # Maps package path to file path
+        # Rust module resolution
+        self._rust_crate_root: Optional[str] = None  # Path to lib.rs or main.rs
+        self._rust_module_tree: dict[str, str] = {}  # Maps module path to file path
 
     def _generate_node_id(self, path: str) -> str:
         """Generate a stable node ID from a file path."""
@@ -303,6 +306,135 @@ class GraphBuilder:
 
         return None
 
+    def _detect_rust_crate_root(
+        self, all_files: dict[str, ParsedFile]
+    ) -> Optional[str]:
+        """Detect the Rust crate root (lib.rs or main.rs)."""
+        # Prefer lib.rs over main.rs for library crates
+        for file_path in all_files.keys():
+            if file_path.endswith("src/lib.rs") or file_path == "lib.rs":
+                return file_path
+
+        for file_path in all_files.keys():
+            if file_path.endswith("src/main.rs") or file_path == "main.rs":
+                return file_path
+
+        return None
+
+    def _build_rust_module_tree(
+        self, all_files: dict[str, ParsedFile], crate_root: Optional[str]
+    ) -> dict[str, str]:
+        """Build a module tree mapping module paths to file paths.
+
+        Rust's module system maps paths to files:
+        - crate -> lib.rs or main.rs
+        - crate::foo -> src/foo.rs or src/foo/mod.rs
+        - crate::foo::bar -> src/foo/bar.rs or src/foo/bar/mod.rs
+        """
+        module_tree: dict[str, str] = {}
+
+        if crate_root:
+            module_tree["crate"] = crate_root
+
+        for file_path in all_files.keys():
+            if not file_path.endswith(".rs"):
+                continue
+
+            normalized = file_path.replace("\\", "/")
+
+            # Skip the crate root itself
+            if normalized == crate_root:
+                continue
+
+            # Calculate module path from file path
+            # Remove src/ prefix if present
+            rel_path = normalized
+            if rel_path.startswith("src/"):
+                rel_path = rel_path[4:]
+
+            # Remove .rs extension
+            if rel_path.endswith(".rs"):
+                rel_path = rel_path[:-3]
+
+            # Handle mod.rs files
+            if rel_path.endswith("/mod"):
+                rel_path = rel_path[:-4]
+
+            # Convert path to module path: foo/bar -> crate::foo::bar
+            if rel_path:
+                module_path = "crate::" + rel_path.replace("/", "::")
+                module_tree[module_path] = file_path
+
+                # Also index without crate:: prefix for self:: resolution
+                module_tree[rel_path.replace("/", "::")] = file_path
+
+        return module_tree
+
+    def _resolve_rust_import(
+        self,
+        use_path: str,
+        source_file_path: str,
+        all_files: dict[str, ParsedFile],
+    ) -> Optional[str]:
+        """Resolve a Rust use path to a file path."""
+        # Check for crate:: paths
+        if use_path.startswith("crate::"):
+            # Remove the item name, keep the module path
+            parts = use_path.split("::")
+            # Try progressively shorter paths to find the module
+            for i in range(len(parts), 1, -1):
+                module_path = "::".join(parts[:i])
+                if module_path in self._rust_module_tree:
+                    return self._rust_module_tree[module_path]
+
+        # Check for self:: paths (relative to current module)
+        elif use_path.startswith("self::"):
+            source_dir = os.path.dirname(source_file_path.replace("\\", "/"))
+            relative_path = use_path[6:]  # Remove "self::"
+
+            # Build the target path
+            parts = relative_path.split("::")
+            # Try to find the module file
+            for i in range(len(parts), 0, -1):
+                sub_path = "/".join(parts[:i])
+                # Try direct .rs file
+                candidate = f"{source_dir}/{sub_path}.rs"
+                if candidate in all_files:
+                    return candidate
+                # Try mod.rs in directory
+                candidate = f"{source_dir}/{sub_path}/mod.rs"
+                if candidate in all_files:
+                    return candidate
+
+        # Check for super:: paths (parent module)
+        elif use_path.startswith("super::"):
+            source_dir = os.path.dirname(source_file_path.replace("\\", "/"))
+            parent_dir = os.path.dirname(source_dir)
+            relative_path = use_path[7:]  # Remove "super::"
+
+            parts = relative_path.split("::")
+            for i in range(len(parts), 0, -1):
+                sub_path = "/".join(parts[:i])
+                candidate = f"{parent_dir}/{sub_path}.rs"
+                if candidate in all_files:
+                    return candidate
+                candidate = f"{parent_dir}/{sub_path}/mod.rs"
+                if candidate in all_files:
+                    return candidate
+
+        # Check module tree directly
+        if use_path in self._rust_module_tree:
+            return self._rust_module_tree[use_path]
+
+        # Try without the last component (which might be an item, not a module)
+        parts = use_path.split("::")
+        for i in range(len(parts), 0, -1):
+            module_path = "::".join(parts[:i])
+            if module_path in self._rust_module_tree:
+                return self._rust_module_tree[module_path]
+
+        return None
+
     def _resolve_import_path(
         self,
         import_module: str,
@@ -331,6 +463,24 @@ class GraphBuilder:
                 # This is a standard library package (fmt, net/http, etc.)
                 return None
             return self._resolve_go_import(import_module, all_files)
+
+        # Handle Rust use statements
+        if source_file_path.endswith(".rs"):
+            # Skip standard library and common external crates
+            rust_external_prefixes = (
+                "std", "core", "alloc", "proc_macro", "test",
+                "serde", "tokio", "async_std", "futures", "hyper",
+                "reqwest", "actix", "rocket", "axum", "warp",
+                "diesel", "sqlx", "rusqlite", "mongodb",
+                "clap", "structopt", "tracing", "log", "env_logger",
+                "anyhow", "thiserror", "eyre",
+                "rand", "chrono", "uuid", "regex", "lazy_static",
+                "itertools", "rayon", "crossbeam",
+            )
+            first_part = import_module.split("::")[0]
+            if first_part in rust_external_prefixes:
+                return None
+            return self._resolve_rust_import(import_module, source_file_path, all_files)
 
         # Handle C# using directives (namespace-based)
         if source_file_path.endswith(".cs"):
@@ -580,6 +730,15 @@ class GraphBuilder:
         else:
             self._go_module_path = None
             self._go_package_index = {}
+
+        # Initialize Rust-specific indices if Rust files are present
+        has_rust = any(pf.relative_path.endswith(".rs") for pf in parsed_files)
+        if has_rust:
+            self._rust_crate_root = self._detect_rust_crate_root(files_by_path)
+            self._rust_module_tree = self._build_rust_module_tree(files_by_path, self._rust_crate_root)
+        else:
+            self._rust_crate_root = None
+            self._rust_module_tree = {}
 
         nodes = self.build_nodes(parsed_files, llm_analysis)
         edges = self.build_edges(parsed_files, base_path)

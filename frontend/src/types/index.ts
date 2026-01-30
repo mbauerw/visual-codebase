@@ -1,8 +1,8 @@
 // Types for the Codebase Remap application
 
-export type Language = 'javascript' | 'typescript' | 'python' | 'java' | 'csharp' | 'go' | 'unknown';
+export type Language = 'javascript' | 'typescript' | 'python' | 'java' | 'csharp' | 'go' | 'rust' | 'unknown';
 
-export type ImportType = 'import' | 'require' | 'from_import' | 'dynamic_import' | 'static_import' | 'wildcard_import' | 'using' | 'static_using' | 'alias_using' | 'global_using' | 'go_import' | 'go_dot_import' | 'go_blank_import' | 'go_alias_import';
+export type ImportType = 'import' | 'require' | 'from_import' | 'dynamic_import' | 'static_import' | 'wildcard_import' | 'using' | 'static_using' | 'alias_using' | 'global_using' | 'go_import' | 'go_dot_import' | 'go_blank_import' | 'go_alias_import' | 'use' | 'use_wildcard' | 'use_self' | 'extern_crate' | 'mod';
 
 export type ArchitecturalRole =
   | 'react_component'
@@ -43,6 +43,17 @@ export type ArchitecturalRole =
   | 'go_transport'
   | 'go_config'
   | 'go_util'
+  // Rust specific roles
+  | 'rust_lib'
+  | 'rust_bin'
+  | 'rust_mod'
+  | 'rust_trait'
+  | 'rust_impl'
+  | 'rust_handler'
+  | 'rust_error'
+  | 'rust_macro'
+  | 'rust_types'
+  | 'rust_tests'
   | 'unknown';
 
 export type Category =
@@ -234,6 +245,7 @@ export const languageColors: Record<Language, string> = {
   java: '#b07219',
   csharp: '#178600',
   go: '#00add8',
+  rust: '#dea584',
   unknown: '#6b7280',
 };
 
@@ -276,6 +288,17 @@ export const roleColors: Record<ArchitecturalRole, string> = {
   go_transport: '#f97316',
   go_config: '#6b7280',
   go_util: '#84cc16',
+  // Rust specific roles
+  rust_lib: '#dea584',
+  rust_bin: '#b7410e',
+  rust_mod: '#c87533',
+  rust_trait: '#8b5cf6',
+  rust_impl: '#10b981',
+  rust_handler: '#3b82f6',
+  rust_error: '#ef4444',
+  rust_macro: '#ec4899',
+  rust_types: '#f59e0b',
+  rust_tests: '#6366f1',
   unknown: '#6b7280',
 };
 
@@ -329,5 +352,16 @@ export const roleLabels: Record<ArchitecturalRole, string> = {
   go_transport: 'Go Transport',
   go_config: 'Go Config',
   go_util: 'Go Util',
+  // Rust specific roles
+  rust_lib: 'Rust Library',
+  rust_bin: 'Rust Binary',
+  rust_mod: 'Rust Module',
+  rust_trait: 'Rust Trait',
+  rust_impl: 'Rust Impl',
+  rust_handler: 'Rust Handler',
+  rust_error: 'Rust Error',
+  rust_macro: 'Rust Macro',
+  rust_types: 'Rust Types',
+  rust_tests: 'Rust Tests',
   unknown: 'Unknown',
 };

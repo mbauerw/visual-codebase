@@ -79,6 +79,7 @@ class LLMAnalyzer:
            - Java/C# Backend: entity, repository, service, dto, exception, enum_type, interface, annotation
            - C# specific: extension, record, delegate
            - Go: go_handler, go_middleware, go_repository, go_service, go_model, go_cmd, go_pkg, go_internal, go_transport, go_config, go_util
+           - Rust: rust_lib, rust_bin, rust_mod, rust_trait, rust_impl, rust_handler, rust_error, rust_macro, rust_types, rust_tests
            - unknown (if none fit)
         2. description: 1-3 sentence description of what this file does. Base this on the function names, class names, and imports. Be specific - mention key functions/classes by name when relevant. Do not just describe the file path.
         3. category: High-level category. Use one of: frontend, backend, shared, infrastructure, test, config, unknown
@@ -119,6 +120,18 @@ class LLMAnalyzer:
         - go_transport: HTTP/gRPC transport layer (transport/, http/, grpc/)
         - go_config: Configuration (config/, *_config.go)
         - go_util: Utilities and helpers (util/, utils/, helpers/, pkg/*)
+
+        For Rust files, consider these role mappings:
+        - rust_lib: lib.rs - library crate root
+        - rust_bin: main.rs - binary crate root
+        - rust_mod: mod.rs - module declaration files
+        - rust_trait: Trait definitions (*_trait.rs, contains trait keyword)
+        - rust_impl: Heavy impl blocks, implementation files
+        - rust_handler: HTTP handlers (#[get], #[post] attributes, route handlers)
+        - rust_error: Error types (error.rs, Error enum/struct definitions)
+        - rust_macro: Macro definitions (macro_rules!)
+        - rust_types: Type definitions, models (types.rs, models.rs, structs)
+        - rust_tests: Test modules (tests/, #[cfg(test)], *_test.rs)
 
         Return ONLY a valid JSON array with no additional text. Format:
         [{{"filename": "example.ts", "architectural_role": "utility", "description": "Provides helper functions for...", "category": "shared"}}]
@@ -222,6 +235,7 @@ class LLMAnalyzer:
         is_java = name.endswith(".java")
         is_csharp = name.endswith(".cs")
         is_go = name.endswith(".go")
+        is_rust = name.endswith(".rs")
 
         # Test files (highest priority)
         if "test" in path_lower or "spec" in path_lower or name.startswith("test_"):
@@ -367,6 +381,40 @@ class LLMAnalyzer:
             if "util/" in path_lower or "utils/" in path_lower or "helpers/" in path_lower or "helper/" in path_lower:
                 return ArchitecturalRole.GO_UTIL
 
+        # Rust-specific patterns
+        if is_rust:
+            # Test files
+            if name.endswith("_test.rs") or "/tests/" in path_lower or "tests.rs" in name:
+                return ArchitecturalRole.RUST_TESTS
+
+            # Crate roots
+            if name == "lib.rs":
+                return ArchitecturalRole.RUST_LIB
+            if name == "main.rs":
+                return ArchitecturalRole.RUST_BIN
+            if name == "mod.rs":
+                return ArchitecturalRole.RUST_MOD
+
+            # Error types
+            if name_without_ext == "error" or name_without_ext == "errors" or name_without_ext.endswith("_error"):
+                return ArchitecturalRole.RUST_ERROR
+
+            # Trait files
+            if name_without_ext.endswith("_trait") or name_without_ext.endswith("traits"):
+                return ArchitecturalRole.RUST_TRAIT
+
+            # Handler pattern (common in web frameworks)
+            if name_without_ext.endswith("_handler") or name_without_ext == "handlers" or "handlers/" in path_lower:
+                return ArchitecturalRole.RUST_HANDLER
+
+            # Types/models
+            if name_without_ext in ("types", "models", "schema") or "models/" in path_lower or "types/" in path_lower:
+                return ArchitecturalRole.RUST_TYPES
+
+            # Macro files
+            if name_without_ext.endswith("_macro") or name_without_ext == "macros":
+                return ArchitecturalRole.RUST_MACRO
+
         # Directory-based patterns (check BEFORE extension/naming patterns)
 
         # Context - check before React components to catch context/AuthContext.tsx
@@ -475,6 +523,10 @@ class LLMAnalyzer:
                 "cmd/",
                 "internal/",
                 "pkg/",
+                # Rust backend patterns
+                ".rs",
+                "src/lib.rs",
+                "src/main.rs",
             )
         ):
             return Category.BACKEND
