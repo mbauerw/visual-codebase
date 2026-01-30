@@ -78,6 +78,7 @@ class LLMAnalyzer:
            - Common: react_component, utility, api_service, model, config, test, hook, context, store, middleware, controller, router, schema
            - Java/C# Backend: entity, repository, service, dto, exception, enum_type, interface, annotation
            - C# specific: extension, record, delegate
+           - Go: go_handler, go_middleware, go_repository, go_service, go_model, go_cmd, go_pkg, go_internal, go_transport, go_config, go_util
            - unknown (if none fit)
         2. description: 1-3 sentence description of what this file does. Base this on the function names, class names, and imports. Be specific - mention key functions/classes by name when relevant. Do not just describe the file path.
         3. category: High-level category. Use one of: frontend, backend, shared, infrastructure, test, config, unknown
@@ -105,6 +106,19 @@ class LLMAnalyzer:
         - delegate: Delegate type definitions
         - enum_type: Enum definitions
         - exception: Custom exception classes
+
+        For Go files, consider these role mappings based on directory structure and patterns:
+        - go_cmd: Files in cmd/ directory (main packages, entry points)
+        - go_internal: Files in internal/ directory (private packages)
+        - go_pkg: Files in pkg/ directory (public reusable packages)
+        - go_handler: HTTP handlers, request handlers (*_handler.go, handlers/)
+        - go_service: Business logic (*_service.go, service/)
+        - go_repository: Data access (*_repository.go, repository/, store/)
+        - go_model: Data structures, types (models/, types/, entities/)
+        - go_middleware: HTTP middleware (middleware/)
+        - go_transport: HTTP/gRPC transport layer (transport/, http/, grpc/)
+        - go_config: Configuration (config/, *_config.go)
+        - go_util: Utilities and helpers (util/, utils/, helpers/, pkg/*)
 
         Return ONLY a valid JSON array with no additional text. Format:
         [{{"filename": "example.ts", "architectural_role": "utility", "description": "Provides helper functions for...", "category": "shared"}}]
@@ -207,6 +221,7 @@ class LLMAnalyzer:
         name_without_ext = name.rsplit(".", 1)[0] if "." in name else name
         is_java = name.endswith(".java")
         is_csharp = name.endswith(".cs")
+        is_go = name.endswith(".go")
 
         # Test files (highest priority)
         if "test" in path_lower or "spec" in path_lower or name.startswith("test_"):
@@ -302,6 +317,56 @@ class LLMAnalyzer:
             if "config/" in path_lower or name_without_ext.endswith("config") or name_without_ext.endswith("configuration"):
                 return ArchitecturalRole.CONFIG
 
+        # Go-specific patterns
+        if is_go:
+            # Test files (handled above, but be explicit)
+            if name.endswith("_test.go"):
+                return ArchitecturalRole.TEST
+
+            # cmd/ directory - entry points
+            if "/cmd/" in path_lower or path_lower.startswith("cmd/"):
+                return ArchitecturalRole.GO_CMD
+
+            # internal/ directory - private packages
+            if "/internal/" in path_lower or path_lower.startswith("internal/"):
+                return ArchitecturalRole.GO_INTERNAL
+
+            # pkg/ directory - public packages
+            if "/pkg/" in path_lower or path_lower.startswith("pkg/"):
+                return ArchitecturalRole.GO_PKG
+
+            # Handler pattern
+            if name_without_ext.endswith("_handler") or name_without_ext.endswith("handler") or "handler/" in path_lower or "handlers/" in path_lower:
+                return ArchitecturalRole.GO_HANDLER
+
+            # Service pattern
+            if name_without_ext.endswith("_service") or name_without_ext.endswith("service") or "service/" in path_lower or "services/" in path_lower:
+                return ArchitecturalRole.GO_SERVICE
+
+            # Repository pattern
+            if name_without_ext.endswith("_repository") or name_without_ext.endswith("repository") or "repository/" in path_lower or "repositories/" in path_lower or "store/" in path_lower:
+                return ArchitecturalRole.GO_REPOSITORY
+
+            # Model pattern
+            if "model/" in path_lower or "models/" in path_lower or "types/" in path_lower or "entities/" in path_lower or "entity/" in path_lower:
+                return ArchitecturalRole.GO_MODEL
+
+            # Middleware pattern
+            if "middleware/" in path_lower or name_without_ext.endswith("middleware"):
+                return ArchitecturalRole.GO_MIDDLEWARE
+
+            # Transport pattern (HTTP/gRPC)
+            if "transport/" in path_lower or "http/" in path_lower or "grpc/" in path_lower or "api/" in path_lower:
+                return ArchitecturalRole.GO_TRANSPORT
+
+            # Config pattern
+            if "config/" in path_lower or name_without_ext.endswith("_config") or name_without_ext == "config":
+                return ArchitecturalRole.GO_CONFIG
+
+            # Util pattern
+            if "util/" in path_lower or "utils/" in path_lower or "helpers/" in path_lower or "helper/" in path_lower:
+                return ArchitecturalRole.GO_UTIL
+
         # Directory-based patterns (check BEFORE extension/naming patterns)
 
         # Context - check before React components to catch context/AuthContext.tsx
@@ -386,7 +451,7 @@ class LLMAnalyzer:
         ):
             return Category.FRONTEND
 
-        # Backend patterns (including Java and C#)
+        # Backend patterns (including Java, C#, and Go)
         if any(
             x in path_lower
             for x in (
@@ -405,6 +470,11 @@ class LLMAnalyzer:
                 ".java",
                 # C# backend patterns
                 ".cs",
+                # Go backend patterns
+                ".go",
+                "cmd/",
+                "internal/",
+                "pkg/",
             )
         ):
             return Category.BACKEND

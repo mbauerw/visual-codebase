@@ -14,6 +14,7 @@ class Language(str, Enum):
     PYTHON = "python"
     JAVA = "java"
     CSHARP = "csharp"
+    GO = "go"
     UNKNOWN = "unknown"
 
 
@@ -33,6 +34,11 @@ class ImportType(str, Enum):
     STATIC_USING = "static_using"
     ALIAS_USING = "alias_using"
     GLOBAL_USING = "global_using"
+    # Go
+    GO_IMPORT = "go_import"
+    GO_DOT_IMPORT = "go_dot_import"
+    GO_BLANK_IMPORT = "go_blank_import"
+    GO_ALIAS_IMPORT = "go_alias_import"
 
 
 class ArchitecturalRole(str, Enum):
@@ -65,6 +71,18 @@ class ArchitecturalRole(str, Enum):
     EXTENSION = "extension"
     RECORD = "record"
     DELEGATE = "delegate"
+    # Go specific roles
+    GO_HANDLER = "go_handler"
+    GO_MIDDLEWARE = "go_middleware"
+    GO_REPOSITORY = "go_repository"
+    GO_SERVICE = "go_service"
+    GO_MODEL = "go_model"
+    GO_CMD = "go_cmd"
+    GO_PKG = "go_pkg"
+    GO_INTERNAL = "go_internal"
+    GO_TRANSPORT = "go_transport"
+    GO_CONFIG = "go_config"
+    GO_UTIL = "go_util"
     UNKNOWN = "unknown"
 
 

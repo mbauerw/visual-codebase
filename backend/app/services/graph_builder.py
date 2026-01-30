@@ -34,6 +34,9 @@ class GraphBuilder:
         # C# namespace resolution
         self._csharp_namespace_to_files: dict[str, list[str]] = {}  # Maps namespace to file paths
         self._csharp_type_to_file: dict[str, str] = {}  # Maps FQN type to file path
+        # Go module resolution
+        self._go_module_path: Optional[str] = None
+        self._go_package_index: dict[str, str] = {}  # Maps package path to file path
 
     def _generate_node_id(self, path: str) -> str:
         """Generate a stable node ID from a file path."""
@@ -213,6 +216,93 @@ class GraphBuilder:
 
         return resolved
 
+    def _detect_go_module_path(self, base_path: str) -> Optional[str]:
+        """Detect Go module path from go.mod file."""
+        go_mod_path = os.path.join(base_path, "go.mod")
+        try:
+            with open(go_mod_path, "r", encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if line.startswith("module "):
+                        # Extract module path: "module github.com/user/repo"
+                        return line[7:].strip()
+        except (FileNotFoundError, IOError):
+            pass
+        return None
+
+    def _build_go_package_index(
+        self, all_files: dict[str, ParsedFile], base_path: str
+    ) -> dict[str, str]:
+        """Build an index mapping Go package paths to file paths.
+
+        Go packages are directories, not individual files. Multiple .go files
+        in the same directory belong to the same package.
+        """
+        index: dict[str, str] = {}
+
+        for file_path in all_files.keys():
+            if not file_path.endswith(".go"):
+                continue
+
+            normalized = file_path.replace("\\", "/")
+            dir_path = os.path.dirname(normalized)
+
+            # Build the full import path for this package
+            if self._go_module_path and dir_path:
+                # Package import path is module_path + relative directory
+                package_path = f"{self._go_module_path}/{dir_path}"
+                if package_path not in index:
+                    index[package_path] = file_path
+            elif self._go_module_path and not dir_path:
+                # Root package
+                if self._go_module_path not in index:
+                    index[self._go_module_path] = file_path
+            elif dir_path:
+                # No go.mod, use relative path as package path
+                if dir_path not in index:
+                    index[dir_path] = file_path
+
+        return index
+
+    def _resolve_go_import(
+        self,
+        import_path: str,
+        all_files: dict[str, ParsedFile],
+    ) -> Optional[str]:
+        """Resolve a Go import path to a file path.
+
+        Go imports reference packages (directories), not individual files.
+        We return the first .go file in that package directory.
+        """
+        # Check direct match in package index
+        if import_path in self._go_package_index:
+            return self._go_package_index[import_path]
+
+        # If we have a module path, try to resolve relative to it
+        if self._go_module_path and import_path.startswith(self._go_module_path):
+            # Extract relative path from module path
+            relative_dir = import_path[len(self._go_module_path):].lstrip("/")
+
+            # Find any .go file in this directory
+            for file_path in all_files.keys():
+                if not file_path.endswith(".go"):
+                    continue
+                file_dir = os.path.dirname(file_path.replace("\\", "/"))
+                if file_dir == relative_dir:
+                    return file_path
+
+        # Try matching by directory name (last component of import path)
+        # This handles cases like "internal/pkg" matching "./internal/pkg"
+        import_dir = import_path.rsplit("/", 1)[-1] if "/" in import_path else import_path
+        for file_path in all_files.keys():
+            if not file_path.endswith(".go"):
+                continue
+            file_dir = os.path.dirname(file_path.replace("\\", "/"))
+            if file_dir.endswith(import_dir) or file_dir == import_dir:
+                return file_path
+
+        return None
+
     def _resolve_import_path(
         self,
         import_module: str,
@@ -231,6 +321,16 @@ class GraphBuilder:
             if any(import_module.startswith(prefix) for prefix in java_stdlib_prefixes):
                 return None
             return self._resolve_java_import(import_module, all_files)
+
+        # Handle Go imports (package-based)
+        if source_file_path.endswith(".go"):
+            # Skip Go standard library packages (no dots in path)
+            # Standard library packages don't contain dots: fmt, net/http, encoding/json
+            # Third-party packages have domains: github.com/..., golang.org/...
+            if "/" not in import_module or not any(c == "." for c in import_module.split("/")[0]):
+                # This is a standard library package (fmt, net/http, etc.)
+                return None
+            return self._resolve_go_import(import_module, all_files)
 
         # Handle C# using directives (namespace-based)
         if source_file_path.endswith(".cs"):
@@ -471,6 +571,15 @@ class GraphBuilder:
         else:
             self._csharp_namespace_to_files = {}
             self._csharp_type_to_file = {}
+
+        # Initialize Go-specific indices if Go files are present
+        has_go = any(pf.relative_path.endswith(".go") for pf in parsed_files)
+        if has_go:
+            self._go_module_path = self._detect_go_module_path(base_path)
+            self._go_package_index = self._build_go_package_index(files_by_path, base_path)
+        else:
+            self._go_module_path = None
+            self._go_package_index = {}
 
         nodes = self.build_nodes(parsed_files, llm_analysis)
         edges = self.build_edges(parsed_files, base_path)

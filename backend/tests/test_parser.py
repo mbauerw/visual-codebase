@@ -1575,3 +1575,438 @@ class TestCrossLanguageDirectory:
         assert len(files) == 1
         assert not any("bin" in f for f in files)
         assert not any("obj" in f for f in files)
+
+
+# ==================== Go Import Tests ====================
+
+class TestGoImportExtraction:
+    """Tests for Go import extraction."""
+
+    def test_detect_go_language(self, parser):
+        """Test Go file detection."""
+        assert parser.detect_language("main.go") == Language.GO
+        assert parser.detect_language("handler.go") == Language.GO
+
+    def test_single_import(self, parser, temp_dir):
+        """Test single Go import statement."""
+        content = '''
+package main
+
+import "fmt"
+
+func main() {
+    fmt.Println("Hello")
+}
+'''
+        file_path = create_temp_file(temp_dir, "main.go", content)
+        result = parser.parse_file(file_path, temp_dir)
+
+        assert result is not None
+        assert result.language == Language.GO
+        assert len(result.imports) == 1
+        assert result.imports[0].module == "fmt"
+        assert result.imports[0].import_type == ImportType.GO_IMPORT
+
+    def test_grouped_imports(self, parser, temp_dir):
+        """Test grouped Go import statement."""
+        content = '''
+package main
+
+import (
+    "fmt"
+    "os"
+    "net/http"
+)
+
+func main() {}
+'''
+        file_path = create_temp_file(temp_dir, "main.go", content)
+        result = parser.parse_file(file_path, temp_dir)
+
+        assert result is not None
+        assert len(result.imports) == 3
+
+        modules = [i.module for i in result.imports]
+        assert "fmt" in modules
+        assert "os" in modules
+        assert "net/http" in modules
+
+    def test_third_party_imports(self, parser, temp_dir):
+        """Test third-party Go imports (with domain)."""
+        content = '''
+package main
+
+import (
+    "github.com/gin-gonic/gin"
+    "github.com/jmoiron/sqlx"
+    "golang.org/x/net/context"
+)
+
+func main() {}
+'''
+        file_path = create_temp_file(temp_dir, "main.go", content)
+        result = parser.parse_file(file_path, temp_dir)
+
+        assert result is not None
+        assert len(result.imports) == 3
+
+        modules = [i.module for i in result.imports]
+        assert "github.com/gin-gonic/gin" in modules
+        assert "github.com/jmoiron/sqlx" in modules
+
+    def test_alias_import(self, parser, temp_dir):
+        """Test Go alias imports."""
+        content = '''
+package main
+
+import (
+    "fmt"
+    mux "github.com/gorilla/mux"
+    log "github.com/sirupsen/logrus"
+)
+
+func main() {}
+'''
+        file_path = create_temp_file(temp_dir, "main.go", content)
+        result = parser.parse_file(file_path, temp_dir)
+
+        assert result is not None
+        assert len(result.imports) == 3
+
+        alias_imports = [i for i in result.imports if i.import_type == ImportType.GO_ALIAS_IMPORT]
+        assert len(alias_imports) == 2
+
+    def test_dot_import(self, parser, temp_dir):
+        """Test Go dot imports."""
+        content = '''
+package main
+
+import (
+    . "github.com/onsi/ginkgo/v2"
+    . "github.com/onsi/gomega"
+)
+
+func main() {}
+'''
+        file_path = create_temp_file(temp_dir, "main.go", content)
+        result = parser.parse_file(file_path, temp_dir)
+
+        assert result is not None
+        assert len(result.imports) == 2
+
+        dot_imports = [i for i in result.imports if i.import_type == ImportType.GO_DOT_IMPORT]
+        assert len(dot_imports) == 2
+
+    def test_blank_import(self, parser, temp_dir):
+        """Test Go blank imports (side-effect imports)."""
+        content = '''
+package main
+
+import (
+    "database/sql"
+    _ "github.com/lib/pq"
+    _ "github.com/go-sql-driver/mysql"
+)
+
+func main() {}
+'''
+        file_path = create_temp_file(temp_dir, "main.go", content)
+        result = parser.parse_file(file_path, temp_dir)
+
+        assert result is not None
+        assert len(result.imports) == 3
+
+        blank_imports = [i for i in result.imports if i.import_type == ImportType.GO_BLANK_IMPORT]
+        assert len(blank_imports) == 2
+
+    def test_internal_package_import(self, parser, temp_dir):
+        """Test internal package imports."""
+        content = '''
+package main
+
+import (
+    "github.com/example/webapi/internal/handler"
+    "github.com/example/webapi/internal/service"
+    "github.com/example/webapi/pkg/models"
+)
+
+func main() {}
+'''
+        file_path = create_temp_file(temp_dir, "main.go", content)
+        result = parser.parse_file(file_path, temp_dir)
+
+        assert result is not None
+        assert len(result.imports) == 3
+
+
+# ==================== Go Function/Class Tests ====================
+
+class TestGoFunctionExtraction:
+    """Tests for Go function extraction."""
+
+    def test_simple_function(self, parser, temp_dir):
+        """Test simple Go function extraction."""
+        content = '''
+package main
+
+func Hello() string {
+    return "Hello"
+}
+
+func Add(a, b int) int {
+    return a + b
+}
+'''
+        file_path = create_temp_file(temp_dir, "main.go", content)
+        result = parser.parse_file(file_path, temp_dir)
+
+        assert result is not None
+        assert "Hello" in result.functions
+        assert "Add" in result.functions
+
+    def test_method_extraction(self, parser, temp_dir):
+        """Test Go method extraction (functions with receivers)."""
+        content = '''
+package main
+
+type UserService struct {
+    db *sql.DB
+}
+
+func (s *UserService) GetAll() ([]User, error) {
+    return nil, nil
+}
+
+func (s *UserService) GetByID(id int) (*User, error) {
+    return nil, nil
+}
+
+func (s UserService) String() string {
+    return "UserService"
+}
+'''
+        file_path = create_temp_file(temp_dir, "service.go", content)
+        result = parser.parse_file(file_path, temp_dir)
+
+        assert result is not None
+        assert "GetAll" in result.functions
+        assert "GetByID" in result.functions
+        assert "String" in result.functions
+
+    def test_main_function(self, parser, temp_dir):
+        """Test main function extraction."""
+        content = '''
+package main
+
+import "fmt"
+
+func main() {
+    fmt.Println("Hello, World!")
+}
+
+func init() {
+    // initialization
+}
+'''
+        file_path = create_temp_file(temp_dir, "main.go", content)
+        result = parser.parse_file(file_path, temp_dir)
+
+        assert result is not None
+        assert "main" in result.functions
+        assert "init" in result.functions
+
+    def test_exported_unexported_functions(self, parser, temp_dir):
+        """Test both exported and unexported functions are detected."""
+        content = '''
+package handler
+
+func HandleRequest(w http.ResponseWriter, r *http.Request) {}
+
+func validateInput(input string) bool {
+    return true
+}
+
+func parseJSON(data []byte) error {
+    return nil
+}
+'''
+        file_path = create_temp_file(temp_dir, "handler.go", content)
+        result = parser.parse_file(file_path, temp_dir)
+
+        assert result is not None
+        assert "HandleRequest" in result.functions
+        assert "validateInput" in result.functions
+        assert "parseJSON" in result.functions
+
+
+class TestGoClassExtraction:
+    """Tests for Go type (struct/interface) extraction."""
+
+    def test_struct_extraction(self, parser, temp_dir):
+        """Test Go struct extraction."""
+        content = '''
+package models
+
+type User struct {
+    ID        int
+    Name      string
+    Email     string
+    CreatedAt time.Time
+}
+
+type Address struct {
+    Street  string
+    City    string
+    Country string
+}
+'''
+        file_path = create_temp_file(temp_dir, "user.go", content)
+        result = parser.parse_file(file_path, temp_dir)
+
+        assert result is not None
+        assert "User" in result.classes
+        assert "Address" in result.classes
+
+    def test_interface_extraction(self, parser, temp_dir):
+        """Test Go interface extraction."""
+        content = '''
+package repository
+
+type UserRepository interface {
+    FindAll() ([]User, error)
+    FindByID(id int) (*User, error)
+    Create(user *User) error
+    Update(user *User) error
+    Delete(id int) error
+}
+
+type Reader interface {
+    Read(p []byte) (n int, err error)
+}
+'''
+        file_path = create_temp_file(temp_dir, "repository.go", content)
+        result = parser.parse_file(file_path, temp_dir)
+
+        assert result is not None
+        assert "UserRepository" in result.classes
+        assert "Reader" in result.classes
+
+    def test_type_alias_extraction(self, parser, temp_dir):
+        """Test Go type alias extraction."""
+        content = '''
+package types
+
+type UserID int64
+type Email string
+type Callback func(error)
+'''
+        file_path = create_temp_file(temp_dir, "types.go", content)
+        result = parser.parse_file(file_path, temp_dir)
+
+        assert result is not None
+        # Type aliases should be in classes list
+        assert "UserID" in result.classes
+        assert "Email" in result.classes
+        assert "Callback" in result.classes
+
+
+# ==================== Go Export Tests ====================
+
+class TestGoExportExtraction:
+    """Tests for Go export extraction (capitalized identifiers)."""
+
+    def test_exported_function(self, parser, temp_dir):
+        """Test that exported (capitalized) functions are detected."""
+        content = '''
+package handler
+
+func HandleRequest() {}
+func ProcessData() {}
+func helper() {}
+func internal() {}
+'''
+        file_path = create_temp_file(temp_dir, "handler.go", content)
+        result = parser.parse_file(file_path, temp_dir)
+
+        assert result is not None
+        # Exported functions (capitalized)
+        assert "HandleRequest" in result.exports
+        assert "ProcessData" in result.exports
+        # Unexported functions should NOT be in exports
+        assert "helper" not in result.exports
+        assert "internal" not in result.exports
+
+    def test_exported_struct(self, parser, temp_dir):
+        """Test that exported structs are detected."""
+        content = '''
+package models
+
+type User struct {
+    ID   int
+    Name string
+}
+
+type config struct {
+    host string
+    port int
+}
+'''
+        file_path = create_temp_file(temp_dir, "models.go", content)
+        result = parser.parse_file(file_path, temp_dir)
+
+        assert result is not None
+        assert "User" in result.exports
+        assert "config" not in result.exports
+
+
+# ==================== Go Directory Tests ====================
+
+class TestGoDirectoryWalking:
+    """Tests for Go-specific directory walking."""
+
+    def test_walk_directory_with_go(self, parser, temp_dir):
+        """Test walking directory finds Go files."""
+        create_temp_file(temp_dir, "cmd/server/main.go", "package main")
+        create_temp_file(temp_dir, "internal/handler/user.go", "package handler")
+        create_temp_file(temp_dir, "pkg/models/user.go", "package models")
+
+        files = parser.walk_directory(temp_dir)
+
+        go_files = [f for f in files if f.endswith(".go")]
+        assert len(go_files) == 3
+
+    def test_skip_go_vendor_directory(self, parser, temp_dir):
+        """Test that vendor directory is skipped."""
+        create_temp_file(temp_dir, "main.go", "package main")
+        create_temp_file(temp_dir, "vendor/github.com/pkg/lib.go", "package lib")
+
+        files = parser.walk_directory(temp_dir)
+
+        assert len(files) == 1
+        assert not any("vendor" in f for f in files)
+
+    def test_skip_go_testdata_directory(self, parser, temp_dir):
+        """Test that testdata directory is skipped."""
+        create_temp_file(temp_dir, "handler.go", "package handler")
+        create_temp_file(temp_dir, "testdata/fixtures.go", "package testdata")
+
+        files = parser.walk_directory(temp_dir)
+
+        assert len(files) == 1
+        assert not any("testdata" in f for f in files)
+
+    def test_mixed_go_and_other_languages(self, parser, temp_dir):
+        """Test parsing directory with Go and other languages."""
+        create_temp_file(temp_dir, "cmd/server/main.go", "package main\nfunc main() {}")
+        create_temp_file(temp_dir, "frontend/src/App.tsx", "export const App = () => {}")
+        create_temp_file(temp_dir, "scripts/deploy.py", "def deploy(): pass")
+
+        files = parser.walk_directory(temp_dir)
+
+        go_files = [f for f in files if f.endswith(".go")]
+        tsx_files = [f for f in files if f.endswith(".tsx")]
+        py_files = [f for f in files if f.endswith(".py")]
+
+        assert len(go_files) == 1
+        assert len(tsx_files) == 1
+        assert len(py_files) == 1

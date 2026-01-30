@@ -1,8 +1,8 @@
 // Types for the Codebase Remap application
 
-export type Language = 'javascript' | 'typescript' | 'python' | 'java' | 'csharp' | 'unknown';
+export type Language = 'javascript' | 'typescript' | 'python' | 'java' | 'csharp' | 'go' | 'unknown';
 
-export type ImportType = 'import' | 'require' | 'from_import' | 'dynamic_import' | 'static_import' | 'wildcard_import' | 'using' | 'static_using' | 'alias_using' | 'global_using';
+export type ImportType = 'import' | 'require' | 'from_import' | 'dynamic_import' | 'static_import' | 'wildcard_import' | 'using' | 'static_using' | 'alias_using' | 'global_using' | 'go_import' | 'go_dot_import' | 'go_blank_import' | 'go_alias_import';
 
 export type ArchitecturalRole =
   | 'react_component'
@@ -31,6 +31,18 @@ export type ArchitecturalRole =
   | 'extension'
   | 'record'
   | 'delegate'
+  // Go specific roles
+  | 'go_handler'
+  | 'go_middleware'
+  | 'go_repository'
+  | 'go_service'
+  | 'go_model'
+  | 'go_cmd'
+  | 'go_pkg'
+  | 'go_internal'
+  | 'go_transport'
+  | 'go_config'
+  | 'go_util'
   | 'unknown';
 
 export type Category =
@@ -221,6 +233,7 @@ export const languageColors: Record<Language, string> = {
   python: '#3776ab',
   java: '#b07219',
   csharp: '#178600',
+  go: '#00add8',
   unknown: '#6b7280',
 };
 
@@ -251,6 +264,18 @@ export const roleColors: Record<ArchitecturalRole, string> = {
   extension: '#84cc16',
   record: '#0ea5e9',
   delegate: '#f97316',
+  // Go specific roles
+  go_handler: '#00add8',
+  go_middleware: '#00a29c',
+  go_repository: '#8b5cf6',
+  go_service: '#10b981',
+  go_model: '#f59e0b',
+  go_cmd: '#ef4444',
+  go_pkg: '#3b82f6',
+  go_internal: '#6366f1',
+  go_transport: '#f97316',
+  go_config: '#6b7280',
+  go_util: '#84cc16',
   unknown: '#6b7280',
 };
 
@@ -292,5 +317,17 @@ export const roleLabels: Record<ArchitecturalRole, string> = {
   extension: 'Extension',
   record: 'Record',
   delegate: 'Delegate',
+  // Go specific roles
+  go_handler: 'Go Handler',
+  go_middleware: 'Go Middleware',
+  go_repository: 'Go Repository',
+  go_service: 'Go Service',
+  go_model: 'Go Model',
+  go_cmd: 'Go Cmd',
+  go_pkg: 'Go Pkg',
+  go_internal: 'Go Internal',
+  go_transport: 'Go Transport',
+  go_config: 'Go Config',
+  go_util: 'Go Util',
   unknown: 'Unknown',
 };

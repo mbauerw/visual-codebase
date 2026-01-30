@@ -44,6 +44,7 @@ class FileParser:
             ".py": LangEnum.PYTHON,
             ".java": LangEnum.JAVA,
             ".cs": LangEnum.CSHARP,
+            ".go": LangEnum.GO,
         }
 
     def _get_parser_for_extension(self, ext: str) -> Optional[Parser]:
@@ -85,6 +86,10 @@ class FileParser:
             elif ext == ".cs":
                 import tree_sitter_c_sharp as tscsharp
                 lang = Language(tscsharp.language())
+                parser = Parser(lang)
+            elif ext == ".go":
+                import tree_sitter_go as tsgo
+                lang = Language(tsgo.language())
                 parser = Parser(lang)
         except ImportError as e:
             print(f"Warning: Could not load parser for {ext}: {e}")
@@ -151,6 +156,11 @@ class FileParser:
                 exports = self._extract_csharp_exports(tree, content)
                 functions = self._extract_csharp_functions(tree, content)
                 classes = self._extract_csharp_classes(tree, content)
+            elif language == LangEnum.GO:
+                imports = self._extract_go_imports(tree, content)
+                exports = self._extract_go_exports(tree, content)
+                functions = self._extract_go_functions(tree, content)
+                classes = self._extract_go_classes(tree, content)
             else:  # Python
                 imports = self._extract_python_imports(tree, content)
                 exports = []  # Python exports are implicit
@@ -829,6 +839,8 @@ class FileParser:
             return self._extract_java_calls(tree, content, file_path)
         elif language == LangEnum.CSHARP:
             return self._extract_csharp_calls(tree, content, file_path)
+        elif language == LangEnum.GO:
+            return self._extract_go_calls(tree, content, file_path)
 
         return []
 
@@ -853,6 +865,8 @@ class FileParser:
             return self._extract_java_function_definitions(tree, content, file_path, exports)
         elif language == LangEnum.CSHARP:
             return self._extract_csharp_function_definitions(tree, content, file_path, exports)
+        elif language == LangEnum.GO:
+            return self._extract_go_function_definitions(tree, content, file_path, exports)
 
         return []
 
@@ -1683,6 +1697,387 @@ class FileParser:
                     return True
         return False
 
+    # ==================== Go Extraction Methods ====================
+
+    def _extract_go_imports(self, tree, content: str) -> list[ImportInfo]:
+        """Extract import statements from Go files.
+
+        Go import patterns:
+        - import "pkg"
+        - import alias "pkg"
+        - import . "pkg" (dot import)
+        - import _ "pkg" (blank import for side effects)
+        - import ( "pkg1" \n "pkg2" ) (grouped imports)
+        """
+        imports = []
+        root = tree.root_node
+
+        def traverse(node):
+            if node.type == "import_declaration":
+                # Handle both single and grouped imports
+                for child in node.children:
+                    if child.type == "import_spec":
+                        import_info = self._parse_go_import_spec(child, content)
+                        if import_info:
+                            imports.append(import_info)
+                    elif child.type == "import_spec_list":
+                        # Grouped imports
+                        for spec in child.children:
+                            if spec.type == "import_spec":
+                                import_info = self._parse_go_import_spec(spec, content)
+                                if import_info:
+                                    imports.append(import_info)
+
+            for child in node.children:
+                traverse(child)
+
+        traverse(root)
+        return imports
+
+    def _parse_go_import_spec(self, node, content: str) -> Optional[ImportInfo]:
+        """Parse a Go import_spec node into ImportInfo."""
+        alias = None
+        module_path = None
+        import_type = ImportType.GO_IMPORT
+
+        for child in node.children:
+            if child.type == "package_identifier":
+                # Alias: import alias "pkg"
+                alias = self._get_node_text(child, content)
+                import_type = ImportType.GO_ALIAS_IMPORT
+            elif child.type == "dot":
+                # Dot import: import . "pkg"
+                import_type = ImportType.GO_DOT_IMPORT
+            elif child.type == "blank_identifier":
+                # Blank import: import _ "pkg"
+                import_type = ImportType.GO_BLANK_IMPORT
+            elif child.type in ("interpreted_string_literal", "raw_string_literal"):
+                # The actual import path
+                module_path = self._get_go_string_value(child, content)
+
+        if not module_path:
+            return None
+
+        # Determine if this is an internal import
+        is_internal = self._is_internal_go_import(module_path)
+
+        return ImportInfo(
+            module=module_path,
+            import_type=import_type,
+            imported_names=[alias] if alias else [],
+            is_relative=is_internal,
+        )
+
+    def _get_go_string_value(self, node, content: str) -> str:
+        """Extract string value from Go string literal."""
+        text = self._get_node_text(node, content)
+        # Remove quotes: "pkg" -> pkg or `pkg` -> pkg
+        if text.startswith('"') and text.endswith('"'):
+            return text[1:-1]
+        elif text.startswith('`') and text.endswith('`'):
+            return text[1:-1]
+        return text
+
+    def _is_internal_go_import(self, module_path: str) -> bool:
+        """Determine if a Go import is internal to the project.
+
+        Standard library and third-party packages are external.
+        Module-relative imports are internal.
+        """
+        # Standard library has no dots in the first segment
+        first_segment = module_path.split("/")[0]
+        if "." not in first_segment:
+            # Likely standard library (fmt, net/http, encoding/json, etc.)
+            return False
+
+        # golang.org/x/* is external
+        if module_path.startswith("golang.org/x/"):
+            return False
+
+        # Common third-party hosting patterns
+        external_prefixes = (
+            "github.com/", "gitlab.com/", "bitbucket.org/",
+            "gopkg.in/", "k8s.io/", "go.uber.org/",
+            "google.golang.org/", "cloud.google.com/",
+        )
+        for prefix in external_prefixes:
+            if module_path.startswith(prefix):
+                return False
+
+        # Assume internal if it doesn't match external patterns
+        return True
+
+    def _extract_go_exports(self, tree, content: str) -> list[str]:
+        """Extract exported identifiers from Go files.
+
+        Go exports any identifier that starts with an uppercase letter.
+        """
+        exports = []
+        root = tree.root_node
+
+        def is_exported(name: str) -> bool:
+            """Check if identifier is exported (starts with uppercase)."""
+            return name and name[0].isupper()
+
+        def traverse(node):
+            # Function declarations
+            if node.type == "function_declaration":
+                name = node.child_by_field_name("name")
+                if name:
+                    func_name = self._get_node_text(name, content)
+                    if is_exported(func_name):
+                        exports.append(func_name)
+
+            # Method declarations
+            elif node.type == "method_declaration":
+                name = node.child_by_field_name("name")
+                if name:
+                    method_name = self._get_node_text(name, content)
+                    if is_exported(method_name):
+                        exports.append(method_name)
+
+            # Type declarations (struct, interface, type alias)
+            elif node.type == "type_declaration":
+                for child in node.children:
+                    if child.type == "type_spec":
+                        type_name = child.child_by_field_name("name")
+                        if type_name:
+                            name = self._get_node_text(type_name, content)
+                            if is_exported(name):
+                                exports.append(name)
+
+            # Const and var declarations
+            elif node.type in ("const_declaration", "var_declaration"):
+                for child in node.children:
+                    if child.type in ("const_spec", "var_spec"):
+                        name_node = child.child_by_field_name("name")
+                        if name_node:
+                            name = self._get_node_text(name_node, content)
+                            if is_exported(name):
+                                exports.append(name)
+
+            for child in node.children:
+                traverse(child)
+
+        traverse(root)
+        return exports
+
+    def _extract_go_functions(self, tree, content: str) -> list[str]:
+        """Extract function and method names from Go files."""
+        functions = []
+        root = tree.root_node
+
+        def traverse(node):
+            # Function declarations: func FunctionName(...) { ... }
+            if node.type == "function_declaration":
+                name = node.child_by_field_name("name")
+                if name:
+                    functions.append(self._get_node_text(name, content))
+
+            # Method declarations: func (r *Receiver) MethodName(...) { ... }
+            elif node.type == "method_declaration":
+                name = node.child_by_field_name("name")
+                if name:
+                    functions.append(self._get_node_text(name, content))
+
+            for child in node.children:
+                traverse(child)
+
+        traverse(root)
+        return functions
+
+    def _extract_go_classes(self, tree, content: str) -> list[str]:
+        """Extract type names from Go files (structs, interfaces, type aliases)."""
+        types = []
+        root = tree.root_node
+
+        def traverse(node):
+            if node.type == "type_declaration":
+                for child in node.children:
+                    if child.type == "type_spec":
+                        name_node = child.child_by_field_name("name")
+                        if name_node:
+                            types.append(self._get_node_text(name_node, content))
+
+            for child in node.children:
+                traverse(child)
+
+        traverse(root)
+        return types
+
+    def _extract_go_calls(
+        self, tree, content: str, file_path: str
+    ) -> list[FunctionCallInfo]:
+        """Extract function call sites from Go files."""
+        calls = []
+        root = tree.root_node
+
+        def traverse(node):
+            if node.type == "call_expression":
+                call_info = self._parse_go_call_expression(node, content, file_path)
+                if call_info:
+                    calls.append(call_info)
+
+            for child in node.children:
+                traverse(child)
+
+        traverse(root)
+        return calls
+
+    def _parse_go_call_expression(
+        self, node, content: str, file_path: str
+    ) -> Optional[FunctionCallInfo]:
+        """Parse a Go call expression node into FunctionCallInfo."""
+        line = node.start_point[0] + 1
+        column = node.start_point[1]
+
+        func_node = node.child_by_field_name("function")
+        if not func_node:
+            return None
+
+        if func_node.type == "identifier":
+            # Direct function call: funcName()
+            name = self._get_node_text(func_node, content)
+            # Skip common built-ins
+            if name in ("make", "new", "len", "cap", "append", "copy", "delete",
+                        "close", "panic", "recover", "print", "println"):
+                return None
+            return FunctionCallInfo(
+                callee_name=name,
+                call_type=CallType.FUNCTION,
+                origin=CallOrigin.LOCAL,
+                source_file=file_path,
+                line_number=line,
+                column=column,
+            )
+
+        elif func_node.type == "selector_expression":
+            # Method call or qualified call: obj.Method() or pkg.Func()
+            field = func_node.child_by_field_name("field")
+            operand = func_node.child_by_field_name("operand")
+            if field:
+                method_name = self._get_node_text(field, content)
+                obj_name = self._get_node_text(operand, content) if operand else None
+
+                # Skip common log calls
+                if obj_name and obj_name.lower() in ("log", "fmt"):
+                    return None
+
+                return FunctionCallInfo(
+                    callee_name=method_name,
+                    qualified_name=f"{obj_name}.{method_name}" if obj_name else method_name,
+                    call_type=CallType.METHOD,
+                    origin=CallOrigin.LOCAL,
+                    source_file=file_path,
+                    line_number=line,
+                    column=column,
+                )
+
+        return None
+
+    def _extract_go_function_definitions(
+        self, tree, content: str, file_path: str, exports: list[str]
+    ) -> list[FunctionDefinition]:
+        """Extract detailed function definitions from Go files."""
+        definitions = []
+        root = tree.root_node
+        file_name = os.path.basename(file_path).rsplit(".", 1)[0]
+        export_set = set(exports)
+
+        def traverse(node):
+            if node.type == "function_declaration":
+                name_node = node.child_by_field_name("name")
+                if name_node:
+                    name = self._get_node_text(name_node, content)
+                    params = node.child_by_field_name("parameters")
+                    param_count = self._count_go_parameters(params) if params else 0
+
+                    is_exported = name[0].isupper() if name else False
+                    qualified = f"{file_name}.{name}"
+
+                    definitions.append(FunctionDefinition(
+                        name=name,
+                        qualified_name=qualified,
+                        function_type=FunctionType.FUNCTION,
+                        file_path=file_path,
+                        start_line=node.start_point[0] + 1,
+                        end_line=node.end_point[0] + 1,
+                        is_exported=is_exported,
+                        is_async=False,  # Go doesn't have async keyword
+                        is_entry_point=self._is_go_entry_point(name, file_path),
+                        parameters_count=param_count,
+                        parent_class=None,
+                    ))
+
+            elif node.type == "method_declaration":
+                name_node = node.child_by_field_name("name")
+                receiver = node.child_by_field_name("receiver")
+                if name_node:
+                    name = self._get_node_text(name_node, content)
+                    receiver_type = self._extract_go_receiver_type(receiver, content)
+                    params = node.child_by_field_name("parameters")
+                    param_count = self._count_go_parameters(params) if params else 0
+
+                    is_exported = name[0].isupper() if name else False
+                    qualified = f"{file_name}.{receiver_type}.{name}" if receiver_type else f"{file_name}.{name}"
+
+                    definitions.append(FunctionDefinition(
+                        name=name,
+                        qualified_name=qualified,
+                        function_type=FunctionType.METHOD,
+                        file_path=file_path,
+                        start_line=node.start_point[0] + 1,
+                        end_line=node.end_point[0] + 1,
+                        is_exported=is_exported,
+                        is_async=False,
+                        is_entry_point=self._is_go_entry_point(name, file_path),
+                        parameters_count=param_count,
+                        parent_class=receiver_type,
+                    ))
+
+            for child in node.children:
+                traverse(child)
+
+        traverse(root)
+        return definitions
+
+    def _count_go_parameters(self, params_node) -> int:
+        """Count parameters in Go function."""
+        if not params_node:
+            return 0
+        count = 0
+        for child in params_node.children:
+            if child.type == "parameter_declaration":
+                count += 1
+        return count
+
+    def _extract_go_receiver_type(self, receiver, content: str) -> Optional[str]:
+        """Extract the receiver type from a method declaration."""
+        if not receiver:
+            return None
+
+        for child in receiver.children:
+            if child.type == "parameter_declaration":
+                type_node = child.child_by_field_name("type")
+                if type_node:
+                    type_text = self._get_node_text(type_node, content)
+                    # Remove pointer prefix if present
+                    return type_text.lstrip("*")
+        return None
+
+    def _is_go_entry_point(self, name: str, file_path: str) -> bool:
+        """Check if function is a Go entry point."""
+        # main function in main package
+        if name == "main" and ("cmd/" in file_path or file_path.endswith("main.go")):
+            return True
+
+        # Common handler patterns
+        handler_patterns = (
+            "Handler", "Handle", "Serve", "Get", "Post", "Put",
+            "Delete", "Patch", "Create", "Update", "List", "Read",
+        )
+        return any(name.endswith(p) or name.startswith(p) for p in handler_patterns)
+
     def walk_directory(
         self,
         directory: str,
@@ -1734,6 +2129,9 @@ class FileParser:
                     "obj",
                     ".vs",
                     "packages",
+                    # Go build directories
+                    "vendor",
+                    "testdata",
                 )
             ]
 
