@@ -2324,3 +2324,349 @@ class TestRustDirectoryWalking:
 
         assert len(files) == 1
         assert not any(".cargo" in f for f in files)
+
+
+# =============== Swift Tests ===============
+
+class TestSwiftImportExtraction:
+    """Tests for Swift import statement extraction."""
+
+    def test_detect_swift_language(self, parser):
+        """Test Swift language detection."""
+        lang = parser.detect_language("Sources/App/AppDelegate.swift")
+        assert lang == Language.SWIFT
+
+    def test_basic_import(self, parser, temp_dir):
+        """Test basic Swift import extraction."""
+        content = """
+import Foundation
+import UIKit
+
+class MyClass {}
+"""
+        file_path = create_temp_file(temp_dir, "test.swift", content)
+        result = parser.parse_file(file_path, temp_dir)
+
+        assert result is not None
+        assert len(result.imports) == 2
+        assert result.imports[0].module == "Foundation"
+        assert result.imports[0].import_type == ImportType.SWIFT_IMPORT
+        assert result.imports[1].module == "UIKit"
+
+    def test_submodule_import(self, parser, temp_dir):
+        """Test Swift submodule import extraction."""
+        content = """
+import UIKit.UIGestureRecognizerSubclass
+import Foundation.NSData
+"""
+        file_path = create_temp_file(temp_dir, "test.swift", content)
+        result = parser.parse_file(file_path, temp_dir)
+
+        assert result is not None
+        assert len(result.imports) == 2
+        assert result.imports[0].module == "UIKit.UIGestureRecognizerSubclass"
+        assert "UIGestureRecognizerSubclass" in result.imports[0].imported_names
+
+    def test_selective_import(self, parser, temp_dir):
+        """Test Swift selective import (import kind Module.Type)."""
+        content = """
+import class UIKit.UIViewController
+import struct Foundation.Data
+import func Darwin.exit
+"""
+        file_path = create_temp_file(temp_dir, "test.swift", content)
+        result = parser.parse_file(file_path, temp_dir)
+
+        assert result is not None
+        assert len(result.imports) == 3
+        assert result.imports[0].module == "UIKit.UIViewController"
+        assert result.imports[0].import_type == ImportType.SWIFT_IMPORT_KIND
+        assert result.imports[1].import_type == ImportType.SWIFT_IMPORT_KIND
+
+    def test_testable_import(self, parser, temp_dir):
+        """Test @testable import extraction."""
+        content = """
+@testable import MyModule
+import XCTest
+"""
+        file_path = create_temp_file(temp_dir, "test.swift", content)
+        result = parser.parse_file(file_path, temp_dir)
+
+        assert result is not None
+        assert len(result.imports) == 2
+        assert result.imports[0].module == "MyModule"
+        assert result.imports[0].import_type == ImportType.SWIFT_TESTABLE_IMPORT
+
+    def test_real_fixture_app_delegate(self, parser):
+        """Test parsing AppDelegate from Swift fixtures."""
+        fixture_path = "tests/fixtures/swift/iosapp/Sources/App/AppDelegate.swift"
+        result = parser.parse_file(fixture_path, "tests/fixtures/swift/iosapp")
+
+        assert result is not None
+        assert result.language == Language.SWIFT
+        assert len(result.imports) == 1
+        assert result.imports[0].module == "UIKit"
+
+    def test_real_fixture_view_model(self, parser):
+        """Test parsing ViewModel from Swift fixtures."""
+        fixture_path = "tests/fixtures/swift/iosapp/Sources/ViewModels/UserViewModel.swift"
+        result = parser.parse_file(fixture_path, "tests/fixtures/swift/iosapp")
+
+        assert result is not None
+        # Foundation and Combine imports
+        assert len(result.imports) == 2
+        modules = [imp.module for imp in result.imports]
+        assert "Foundation" in modules
+        assert "Combine" in modules
+
+
+class TestSwiftFunctionExtraction:
+    """Tests for Swift function extraction."""
+
+    def test_free_function(self, parser, temp_dir):
+        """Test free function extraction."""
+        content = """
+func processData(_ data: Data) -> String {
+    return ""
+}
+
+func fetchUsers() async throws -> [User] {
+    return []
+}
+"""
+        file_path = create_temp_file(temp_dir, "test.swift", content)
+        result = parser.parse_file(file_path, temp_dir)
+
+        assert result is not None
+        assert "processData" in result.functions
+        assert "fetchUsers" in result.functions
+
+    def test_method_extraction(self, parser, temp_dir):
+        """Test class/struct method extraction."""
+        content = """
+class UserService {
+    func fetchUser(id: UUID) -> User? {
+        return nil
+    }
+
+    private func validateInput(_ input: String) -> Bool {
+        return true
+    }
+}
+"""
+        file_path = create_temp_file(temp_dir, "test.swift", content)
+        result = parser.parse_file(file_path, temp_dir)
+
+        assert result is not None
+        assert "fetchUser" in result.functions
+        assert "validateInput" in result.functions
+
+    def test_init_deinit_extraction(self, parser, temp_dir):
+        """Test init and deinit extraction."""
+        content = """
+class Manager {
+    init() {
+        print("init")
+    }
+
+    init(config: Config) {
+        print("init with config")
+    }
+
+    deinit {
+        print("deinit")
+    }
+}
+"""
+        file_path = create_temp_file(temp_dir, "test.swift", content)
+        result = parser.parse_file(file_path, temp_dir)
+
+        assert result is not None
+        assert "init" in result.functions
+        assert "deinit" in result.functions
+
+
+class TestSwiftClassExtraction:
+    """Tests for Swift type (class/struct/enum/protocol) extraction."""
+
+    def test_class_extraction(self, parser, temp_dir):
+        """Test class extraction."""
+        content = """
+class UserService {
+    func fetch() {}
+}
+
+class AppDelegate: UIResponder {}
+"""
+        file_path = create_temp_file(temp_dir, "test.swift", content)
+        result = parser.parse_file(file_path, temp_dir)
+
+        assert result is not None
+        assert "UserService" in result.classes
+        assert "AppDelegate" in result.classes
+
+    def test_struct_extraction(self, parser, temp_dir):
+        """Test struct extraction."""
+        content = """
+struct User: Codable {
+    let id: UUID
+    let name: String
+}
+
+struct Config {
+    var apiKey: String
+}
+"""
+        file_path = create_temp_file(temp_dir, "test.swift", content)
+        result = parser.parse_file(file_path, temp_dir)
+
+        assert result is not None
+        assert "User" in result.classes
+        assert "Config" in result.classes
+
+    def test_enum_extraction(self, parser, temp_dir):
+        """Test enum extraction."""
+        content = """
+enum AppError: Error {
+    case networkError
+    case decodingError
+}
+
+enum UserRole: String {
+    case admin
+    case user
+}
+"""
+        file_path = create_temp_file(temp_dir, "test.swift", content)
+        result = parser.parse_file(file_path, temp_dir)
+
+        assert result is not None
+        assert "AppError" in result.classes
+        assert "UserRole" in result.classes
+
+    def test_protocol_extraction(self, parser, temp_dir):
+        """Test protocol extraction."""
+        content = """
+protocol UserServiceProtocol {
+    func fetchUsers() async throws -> [User]
+}
+
+protocol Configurable {
+    var config: Config { get }
+}
+"""
+        file_path = create_temp_file(temp_dir, "test.swift", content)
+        result = parser.parse_file(file_path, temp_dir)
+
+        assert result is not None
+        assert "UserServiceProtocol" in result.classes
+        assert "Configurable" in result.classes
+
+    def test_actor_extraction(self, parser, temp_dir):
+        """Test actor extraction (Swift concurrency)."""
+        content = """
+actor DataStore {
+    private var cache: [String: Data] = [:]
+
+    func store(_ data: Data, forKey key: String) {
+        cache[key] = data
+    }
+}
+"""
+        file_path = create_temp_file(temp_dir, "test.swift", content)
+        result = parser.parse_file(file_path, temp_dir)
+
+        assert result is not None
+        assert "DataStore" in result.classes
+
+
+class TestSwiftExportExtraction:
+    """Tests for Swift export (public/open) extraction."""
+
+    def test_public_class_export(self, parser, temp_dir):
+        """Test public class extraction."""
+        content = """
+public class UserService {
+    public func fetchUsers() -> [User] { return [] }
+    func internalMethod() {}
+}
+"""
+        file_path = create_temp_file(temp_dir, "test.swift", content)
+        result = parser.parse_file(file_path, temp_dir)
+
+        assert result is not None
+        assert "UserService" in result.exports
+        assert "fetchUsers" in result.exports
+
+    def test_open_class_export(self, parser, temp_dir):
+        """Test open class extraction."""
+        content = """
+open class BaseViewController: UIViewController {
+    open func configure() {}
+}
+"""
+        file_path = create_temp_file(temp_dir, "test.swift", content)
+        result = parser.parse_file(file_path, temp_dir)
+
+        assert result is not None
+        assert "BaseViewController" in result.exports
+        assert "configure" in result.exports
+
+    def test_public_struct_export(self, parser, temp_dir):
+        """Test public struct extraction."""
+        content = """
+public struct User: Codable, Identifiable {
+    public let id: UUID
+    public let name: String
+}
+"""
+        file_path = create_temp_file(temp_dir, "test.swift", content)
+        result = parser.parse_file(file_path, temp_dir)
+
+        assert result is not None
+        assert "User" in result.exports
+
+
+class TestSwiftDirectoryWalking:
+    """Tests for Swift-specific directory walking."""
+
+    def test_walk_directory_with_swift(self, parser, temp_dir):
+        """Test walking directory finds Swift files."""
+        create_temp_file(temp_dir, "Sources/App/AppDelegate.swift", "import UIKit")
+        create_temp_file(temp_dir, "Sources/Models/User.swift", "struct User {}")
+        create_temp_file(temp_dir, "Sources/Views/ContentView.swift", "import SwiftUI")
+
+        files = parser.walk_directory(temp_dir)
+
+        swift_files = [f for f in files if f.endswith(".swift")]
+        assert len(swift_files) == 3
+
+    def test_skip_swift_build_directory(self, parser, temp_dir):
+        """Test that .build directory is skipped (SPM build output)."""
+        create_temp_file(temp_dir, "Sources/main.swift", "print()")
+        create_temp_file(temp_dir, ".build/debug/main.swift", "compiled")
+
+        files = parser.walk_directory(temp_dir)
+
+        assert len(files) == 1
+        assert not any(".build" in f for f in files)
+
+    def test_skip_pods_directory(self, parser, temp_dir):
+        """Test that Pods directory is skipped (CocoaPods)."""
+        create_temp_file(temp_dir, "App/AppDelegate.swift", "import UIKit")
+        create_temp_file(temp_dir, "Pods/Alamofire/Source.swift", "pod code")
+
+        files = parser.walk_directory(temp_dir)
+
+        assert len(files) == 1
+        assert not any("Pods" in f for f in files)
+
+    def test_skip_derived_data_directory(self, parser, temp_dir):
+        """Test that DerivedData directory is skipped (Xcode build)."""
+        create_temp_file(temp_dir, "Sources/App.swift", "import UIKit")
+        create_temp_file(temp_dir, "DerivedData/Build/main.swift", "xcode build")
+
+        files = parser.walk_directory(temp_dir)
+
+        assert len(files) == 1
+        assert not any("DerivedData" in f for f in files)

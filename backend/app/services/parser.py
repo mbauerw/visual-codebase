@@ -46,6 +46,7 @@ class FileParser:
             ".cs": LangEnum.CSHARP,
             ".go": LangEnum.GO,
             ".rs": LangEnum.RUST,
+            ".swift": LangEnum.SWIFT,
         }
 
     def _get_parser_for_extension(self, ext: str) -> Optional[Parser]:
@@ -95,6 +96,10 @@ class FileParser:
             elif ext == ".rs":
                 import tree_sitter_rust as tsrust
                 lang = Language(tsrust.language())
+                parser = Parser(lang)
+            elif ext == ".swift":
+                import tree_sitter_swift as tsswift
+                lang = Language(tsswift.language())
                 parser = Parser(lang)
         except ImportError as e:
             print(f"Warning: Could not load parser for {ext}: {e}")
@@ -171,6 +176,11 @@ class FileParser:
                 exports = self._extract_rust_exports(tree, content)
                 functions = self._extract_rust_functions(tree, content)
                 classes = self._extract_rust_classes(tree, content)
+            elif language == LangEnum.SWIFT:
+                imports = self._extract_swift_imports(tree, content)
+                exports = self._extract_swift_exports(tree, content)
+                functions = self._extract_swift_functions(tree, content)
+                classes = self._extract_swift_classes(tree, content)
             else:  # Python
                 imports = self._extract_python_imports(tree, content)
                 exports = []  # Python exports are implicit
@@ -2314,6 +2324,246 @@ class FileParser:
         first_part = module_path.split("::")[0]
         return first_part not in external_crates
 
+    # ========== Swift Extraction Methods ==========
+
+    def _extract_swift_imports(self, tree, content: str) -> list[ImportInfo]:
+        """Extract import statements from Swift files.
+
+        Swift import syntax:
+        - import Module
+        - import Module.Submodule
+        - import kind Module.Type (where kind is class, struct, func, etc.)
+        - @testable import Module
+        """
+        imports = []
+        root = tree.root_node
+
+        def traverse(node):
+            if node.type == "import_declaration":
+                import_info = self._parse_swift_import(node, content)
+                if import_info:
+                    imports.append(import_info)
+
+            # Recurse into children
+            for child in node.children:
+                traverse(child)
+
+        traverse(root)
+        return imports
+
+    def _parse_swift_import(self, node, content: str) -> Optional[ImportInfo]:
+        """Parse a Swift import declaration node."""
+        # Get the full text of the import statement
+        full_text = content[node.start_byte:node.end_byte].strip()
+
+        # Check for @testable attribute
+        is_testable = "@testable" in full_text
+
+        # Remove @testable if present
+        import_text = full_text
+        if is_testable:
+            import_text = full_text.replace("@testable", "").strip()
+
+        # Remove 'import ' prefix
+        if import_text.startswith("import "):
+            import_text = import_text[7:].strip()
+        else:
+            return None
+
+        # Check for selective import (import kind Module.Type)
+        # Valid kinds: typealias, struct, class, enum, protocol, let, var, func
+        import_kinds = ("typealias", "struct", "class", "enum", "protocol", "let", "var", "func")
+        import_type = ImportType.SWIFT_IMPORT
+        import_kind = None
+
+        for kind in import_kinds:
+            if import_text.startswith(kind + " "):
+                import_kind = kind
+                import_text = import_text[len(kind) + 1:].strip()
+                import_type = ImportType.SWIFT_IMPORT_KIND
+                break
+
+        if is_testable:
+            import_type = ImportType.SWIFT_TESTABLE_IMPORT
+
+        # Extract module path and imported names
+        module_path = import_text
+        imported_names = []
+
+        # For submodule imports like UIKit.UIColor, split to get the specific import
+        if "." in module_path:
+            parts = module_path.split(".")
+            imported_names = [parts[-1]]
+        else:
+            imported_names = [module_path]
+
+        if import_kind:
+            imported_names = [import_kind + " " + (imported_names[0] if imported_names else module_path)]
+
+        return ImportInfo(
+            module=module_path,
+            import_type=import_type,
+            imported_names=imported_names,
+            is_relative=False,  # Swift imports are always absolute module references
+        )
+
+    def _extract_swift_exports(self, tree, content: str) -> list[str]:
+        """Extract public/open items from Swift files.
+
+        Swift access modifiers:
+        - open: Most permissive, allows subclassing/overriding outside module
+        - public: Accessible outside module, but can't subclass/override
+        - internal: Default, accessible within module
+        - fileprivate: Accessible within file
+        - private: Accessible within enclosing declaration
+        """
+        exports = []
+        root = tree.root_node
+
+        def traverse(node):
+            # Check various declaration types for public/open visibility
+            declaration_types = (
+                "class_declaration",
+                "struct_declaration",
+                "enum_declaration",
+                "protocol_declaration",
+                "actor_declaration",
+                "function_declaration",
+                "property_declaration",
+                "typealias_declaration",
+            )
+
+            if node.type in declaration_types:
+                is_exported = False
+                name = None
+
+                # Check modifiers for public/open
+                for child in node.children:
+                    if child.type == "modifiers":
+                        modifier_text = content[child.start_byte:child.end_byte].lower()
+                        if "public" in modifier_text or "open" in modifier_text:
+                            is_exported = True
+                    elif child.type == "simple_identifier":
+                        name = content[child.start_byte:child.end_byte]
+                    elif child.type == "type_identifier" and not name:
+                        name = content[child.start_byte:child.end_byte]
+
+                if is_exported and name:
+                    exports.append(name)
+
+            # Recurse into children (but skip function/method bodies)
+            if node.type not in ("function_body", "statements", "code_block"):
+                for child in node.children:
+                    traverse(child)
+
+        traverse(root)
+        return exports
+
+    def _extract_swift_functions(self, tree, content: str) -> list[str]:
+        """Extract function and method names from Swift files."""
+        functions = []
+        root = tree.root_node
+
+        def traverse(node, in_type: bool = False):
+            if node.type == "function_declaration":
+                for child in node.children:
+                    if child.type == "simple_identifier":
+                        name = content[child.start_byte:child.end_byte]
+                        functions.append(name)
+                        break
+
+            elif node.type == "init_declaration":
+                functions.append("init")
+
+            elif node.type == "deinit_declaration":
+                functions.append("deinit")
+
+            elif node.type == "subscript_declaration":
+                functions.append("subscript")
+
+            # Track when entering a type for method context
+            elif node.type in ("class_declaration", "struct_declaration",
+                              "enum_declaration", "protocol_declaration",
+                              "extension_declaration", "actor_declaration"):
+                for child in node.children:
+                    traverse(child, in_type=True)
+                return  # Don't double-traverse
+
+            # Recurse
+            for child in node.children:
+                traverse(child, in_type)
+
+        traverse(root)
+        return functions
+
+    def _extract_swift_classes(self, tree, content: str) -> list[str]:
+        """Extract class, struct, enum, protocol, and actor names from Swift files."""
+        classes = []
+        root = tree.root_node
+
+        def traverse(node):
+            type_declarations = (
+                "class_declaration",
+                "struct_declaration",
+                "enum_declaration",
+                "protocol_declaration",
+                "actor_declaration",
+                "extension_declaration",
+            )
+
+            if node.type in type_declarations:
+                for child in node.children:
+                    if child.type in ("simple_identifier", "type_identifier"):
+                        name = content[child.start_byte:child.end_byte]
+                        classes.append(name)
+                        break
+
+            # Recurse (but skip bodies)
+            if node.type not in ("class_body", "protocol_body", "enum_class_body"):
+                for child in node.children:
+                    traverse(child)
+
+        traverse(root)
+        return classes
+
+    def _is_swift_system_framework(self, module_name: str) -> bool:
+        """Check if a Swift import is a system/Apple framework."""
+        apple_frameworks = (
+            # Foundation & Core
+            "Foundation", "CoreFoundation", "Swift", "Darwin", "Dispatch",
+            "os", "ObjectiveC", "Combine", "Observation",
+            # UI Frameworks
+            "UIKit", "SwiftUI", "AppKit", "WatchKit", "WidgetKit",
+            "CoreGraphics", "CoreAnimation", "QuartzCore", "CoreImage",
+            # Data & Persistence
+            "CoreData", "SwiftData", "CloudKit", "FileProvider",
+            # Networking & Web
+            "Network", "CFNetwork", "WebKit", "LinkPresentation",
+            # Media
+            "AVFoundation", "AVKit", "CoreMedia", "CoreAudio", "AudioToolbox",
+            "MediaPlayer", "PhotosUI", "Photos", "Vision", "CoreVideo",
+            # Location & Maps
+            "CoreLocation", "MapKit", "CoreMotion",
+            # System Services
+            "UserNotifications", "NotificationCenter", "EventKit", "Contacts",
+            "ContactsUI", "MessageUI", "Messages", "StoreKit", "GameKit",
+            # Security & Crypto
+            "Security", "CryptoKit", "LocalAuthentication",
+            # Hardware & Sensors
+            "CoreBluetooth", "CoreNFC", "ARKit", "RealityKit",
+            # ML & Intelligence
+            "CoreML", "NaturalLanguage", "CreateML", "SoundAnalysis",
+            # Testing
+            "XCTest", "Testing",
+            # Other Apple frameworks
+            "HealthKit", "HomeKit", "SiriKit", "Intents", "IntentsUI",
+            "CallKit", "PushKit", "CarPlay", "CoreTelephony",
+            "MetricKit", "OSLog", "Accelerate", "simd",
+        )
+        # Get the base module name (before any dots)
+        base_module = module_name.split(".")[0]
+        return base_module in apple_frameworks
+
     def walk_directory(
         self,
         directory: str,
@@ -2370,6 +2620,13 @@ class FileParser:
                     "testdata",
                     # Rust build directories
                     ".cargo",
+                    # Swift/iOS build directories
+                    ".build",
+                    ".swiftpm",
+                    "DerivedData",
+                    "Pods",
+                    "Carthage",
+                    "xcuserdata",
                 )
             ]
 

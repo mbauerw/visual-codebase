@@ -16,6 +16,7 @@ tree-sitter-java>=0.23.0
 tree-sitter-c-sharp>=0.23.0
 tree-sitter-go>=0.23.0
 tree-sitter-rust>=0.23.0
+tree-sitter-swift>=0.6.0
 
 # Anthropic API for LLM (0.26+ required for tool use support)
 anthropic>=0.26.0

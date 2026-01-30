@@ -40,6 +40,9 @@ class GraphBuilder:
         # Rust module resolution
         self._rust_crate_root: Optional[str] = None  # Path to lib.rs or main.rs
         self._rust_module_tree: dict[str, str] = {}  # Maps module path to file path
+        # Swift type resolution
+        self._swift_type_to_file: dict[str, str] = {}  # Maps type name to file path
+        self._swift_module_name: Optional[str] = None  # Inferred module name
 
     def _generate_node_id(self, path: str) -> str:
         """Generate a stable node ID from a file path."""
@@ -435,6 +438,80 @@ class GraphBuilder:
 
         return None
 
+    # ========== Swift Resolution Methods ==========
+
+    def _build_swift_type_index(
+        self, all_files: dict[str, ParsedFile]
+    ) -> dict[str, str]:
+        """Build an index mapping Swift type names to file paths.
+
+        Swift doesn't have a strict file-to-module mapping like Java.
+        Types within the same module can be referenced without imports.
+        We index type names to help resolve @testable imports and
+        cross-file references within the same project.
+        """
+        type_to_file: dict[str, str] = {}
+
+        for file_path, parsed_file in all_files.items():
+            if not file_path.endswith(".swift"):
+                continue
+
+            # Index all classes/structs/enums/protocols
+            for type_name in parsed_file.classes:
+                if type_name not in type_to_file:
+                    type_to_file[type_name] = file_path
+
+        return type_to_file
+
+    def _infer_swift_module_name(self, all_files: dict[str, ParsedFile]) -> Optional[str]:
+        """Infer the Swift module name from project structure.
+
+        Look for common indicators:
+        - Package.swift (SPM)
+        - Sources/ModuleName/ directory
+        """
+        for file_path in all_files.keys():
+            if file_path.endswith(".swift"):
+                # Check for Sources/ModuleName/ pattern
+                normalized = file_path.replace("\\", "/")
+                if "Sources/" in normalized:
+                    parts = normalized.split("Sources/")
+                    if len(parts) > 1:
+                        module_part = parts[1].split("/")[0]
+                        if module_part and not module_part.startswith("."):
+                            return module_part
+        return None
+
+    def _resolve_swift_import(
+        self,
+        import_module: str,
+        all_files: dict[str, ParsedFile],
+    ) -> Optional[str]:
+        """Resolve a Swift import to file paths.
+
+        Swift imports work at the module level, not file level.
+        We can only resolve:
+        1. Internal module references (same project)
+        2. Specific type imports (import class Module.Type)
+        """
+        # Check if this is our inferred module name
+        base_module = import_module.split(".")[0]
+        if self._swift_module_name and base_module == self._swift_module_name:
+            # This is an internal import - check for specific type
+            if "." in import_module:
+                type_name = import_module.split(".")[-1]
+                if type_name in self._swift_type_to_file:
+                    return self._swift_type_to_file[type_name]
+            return None  # Module-level import, no specific file
+
+        # Try direct type name lookup (for selective imports)
+        if "." in import_module:
+            type_name = import_module.split(".")[-1]
+            if type_name in self._swift_type_to_file:
+                return self._swift_type_to_file[type_name]
+
+        return None
+
     def _resolve_import_path(
         self,
         import_module: str,
@@ -494,6 +571,34 @@ class GraphBuilder:
             # C# using directives can resolve to multiple files, return first match
             resolved = self._resolve_csharp_using(import_module, all_files)
             return resolved[0] if resolved else None
+
+        # Handle Swift imports (module-based)
+        if source_file_path.endswith(".swift"):
+            # Skip Apple system frameworks
+            apple_frameworks = (
+                "Foundation", "CoreFoundation", "Swift", "Darwin", "Dispatch",
+                "os", "ObjectiveC", "Combine", "Observation",
+                "UIKit", "SwiftUI", "AppKit", "WatchKit", "WidgetKit",
+                "CoreGraphics", "CoreAnimation", "QuartzCore", "CoreImage",
+                "CoreData", "SwiftData", "CloudKit", "FileProvider",
+                "Network", "CFNetwork", "WebKit", "LinkPresentation",
+                "AVFoundation", "AVKit", "CoreMedia", "CoreAudio", "AudioToolbox",
+                "MediaPlayer", "PhotosUI", "Photos", "Vision", "CoreVideo",
+                "CoreLocation", "MapKit", "CoreMotion",
+                "UserNotifications", "NotificationCenter", "EventKit", "Contacts",
+                "ContactsUI", "MessageUI", "Messages", "StoreKit", "GameKit",
+                "Security", "CryptoKit", "LocalAuthentication",
+                "CoreBluetooth", "CoreNFC", "ARKit", "RealityKit",
+                "CoreML", "NaturalLanguage", "CreateML", "SoundAnalysis",
+                "XCTest", "Testing",
+                "HealthKit", "HomeKit", "SiriKit", "Intents", "IntentsUI",
+                "CallKit", "PushKit", "CarPlay", "CoreTelephony",
+                "MetricKit", "OSLog", "Accelerate", "simd",
+            )
+            base_module = import_module.split(".")[0]
+            if base_module in apple_frameworks:
+                return None
+            return self._resolve_swift_import(import_module, all_files)
 
         # Skip external packages for JS/TS/Python
         if not import_module.startswith("."):
@@ -739,6 +844,15 @@ class GraphBuilder:
         else:
             self._rust_crate_root = None
             self._rust_module_tree = {}
+
+        # Initialize Swift-specific indices if Swift files are present
+        has_swift = any(pf.relative_path.endswith(".swift") for pf in parsed_files)
+        if has_swift:
+            self._swift_type_to_file = self._build_swift_type_index(files_by_path)
+            self._swift_module_name = self._infer_swift_module_name(files_by_path)
+        else:
+            self._swift_type_to_file = {}
+            self._swift_module_name = None
 
         nodes = self.build_nodes(parsed_files, llm_analysis)
         edges = self.build_edges(parsed_files, base_path)

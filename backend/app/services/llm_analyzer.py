@@ -80,6 +80,7 @@ class LLMAnalyzer:
            - C# specific: extension, record, delegate
            - Go: go_handler, go_middleware, go_repository, go_service, go_model, go_cmd, go_pkg, go_internal, go_transport, go_config, go_util
            - Rust: rust_lib, rust_bin, rust_mod, rust_trait, rust_impl, rust_handler, rust_error, rust_macro, rust_types, rust_tests
+           - Swift/iOS: swift_view_controller, swift_ui_view, swift_app_delegate, swift_protocol, swift_extension, swift_coordinator, swift_view_model, swift_data_source, swift_network_service, swift_core_data, swift_observable
            - unknown (if none fit)
         2. description: 1-3 sentence description of what this file does. Base this on the function names, class names, and imports. Be specific - mention key functions/classes by name when relevant. Do not just describe the file path.
         3. category: High-level category. Use one of: frontend, backend, shared, infrastructure, test, config, unknown
@@ -132,6 +133,22 @@ class LLMAnalyzer:
         - rust_macro: Macro definitions (macro_rules!)
         - rust_types: Type definitions, models (types.rs, models.rs, structs)
         - rust_tests: Test modules (tests/, #[cfg(test)], *_test.rs)
+
+        For Swift files, consider these role mappings:
+        - swift_view_controller: UIViewController subclasses, *ViewController.swift
+        - swift_ui_view: SwiftUI View structs, files importing SwiftUI with View conformance
+        - swift_app_delegate: AppDelegate.swift, SceneDelegate.swift, @main/@UIApplicationMain
+        - swift_protocol: Protocol definitions (*Protocol.swift, primarily protocol keyword)
+        - swift_extension: Extension-only files (extension keyword, *+Extension.swift)
+        - swift_coordinator: Coordinator pattern (*Coordinator.swift, navigation coordinators)
+        - swift_view_model: *ViewModel.swift, @Published/@Observable properties
+        - swift_data_source: UITableViewDataSource, UICollectionViewDataSource implementations
+        - swift_network_service: URLSession-based networking, API clients (*Service.swift, *API.swift)
+        - swift_core_data: NSManagedObject subclasses, Core Data models
+        - swift_observable: @Observable/@ObservableObject classes
+        - model: Plain data structs/classes, Codable types (*Model.swift, models/)
+        - utility: Helper extensions, utility functions (utils/, helpers/)
+        - test: XCTest classes (*Tests.swift, *Spec.swift)
 
         Return ONLY a valid JSON array with no additional text. Format:
         [{{"filename": "example.ts", "architectural_role": "utility", "description": "Provides helper functions for...", "category": "shared"}}]
@@ -414,6 +431,69 @@ class LLMAnalyzer:
             # Macro files
             if name_without_ext.endswith("_macro") or name_without_ext == "macros":
                 return ArchitecturalRole.RUST_MACRO
+
+        # Swift-specific patterns
+        is_swift = name.endswith(".swift")
+        if is_swift:
+            # Test files
+            if name_without_ext.endswith("tests") or name_without_ext.endswith("spec") or "/tests/" in path_lower:
+                return ArchitecturalRole.TEST
+
+            # App Delegate / Scene Delegate
+            if name_without_ext in ("appdelegate", "scenedelegate"):
+                return ArchitecturalRole.SWIFT_APP_DELEGATE
+
+            # View Controller pattern
+            if name_without_ext.endswith("viewcontroller") or "viewcontrollers/" in path_lower:
+                return ArchitecturalRole.SWIFT_VIEW_CONTROLLER
+
+            # SwiftUI View pattern (check for View in name or views/ directory)
+            if name_without_ext.endswith("view") and "views/" in path_lower:
+                return ArchitecturalRole.SWIFT_UI_VIEW
+            if "swiftui" in path_lower:
+                return ArchitecturalRole.SWIFT_UI_VIEW
+
+            # View Model pattern (MVVM)
+            if name_without_ext.endswith("viewmodel") or "viewmodels/" in path_lower:
+                return ArchitecturalRole.SWIFT_VIEW_MODEL
+
+            # Coordinator pattern
+            if name_without_ext.endswith("coordinator") or "coordinators/" in path_lower:
+                return ArchitecturalRole.SWIFT_COORDINATOR
+
+            # Network/API Service pattern
+            if any(x in name_without_ext for x in ("apiservice", "networkservice", "apimanager", "apiclient")):
+                return ArchitecturalRole.SWIFT_NETWORK_SERVICE
+            if "networking/" in path_lower or "network/" in path_lower:
+                return ArchitecturalRole.SWIFT_NETWORK_SERVICE
+
+            # Protocol pattern
+            if "protocols/" in path_lower or name_without_ext.endswith("protocol"):
+                return ArchitecturalRole.SWIFT_PROTOCOL
+
+            # Extension pattern (Swift extensions)
+            if "extensions/" in path_lower or "+extension" in name_without_ext or name_without_ext.endswith("extensions"):
+                return ArchitecturalRole.SWIFT_EXTENSION
+
+            # Core Data pattern
+            if "coredata/" in path_lower or name_without_ext.endswith("entity") or "entities/" in path_lower:
+                return ArchitecturalRole.SWIFT_CORE_DATA
+
+            # Data Source pattern
+            if name_without_ext.endswith("datasource") or "datasources/" in path_lower:
+                return ArchitecturalRole.SWIFT_DATA_SOURCE
+
+            # Model pattern
+            if "models/" in path_lower or name_without_ext.endswith("model"):
+                return ArchitecturalRole.MODEL
+
+            # Service pattern (generic)
+            if name_without_ext.endswith("service") or "services/" in path_lower:
+                return ArchitecturalRole.API_SERVICE
+
+            # Utility pattern
+            if "utils/" in path_lower or "helpers/" in path_lower:
+                return ArchitecturalRole.UTILITY
 
         # Directory-based patterns (check BEFORE extension/naming patterns)
 

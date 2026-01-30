@@ -16,6 +16,7 @@ class Language(str, Enum):
     CSHARP = "csharp"
     GO = "go"
     RUST = "rust"
+    SWIFT = "swift"
     UNKNOWN = "unknown"
 
 
@@ -46,6 +47,10 @@ class ImportType(str, Enum):
     USE_SELF = "use_self"
     EXTERN_CRATE = "extern_crate"
     MOD = "mod"
+    # Swift
+    SWIFT_IMPORT = "swift_import"
+    SWIFT_IMPORT_KIND = "swift_import_kind"  # import class/struct/func/etc.
+    SWIFT_TESTABLE_IMPORT = "swift_testable_import"
 
 
 class ArchitecturalRole(str, Enum):
@@ -101,6 +106,18 @@ class ArchitecturalRole(str, Enum):
     RUST_MACRO = "rust_macro"
     RUST_TYPES = "rust_types"
     RUST_TESTS = "rust_tests"
+    # Swift/iOS specific roles
+    SWIFT_VIEW_CONTROLLER = "swift_view_controller"
+    SWIFT_UI_VIEW = "swift_ui_view"
+    SWIFT_APP_DELEGATE = "swift_app_delegate"
+    SWIFT_PROTOCOL = "swift_protocol"
+    SWIFT_EXTENSION = "swift_extension"
+    SWIFT_COORDINATOR = "swift_coordinator"
+    SWIFT_VIEW_MODEL = "swift_view_model"
+    SWIFT_DATA_SOURCE = "swift_data_source"
+    SWIFT_NETWORK_SERVICE = "swift_network_service"
+    SWIFT_CORE_DATA = "swift_core_data"
+    SWIFT_OBSERVABLE = "swift_observable"
     UNKNOWN = "unknown"
 
 
