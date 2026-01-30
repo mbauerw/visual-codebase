@@ -5,7 +5,7 @@ const howItWorksSteps = [
   {
     number: 1,
     title: 'Point to Your Project',
-    description: 'Enter the path to your project directory. We support JavaScript, TypeScript, and Python.',
+    description: 'Enter the path to your project directory. We support JavaScript, TypeScript, Python, Java, C#, Go, Rust, and Swift.',
     gradientFrom: '#FF9A9D',
     gradientTo: '#FF9A9D',
     image: '/upload-cr.png'

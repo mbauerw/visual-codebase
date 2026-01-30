@@ -861,6 +861,10 @@ class FileParser:
             return self._extract_csharp_calls(tree, content, file_path)
         elif language == LangEnum.GO:
             return self._extract_go_calls(tree, content, file_path)
+        elif language == LangEnum.RUST:
+            return self._extract_rust_calls(tree, content, file_path)
+        elif language == LangEnum.SWIFT:
+            return self._extract_swift_calls(tree, content, file_path)
 
         return []
 
@@ -887,6 +891,10 @@ class FileParser:
             return self._extract_csharp_function_definitions(tree, content, file_path, exports)
         elif language == LangEnum.GO:
             return self._extract_go_function_definitions(tree, content, file_path, exports)
+        elif language == LangEnum.RUST:
+            return self._extract_rust_function_definitions(tree, content, file_path, exports)
+        elif language == LangEnum.SWIFT:
+            return self._extract_swift_function_definitions(tree, content, file_path, exports)
 
         return []
 
@@ -2525,6 +2533,399 @@ class FileParser:
 
         traverse(root)
         return classes
+
+    # ========== Rust Function Call/Definition Extraction ==========
+
+    def _extract_rust_calls(
+        self, tree, content: str, file_path: str
+    ) -> list[FunctionCallInfo]:
+        """Extract function call sites from Rust files."""
+        calls = []
+        root = tree.root_node
+
+        def traverse(node):
+            if node.type == "call_expression":
+                call_info = self._parse_rust_call(node, content, file_path)
+                if call_info:
+                    calls.append(call_info)
+
+            # Also check macro invocations
+            elif node.type == "macro_invocation":
+                macro_info = self._parse_rust_macro_call(node, content, file_path)
+                if macro_info:
+                    calls.append(macro_info)
+
+            for child in node.children:
+                traverse(child)
+
+        traverse(root)
+        return calls
+
+    def _parse_rust_call(
+        self, node, content: str, file_path: str
+    ) -> Optional[FunctionCallInfo]:
+        """Parse a Rust call expression."""
+        line = node.start_point[0] + 1
+        column = node.start_point[1]
+
+        # Get the function being called
+        func_node = None
+        for child in node.children:
+            if child.type in ("identifier", "field_expression", "scoped_identifier"):
+                func_node = child
+                break
+
+        if not func_node:
+            return None
+
+        callee_text = content[func_node.start_byte:func_node.end_byte]
+
+        # Skip common Rust built-ins
+        skip_functions = (
+            "println", "print", "eprintln", "eprint", "dbg",
+            "format", "panic", "assert", "assert_eq", "assert_ne",
+            "debug_assert", "debug_assert_eq", "debug_assert_ne",
+            "todo", "unimplemented", "unreachable",
+            "vec", "Box", "Rc", "Arc", "Some", "None", "Ok", "Err",
+        )
+        base_name = callee_text.split("::")[-1].split(".")[0]
+        if base_name in skip_functions:
+            return None
+
+        # Determine call type
+        if "." in callee_text:
+            # Method call: object.method()
+            parts = callee_text.rsplit(".", 1)
+            return FunctionCallInfo(
+                callee_name=parts[-1],
+                qualified_name=callee_text,
+                call_type=CallType.METHOD,
+                origin=CallOrigin.LOCAL,
+                source_file=file_path,
+                line_number=line,
+                column=column,
+            )
+        elif "::" in callee_text:
+            # Qualified path call: Module::function() or Type::method()
+            parts = callee_text.split("::")
+            return FunctionCallInfo(
+                callee_name=parts[-1],
+                qualified_name=callee_text,
+                call_type=CallType.STATIC_METHOD,
+                origin=CallOrigin.LOCAL,
+                source_file=file_path,
+                line_number=line,
+                column=column,
+            )
+        else:
+            # Direct function call
+            return FunctionCallInfo(
+                callee_name=callee_text,
+                call_type=CallType.FUNCTION,
+                origin=CallOrigin.LOCAL,
+                source_file=file_path,
+                line_number=line,
+                column=column,
+            )
+
+    def _parse_rust_macro_call(
+        self, node, content: str, file_path: str
+    ) -> Optional[FunctionCallInfo]:
+        """Parse a Rust macro invocation."""
+        line = node.start_point[0] + 1
+        column = node.start_point[1]
+
+        # Get macro name
+        macro_name = None
+        for child in node.children:
+            if child.type == "identifier":
+                macro_name = content[child.start_byte:child.end_byte]
+                break
+
+        if not macro_name:
+            return None
+
+        # Skip common logging/debug macros
+        skip_macros = (
+            "println", "print", "eprintln", "eprint", "dbg",
+            "format", "panic", "assert", "assert_eq", "assert_ne",
+            "debug_assert", "debug_assert_eq", "debug_assert_ne",
+            "todo", "unimplemented", "unreachable",
+            "vec", "include_str", "include_bytes", "concat", "stringify",
+            "env", "option_env", "cfg", "line", "column", "file",
+        )
+        if macro_name in skip_macros:
+            return None
+
+        return FunctionCallInfo(
+            callee_name=macro_name + "!",
+            call_type=CallType.FUNCTION,
+            origin=CallOrigin.LOCAL,
+            source_file=file_path,
+            line_number=line,
+            column=column,
+        )
+
+    def _extract_rust_function_definitions(
+        self, tree, content: str, file_path: str, exports: list[str]
+    ) -> list[FunctionDefinition]:
+        """Extract detailed function definitions from Rust files."""
+        definitions = []
+        root = tree.root_node
+        file_name = os.path.basename(file_path).rsplit(".", 1)[0]
+        export_set = set(exports)
+
+        def traverse(node, parent_type: Optional[str] = None):
+            if node.type == "function_item":
+                func_name = None
+                is_async = False
+                param_count = 0
+
+                for child in node.children:
+                    if child.type == "identifier":
+                        func_name = content[child.start_byte:child.end_byte]
+                    elif child.type == "parameters":
+                        param_count = sum(1 for c in child.children if c.type == "parameter")
+                    elif child.type == "function_modifiers":
+                        modifier_text = content[child.start_byte:child.end_byte]
+                        if "async" in modifier_text:
+                            is_async = True
+
+                if func_name:
+                    qualified = f"{file_name}.{parent_type}.{func_name}" if parent_type else f"{file_name}.{func_name}"
+                    is_exported = func_name in export_set or (parent_type in export_set if parent_type else False)
+
+                    definitions.append(FunctionDefinition(
+                        name=func_name,
+                        qualified_name=qualified,
+                        function_type=FunctionType.METHOD if parent_type else FunctionType.FUNCTION,
+                        file_path=file_path,
+                        start_line=node.start_point[0] + 1,
+                        end_line=node.end_point[0] + 1,
+                        is_exported=is_exported,
+                        is_async=is_async,
+                        is_entry_point=self._is_rust_entry_point(func_name),
+                        parameters_count=param_count,
+                        parent_class=parent_type,
+                    ))
+
+            # Track impl blocks for method context
+            elif node.type == "impl_item":
+                impl_type = None
+                for child in node.children:
+                    if child.type == "type_identifier":
+                        impl_type = content[child.start_byte:child.end_byte]
+                        break
+                if impl_type:
+                    for child in node.children:
+                        if child.type == "declaration_list":
+                            for impl_child in child.children:
+                                traverse(impl_child, parent_type=impl_type)
+                    return
+
+            for child in node.children:
+                traverse(child, parent_type)
+
+        traverse(root)
+        return definitions
+
+    def _is_rust_entry_point(self, func_name: str) -> bool:
+        """Check if a Rust function is an entry point."""
+        entry_points = ("main", "tokio::main", "actix_main", "rocket::main")
+        return func_name in entry_points
+
+    # ========== Swift Function Call/Definition Extraction ==========
+
+    def _extract_swift_calls(
+        self, tree, content: str, file_path: str
+    ) -> list[FunctionCallInfo]:
+        """Extract function call sites from Swift files."""
+        calls = []
+        root = tree.root_node
+
+        def traverse(node):
+            if node.type == "call_expression":
+                call_info = self._parse_swift_call(node, content, file_path)
+                if call_info:
+                    calls.append(call_info)
+
+            for child in node.children:
+                traverse(child)
+
+        traverse(root)
+        return calls
+
+    def _parse_swift_call(
+        self, node, content: str, file_path: str
+    ) -> Optional[FunctionCallInfo]:
+        """Parse a Swift call expression."""
+        line = node.start_point[0] + 1
+        column = node.start_point[1]
+
+        # Get the callee (function being called)
+        callee = None
+        for child in node.children:
+            if child.type in ("simple_identifier", "navigation_expression"):
+                callee = child
+                break
+
+        if not callee:
+            return None
+
+        callee_text = content[callee.start_byte:callee.end_byte]
+
+        # Skip common Swift/iOS built-ins
+        skip_functions = (
+            "print", "debugPrint", "dump", "fatalError", "precondition",
+            "assert", "assertionFailure", "preconditionFailure",
+            "NSLog", "os_log",
+        )
+        base_name = callee_text.split(".")[0]
+        if base_name in skip_functions:
+            return None
+
+        # Determine call type
+        if "." in callee_text:
+            # Method call or property access: object.method()
+            parts = callee_text.rsplit(".", 1)
+            return FunctionCallInfo(
+                callee_name=parts[-1],
+                qualified_name=callee_text,
+                call_type=CallType.METHOD,
+                origin=CallOrigin.LOCAL,
+                source_file=file_path,
+                line_number=line,
+                column=column,
+            )
+        else:
+            # Direct function call or initializer
+            # Check if it looks like an initializer (capitalized)
+            if callee_text and callee_text[0].isupper():
+                return FunctionCallInfo(
+                    callee_name=callee_text,
+                    call_type=CallType.CONSTRUCTOR,
+                    origin=CallOrigin.LOCAL,
+                    source_file=file_path,
+                    line_number=line,
+                    column=column,
+                )
+            else:
+                return FunctionCallInfo(
+                    callee_name=callee_text,
+                    call_type=CallType.FUNCTION,
+                    origin=CallOrigin.LOCAL,
+                    source_file=file_path,
+                    line_number=line,
+                    column=column,
+                )
+
+    def _extract_swift_function_definitions(
+        self, tree, content: str, file_path: str, exports: list[str]
+    ) -> list[FunctionDefinition]:
+        """Extract detailed function definitions from Swift files."""
+        definitions = []
+        root = tree.root_node
+        file_name = os.path.basename(file_path).rsplit(".", 1)[0]
+        export_set = set(exports)
+
+        def traverse(node, parent_type: Optional[str] = None):
+            if node.type == "function_declaration":
+                func_name = None
+                is_async = False
+                param_count = 0
+
+                for child in node.children:
+                    if child.type == "simple_identifier":
+                        func_name = content[child.start_byte:child.end_byte]
+                    elif child.type == "modifiers":
+                        modifier_text = content[child.start_byte:child.end_byte]
+                        if "async" in modifier_text:
+                            is_async = True
+                    elif child.type == "function_value_parameters":
+                        param_count = sum(1 for c in child.children if c.type == "parameter")
+
+                if func_name:
+                    qualified = f"{file_name}.{parent_type}.{func_name}" if parent_type else f"{file_name}.{func_name}"
+                    is_exported = func_name in export_set or (parent_type in export_set if parent_type else False)
+
+                    definitions.append(FunctionDefinition(
+                        name=func_name,
+                        qualified_name=qualified,
+                        function_type=FunctionType.METHOD if parent_type else FunctionType.FUNCTION,
+                        file_path=file_path,
+                        start_line=node.start_point[0] + 1,
+                        end_line=node.end_point[0] + 1,
+                        is_exported=is_exported,
+                        is_async=is_async,
+                        is_entry_point=self._is_swift_entry_point(func_name, node, content),
+                        parameters_count=param_count,
+                        parent_class=parent_type,
+                    ))
+
+            elif node.type == "init_declaration":
+                param_count = 0
+                for child in node.children:
+                    if child.type == "function_value_parameters":
+                        param_count = sum(1 for c in child.children if c.type == "parameter")
+
+                qualified = f"{file_name}.{parent_type}.init" if parent_type else f"{file_name}.init"
+
+                definitions.append(FunctionDefinition(
+                    name="init",
+                    qualified_name=qualified,
+                    function_type=FunctionType.CONSTRUCTOR,
+                    file_path=file_path,
+                    start_line=node.start_point[0] + 1,
+                    end_line=node.end_point[0] + 1,
+                    is_exported=parent_type in export_set if parent_type else False,
+                    is_async=False,
+                    is_entry_point=False,
+                    parameters_count=param_count,
+                    parent_class=parent_type,
+                ))
+
+            # Track type declarations for parent context
+            elif node.type in ("class_declaration", "struct_declaration",
+                              "enum_declaration", "actor_declaration"):
+                type_name = None
+                for child in node.children:
+                    if child.type in ("simple_identifier", "type_identifier"):
+                        type_name = content[child.start_byte:child.end_byte]
+                        break
+                if type_name:
+                    for child in node.children:
+                        traverse(child, parent_type=type_name)
+                    return
+
+            for child in node.children:
+                traverse(child, parent_type)
+
+        traverse(root)
+        return definitions
+
+    def _is_swift_entry_point(self, func_name: str, node, content: str) -> bool:
+        """Check if a Swift function is an entry point."""
+        # Main entry point
+        if func_name == "main":
+            return True
+
+        # App lifecycle methods
+        lifecycle_methods = (
+            "application", "applicationDidFinishLaunching",
+            "applicationWillTerminate", "scene", "sceneDidBecomeActive",
+            "viewDidLoad", "viewWillAppear", "viewDidAppear",
+        )
+        if func_name in lifecycle_methods:
+            return True
+
+        # Check for @main attribute
+        for child in node.children:
+            if child.type == "modifiers":
+                modifier_text = content[child.start_byte:child.end_byte]
+                if "@main" in modifier_text or "@UIApplicationMain" in modifier_text:
+                    return True
+
+        return False
 
     def _is_swift_system_framework(self, module_name: str) -> bool:
         """Check if a Swift import is a system/Apple framework."""

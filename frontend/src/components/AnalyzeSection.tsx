@@ -240,8 +240,8 @@ export default function AnalyzeSection({
           {/* Supported Languages */}
           <div className="mt-8 pt-8 border-t border-gray-100">
             <p className="text-sm text-gray-500 text-center">
-              <span className="font-medium text-gray-700">Supported:</span> JavaScript
-              (.js, .jsx), TypeScript (.ts, .tsx), Python (.py)
+              <span className="font-medium text-gray-700">Supported:</span> JavaScript,
+              TypeScript, Python, Java, C#, Go, Rust, Swift
             </p>
           </div>
         </div>

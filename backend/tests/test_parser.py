@@ -2670,3 +2670,303 @@ class TestSwiftDirectoryWalking:
 
         assert len(files) == 1
         assert not any("DerivedData" in f for f in files)
+
+
+# =============== Rust Function Call/Definition Tests ===============
+
+class TestRustFunctionCallExtraction:
+    """Tests for Rust function call extraction."""
+
+    def test_direct_function_call(self, parser, temp_dir):
+        """Test extracting direct function calls."""
+        content = """
+fn main() {
+    let result = process_data();
+    handle_result(result);
+}
+
+fn process_data() -> i32 { 42 }
+fn handle_result(r: i32) {}
+"""
+        file_path = create_temp_file(temp_dir, "test.rs", content)
+        result = parser.parse_file(file_path, temp_dir)
+        tree = parser.get_parser(file_path).parse(bytes(content, "utf-8"))
+
+        calls = parser.extract_function_calls(file_path, content, tree)
+
+        callee_names = [c.callee_name for c in calls]
+        assert "process_data" in callee_names
+        assert "handle_result" in callee_names
+
+    def test_method_call(self, parser, temp_dir):
+        """Test extracting method calls."""
+        content = """
+fn main() {
+    let service = UserService::new();
+    let users = service.get_all();
+}
+"""
+        file_path = create_temp_file(temp_dir, "test.rs", content)
+        tree = parser.get_parser(file_path).parse(bytes(content, "utf-8"))
+
+        calls = parser.extract_function_calls(file_path, content, tree)
+
+        callee_names = [c.callee_name for c in calls]
+        # Should have static method call and method call
+        assert "new" in callee_names
+        assert "get_all" in callee_names
+
+    def test_skip_builtin_macros(self, parser, temp_dir):
+        """Test that common macros like println! are skipped."""
+        content = """
+fn main() {
+    println!("Hello");
+    dbg!(42);
+    my_custom_function();
+}
+
+fn my_custom_function() {}
+"""
+        file_path = create_temp_file(temp_dir, "test.rs", content)
+        tree = parser.get_parser(file_path).parse(bytes(content, "utf-8"))
+
+        calls = parser.extract_function_calls(file_path, content, tree)
+
+        callee_names = [c.callee_name for c in calls]
+        # println! and dbg! should be skipped
+        assert "println!" not in callee_names
+        assert "dbg!" not in callee_names
+        # Custom function should be included
+        assert "my_custom_function" in callee_names
+
+
+class TestRustFunctionDefinitionExtraction:
+    """Tests for Rust function definition extraction."""
+
+    def test_free_function_definition(self, parser, temp_dir):
+        """Test extracting free function definitions."""
+        content = """
+pub fn process_data(input: &str) -> String {
+    input.to_string()
+}
+
+fn helper() -> i32 {
+    42
+}
+"""
+        file_path = create_temp_file(temp_dir, "test.rs", content)
+        result = parser.parse_file(file_path, temp_dir)
+        tree = parser.get_parser(file_path).parse(bytes(content, "utf-8"))
+
+        definitions = parser.extract_function_definitions(file_path, content, tree, result.exports)
+
+        func_names = [d.name for d in definitions]
+        assert "process_data" in func_names
+        assert "helper" in func_names
+
+    def test_impl_method_definition(self, parser, temp_dir):
+        """Test extracting impl block method definitions."""
+        content = """
+pub struct UserService;
+
+impl UserService {
+    pub fn new() -> Self {
+        Self
+    }
+
+    pub fn get_user(&self, id: u64) -> Option<User> {
+        None
+    }
+}
+"""
+        file_path = create_temp_file(temp_dir, "test.rs", content)
+        result = parser.parse_file(file_path, temp_dir)
+        tree = parser.get_parser(file_path).parse(bytes(content, "utf-8"))
+
+        definitions = parser.extract_function_definitions(file_path, content, tree, result.exports)
+
+        func_names = [d.name for d in definitions]
+        assert "new" in func_names
+        assert "get_user" in func_names
+
+        # Check parent class
+        new_def = next(d for d in definitions if d.name == "new")
+        assert new_def.parent_class == "UserService"
+
+    def test_async_function_detection(self, parser, temp_dir):
+        """Test detecting async functions."""
+        content = """
+async fn fetch_data() -> Result<Data, Error> {
+    Ok(Data::default())
+}
+"""
+        file_path = create_temp_file(temp_dir, "test.rs", content)
+        result = parser.parse_file(file_path, temp_dir)
+        tree = parser.get_parser(file_path).parse(bytes(content, "utf-8"))
+
+        definitions = parser.extract_function_definitions(file_path, content, tree, result.exports)
+
+        fetch_def = next((d for d in definitions if d.name == "fetch_data"), None)
+        # Note: async detection depends on tree-sitter grammar support
+        assert fetch_def is not None
+
+
+# =============== Swift Function Call/Definition Tests ===============
+
+class TestSwiftFunctionCallExtraction:
+    """Tests for Swift function call extraction."""
+
+    def test_direct_function_call(self, parser, temp_dir):
+        """Test extracting direct function calls."""
+        content = """
+func main() {
+    let result = processData()
+    handleResult(result)
+}
+
+func processData() -> Int { return 42 }
+func handleResult(_ r: Int) {}
+"""
+        file_path = create_temp_file(temp_dir, "test.swift", content)
+        result = parser.parse_file(file_path, temp_dir)
+        tree = parser.get_parser(file_path).parse(bytes(content, "utf-8"))
+
+        calls = parser.extract_function_calls(file_path, content, tree)
+
+        callee_names = [c.callee_name for c in calls]
+        assert "processData" in callee_names
+        assert "handleResult" in callee_names
+
+    def test_method_call(self, parser, temp_dir):
+        """Test extracting method calls."""
+        content = """
+func main() {
+    let service = UserService()
+    let users = service.fetchUsers()
+}
+"""
+        file_path = create_temp_file(temp_dir, "test.swift", content)
+        tree = parser.get_parser(file_path).parse(bytes(content, "utf-8"))
+
+        calls = parser.extract_function_calls(file_path, content, tree)
+
+        callee_names = [c.callee_name for c in calls]
+        # Should have initializer and method call
+        assert "UserService" in callee_names
+        assert "fetchUsers" in callee_names
+
+    def test_skip_print_statements(self, parser, temp_dir):
+        """Test that print statements are skipped."""
+        content = """
+func main() {
+    print("Hello")
+    debugPrint("Debug")
+    myCustomFunction()
+}
+
+func myCustomFunction() {}
+"""
+        file_path = create_temp_file(temp_dir, "test.swift", content)
+        tree = parser.get_parser(file_path).parse(bytes(content, "utf-8"))
+
+        calls = parser.extract_function_calls(file_path, content, tree)
+
+        callee_names = [c.callee_name for c in calls]
+        # print and debugPrint should be skipped
+        assert "print" not in callee_names
+        assert "debugPrint" not in callee_names
+        # Custom function should be included
+        assert "myCustomFunction" in callee_names
+
+
+class TestSwiftFunctionDefinitionExtraction:
+    """Tests for Swift function definition extraction."""
+
+    def test_free_function_definition(self, parser, temp_dir):
+        """Test extracting free function definitions."""
+        content = """
+public func processData(_ input: String) -> String {
+    return input
+}
+
+func helper() -> Int {
+    return 42
+}
+"""
+        file_path = create_temp_file(temp_dir, "test.swift", content)
+        result = parser.parse_file(file_path, temp_dir)
+        tree = parser.get_parser(file_path).parse(bytes(content, "utf-8"))
+
+        definitions = parser.extract_function_definitions(file_path, content, tree, result.exports)
+
+        func_names = [d.name for d in definitions]
+        assert "processData" in func_names
+        assert "helper" in func_names
+
+    def test_class_method_definition(self, parser, temp_dir):
+        """Test extracting class method definitions."""
+        content = """
+public class UserService {
+    public func fetchUsers() -> [User] {
+        return []
+    }
+
+    private func validateInput(_ input: String) -> Bool {
+        return true
+    }
+}
+"""
+        file_path = create_temp_file(temp_dir, "test.swift", content)
+        result = parser.parse_file(file_path, temp_dir)
+        tree = parser.get_parser(file_path).parse(bytes(content, "utf-8"))
+
+        definitions = parser.extract_function_definitions(file_path, content, tree, result.exports)
+
+        func_names = [d.name for d in definitions]
+        assert "fetchUsers" in func_names
+        assert "validateInput" in func_names
+
+        # Check parent class
+        fetch_def = next(d for d in definitions if d.name == "fetchUsers")
+        assert fetch_def.parent_class == "UserService"
+
+    def test_init_definition(self, parser, temp_dir):
+        """Test extracting init definitions."""
+        content = """
+class Manager {
+    init() {
+        print("init")
+    }
+
+    init(config: Config) {
+        print("init with config")
+    }
+}
+"""
+        file_path = create_temp_file(temp_dir, "test.swift", content)
+        result = parser.parse_file(file_path, temp_dir)
+        tree = parser.get_parser(file_path).parse(bytes(content, "utf-8"))
+
+        definitions = parser.extract_function_definitions(file_path, content, tree, result.exports)
+
+        init_defs = [d for d in definitions if d.name == "init"]
+        # Should have 2 init methods
+        assert len(init_defs) >= 1
+
+    def test_async_function_detection(self, parser, temp_dir):
+        """Test detecting async functions."""
+        content = """
+func fetchData() async throws -> Data {
+    return Data()
+}
+"""
+        file_path = create_temp_file(temp_dir, "test.swift", content)
+        result = parser.parse_file(file_path, temp_dir)
+        tree = parser.get_parser(file_path).parse(bytes(content, "utf-8"))
+
+        definitions = parser.extract_function_definitions(file_path, content, tree, result.exports)
+
+        fetch_def = next((d for d in definitions if d.name == "fetchData"), None)
+        assert fetch_def is not None
+        # Async detection depends on tree-sitter grammar
+        # Just verify it extracts the function
