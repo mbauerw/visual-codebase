@@ -39,7 +39,7 @@ export default function FeaturesSection() {
             <img src='/blueprint.jpeg' alt='ai' className='absolute top-0 left-0 w-full h-full blur-[2px] ' />
             <div className='w-full h-full p-8 z-20 flex flex-col justify-start gap-4 lg:gap-12'>
 
-              <h3 className="text-3xl sm:text-4xl font-semibold text-white z-20">AI-powered Analysis</h3>
+              <h3 className="text-3xl sm:text-4xl font-semibold text-white z-20 text-center">AI-powered Analysis</h3>
               
               <div className='z-20 h-full overflow-hidden'>
                 {/* Pusher element - pushes the floated image to bottom half */}
@@ -47,7 +47,7 @@ export default function FeaturesSection() {
                 <img
                   src="/analysis-api.png"
                   alt="analysis api"
-                  className='float-right clear-right max-h-[50%] lg:max-h-[80%] w-auto ml-4 rounded-lg object-contain'
+                  className='float-right clear-right max-h-[50%] lg:max-h-[80%] w-auto ml-4 rounded-lg object-contain opacity-50'
                 />
                 <p className="text-gray-100 text-lg md:text-xl pr-8 leading-relaxed ">
                   Automatically generate a full analysis suite for your codebases.
@@ -60,9 +60,9 @@ export default function FeaturesSection() {
 
           {/* Feature 2 */}
           <div className="bg-neutral-100  h-[420px] rounded-3xl p-8 space-y-4 shadow-sm border-4 border-gray-300 hover:shadow-xl  transition-all duration-300 relative overflow-hidden">
-            {/* <img src='/visualization.png' alt='vis' className='absolute top-0 left-0 ml-5 mt-10 w-full h-full object-contain opacity-70 z-0' /> */}
+            {/* <img src='/visualization.png' alt='vis' className='absolute top-0 left-0 ml-5 mt-10 w-[80%] object-contain opacity-70 z-0' /> */}
 
-            <h3 className="text-2xl md:text-3xl lg:text-4xl font-semibold text-gray-900 mb-3 relative z-20">Interactive Visualization</h3>
+            <h3 className="text-2xl md:text-3xl lg:text-4xl font-semibold text-gray-900 mb-3 relative z-20 text-center">Interactive Visualization</h3>
             <div className='relative z-20 h-full overflow-hidden'>
                 {/* Pusher element - pushes the floated image to bottom half */}
                 <div className='float-left sm:h-[20%] w-0' />
@@ -73,7 +73,7 @@ export default function FeaturesSection() {
                 />
             <p className="text-gray-600 text-lg lg:text-xl leading-relaxed z-20">
               Build a more complete mental model by exploring your codebase through a visual medium. Visualize function calls and dependency relationships
-              through an interactive graph. Understand archetecture at a glance.
+              through an interactive graph. Understand archetecture at a glance. There I much More to the story than just lines of code that wrap around the image
             </p>
             </div>
           </div>
@@ -82,14 +82,14 @@ export default function FeaturesSection() {
           <div className="bg-neutral-100 h-[420px] rounded-3xl p-4 space-y-4 shadow-sm border-4 border-gray-300 hover:shadow-xl transition-all duration-300 relative overflow-hidden">
           <img src='/assistant.png' alt='AI Assistant' className='absolute top-[150px] right-0 h-[65%] rounded-lg !opacity-60' />
 
-            <h3 className="text-2xl md:text-3xl lg:text-4xl font-semibold text-gray-900 mb-3 relative z-20">On-demand AI Assistance</h3>
+            <h3 className="text-2xl md:text-3xl lg:text-4xl font-semibold text-gray-900 mb-3 relative z-20 text-center">On-demand AI Assistance</h3>
             <div className='relative z-20 h-full overflow-hidden'>
               {/* Pusher element - pushes the floated image to bottom half */}
               <div className='float-right sm:h-[20%] w-0' />
               <img
                 src="/assistant.png"
                 alt="AI chatbot"
-                className='float-right clear-right max-h-[35%] md:max-h-[45%] w-auto rounded-lg object-contain opacity-0'
+                className='float-right clear-right max-h-[35%] md:max-h-[45%] w-[60%] rounded-lg object-contain opacity-0'
               />
               <p className="text-gray-600 text-lg lg:text-xl leading-relaxed z-20">
                 Our in-app AI assistant leverages the pre-existing codebase analysis as additional context to provide valuable answers whenever you have a question about the code.
@@ -98,16 +98,31 @@ export default function FeaturesSection() {
             </div>
           </div>
 
-          {/* Feature 1 */}
-          {/* <div className="w-3/4 bg-white rounded-3xl p-8 shadow-sm border border-gray-100 hover:shadow-xl transition-all duration-300">
-            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#8FBCFA] to-[#6BA3F5] flex items-center justify-center mb-6">
-              <GitBranch size={28} className="text-white" />
+          {/* Feature 4 */}
+          <div className="bg-neutral-100 h-[420px] rounded-3xl px-4 space-y-4 shadow-sm border-4 border-gray-300 hover:shadow-xl transition-all duration-300 relative overflow-hidden">
+          <img src='/boxed.jpeg' alt='AI Assistant' className='absolute top-[150px] right-0 h-[65%] rounded-lg !opacity-60' />
+
+            <h3 className="text-2xl md:text-3xl lg:text-4xl font-semibold text-gray-900 text-center  relative z-20">Support for Nearly All Major Programming Languages</h3>
+            <div className='relative z-20 h-full overflow-hidden'>
+              {/* Pusher element - pushes the floated image to bottom half */}
+              <div className='float-right sm:h-[20%] w-0' />
+              <img
+                src="/assistant.png"
+                alt="AI chatbot"
+                className='float-right clear-right max-h-[35%] md:max-h-[45%] w-auto rounded-lg object-contain opacity-0'
+              />
+              <ul className="text-gray-600 pl-4 text-lg lg:text-xl leading-relaxed z-20 list-disc list-inside space-y-2">
+                <li>JavaScript / TypeScript</li>
+                <li>Python</li>
+                <li>Java</li>
+                <li>C#</li>
+                <li>Go</li>
+                <li>Swift</li>
+                <li>Rust</li>
+              </ul>
             </div>
-            <h3 className="text-xl font-semibold text-gray-900 mb-3">Dependency Mapping</h3>
-            <p className="text-gray-600 leading-relaxed">
-              Automatically extract and visualize import statements across JavaScript, TypeScript, and Python files.
-            </p>
-          </div> */}
+          </div>
+          
         </div>
       </div>
     </section>
