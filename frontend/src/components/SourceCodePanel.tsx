@@ -151,6 +151,11 @@ export default function SourceCodePanel({
       javascript: 'javascript',
       typescript: 'typescript',
       python: 'python',
+      java: 'java',
+      csharp: 'csharp',
+      go: 'go',
+      rust: 'rust',
+      swift: 'swift',
       unknown: 'javascript', // Fallback to JS for syntax highlighting
     };
     return languageMap[lang] || 'javascript';

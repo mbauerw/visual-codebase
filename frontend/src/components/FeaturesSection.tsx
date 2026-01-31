@@ -99,10 +99,10 @@ export default function FeaturesSection() {
           </div>
 
           {/* Feature 4 */}
-          <div className="bg-neutral-100 h-[420px] rounded-3xl px-4 space-y-4 shadow-sm border-4 border-gray-300 hover:shadow-xl transition-all duration-300 relative overflow-hidden">
-          <img src='/boxed.jpeg' alt='AI Assistant' className='absolute top-[150px] right-0 h-[65%] rounded-lg !opacity-60' />
+          <div className="bg-white h-[420px] rounded-3xl px-4 space-y-4 shadow-sm border-2 border-gray-200 hover:shadow-xl transition-all duration-300 relative overflow-hidden">
+          <img src='/blackbox.png' alt='AI Assistant' className='absolute top-[120px] right-[30px] h-[65%] rounded-lg !opacity-80' />
 
-            <h3 className="text-2xl md:text-3xl lg:text-4xl font-semibold text-gray-900 text-center  relative z-20">Support for Nearly All Major Programming Languages</h3>
+            <h3 className="text-2xl md:text-3xl lg:text-4xl font-semibold text-black text-center  relative z-20">Support for Nearly All Major Programming Languages</h3>
             <div className='relative z-20 h-full overflow-hidden'>
               {/* Pusher element - pushes the floated image to bottom half */}
               <div className='float-right sm:h-[20%] w-0' />
@@ -111,7 +111,7 @@ export default function FeaturesSection() {
                 alt="AI chatbot"
                 className='float-right clear-right max-h-[35%] md:max-h-[45%] w-auto rounded-lg object-contain opacity-0'
               />
-              <ul className="text-gray-600 pl-4 text-lg lg:text-xl leading-relaxed z-20 list-disc list-inside space-y-2">
+              <ul className="text-gray-800 pl-4 text-lg lg:text-xl leading-relaxed z-20 list-disc list-inside space-y-2">
                 <li>JavaScript / TypeScript</li>
                 <li>Python</li>
                 <li>Java</li>

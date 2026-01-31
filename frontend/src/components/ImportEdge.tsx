@@ -1,16 +1,10 @@
 import {
   BaseEdge,
   EdgeLabelRenderer,
-  getBezierPath,
   getSmoothStepPath,
   type EdgeProps,
 } from '@xyflow/react';
 import type { ReactFlowEdgeData, Language } from '../types';
-import { languageColors } from '../types';
-
-interface ImportEdgeProps extends EdgeProps {
-  data?: ReactFlowEdgeData;
-}
 
 // Short language labels for cross-language indicator
 const languageShortLabels: Record<Language, string> = {
@@ -19,6 +13,9 @@ const languageShortLabels: Record<Language, string> = {
   python: 'Py',
   java: 'Java',
   csharp: 'C#',
+  go: 'Go',
+  rust: 'Rs',
+  swift: 'Swift',
   unknown: '?',
 };
 
@@ -34,7 +31,9 @@ export default function ImportEdge({
   markerEnd,
   data,
   selected,
-}: ImportEdgeProps) {
+}: EdgeProps) {
+  // Cast data to our custom type
+  const edgeData = data as ReactFlowEdgeData | undefined;
   const [edgePath, labelX, labelY] = getSmoothStepPath({
     sourceX,
     sourceY,
@@ -44,16 +43,16 @@ export default function ImportEdge({
     targetPosition,
   });
 
-  const importedNames = data?.imported_names || [];
+  const importedNames = edgeData?.imported_names || [];
   const hasImports = importedNames.length > 0;
-  const isCrossLanguage = data?.is_cross_language || false;
-  const sourceLanguage = data?.source_language || 'unknown';
-  const targetLanguage = data?.target_language || 'unknown';
+  const isCrossLanguage = edgeData?.is_cross_language || false;
+  const sourceLanguage = edgeData?.source_language || 'unknown';
+  const targetLanguage = edgeData?.target_language || 'unknown';
 
   // Format label text
   const formatLabel = () => {
     if (!hasImports) {
-      return data?.module_path || '';
+      return edgeData?.module_path || '';
     }
 
     if (importedNames.length === 1) {
@@ -113,7 +112,7 @@ export default function ImportEdge({
                   max-w-[150px] truncate
                   ${selected ? 'ring-2 ring-blue-400 bg-slate-700' : ''}
                 `}
-                title={hasImports ? importedNames.join(', ') : data?.module_path || ''}
+                title={hasImports ? importedNames.join(', ') : edgeData?.module_path || ''}
               >
                 {label}
               </div>

@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { RichTreeView } from '@mui/x-tree-view/RichTreeView';
 import { useTreeViewApiRef } from '@mui/x-tree-view/hooks';
-import { TreeItem } from '@mui/x-tree-view/TreeItem';
+import { TreeItem, TreeItemProps } from '@mui/x-tree-view/TreeItem';
 import { TreeViewBaseItem } from '@mui/x-tree-view/models';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
@@ -66,16 +66,32 @@ const getFileIcon = (language: Language, role: ArchitecturalRole) => {
     case 'react_component':
       return <Component size={16} color="#61dafb" />;
     case 'test':
+    case 'rust_tests':
       return <TestTube size={16} color="#ef4444" />;
     case 'config':
+    case 'go_config':
       return <Settings size={16} color="#6b7280" />;
     case 'api_service':
+    case 'swift_network_service':
       return <Network size={16} color="#8b5cf6" />;
     case 'model':
     case 'schema':
+    case 'entity':
+    case 'go_model':
+    case 'swift_core_data':
       return <Database size={16} color="#f59e0b" />;
     case 'hook':
+    case 'service':
+    case 'go_service':
+    case 'rust_impl':
       return <Cog size={16} color="#06b6d4" />;
+    case 'repository':
+    case 'go_repository':
+      return <Database size={16} color="#8b5cf6" />;
+    case 'swift_view_controller':
+    case 'swift_ui_view':
+    case 'swift_view_model':
+      return <Component size={16} color="#f05138" />;
     default:
       break;
   }
@@ -88,6 +104,16 @@ const getFileIcon = (language: Language, role: ArchitecturalRole) => {
       return <FileCode size={16} color="#f7df1e" />;
     case 'python':
       return <FileCode size={16} color="#3776ab" />;
+    case 'java':
+      return <FileCode size={16} color="#b07219" />;
+    case 'csharp':
+      return <FileCode size={16} color="#178600" />;
+    case 'go':
+      return <FileCode size={16} color="#00add8" />;
+    case 'rust':
+      return <FileCode size={16} color="#dea584" />;
+    case 'swift':
+      return <FileCode size={16} color="#f05138" />;
     default:
       return <File size={16} color={GH_COLORS.iconFile} />;
   }
@@ -105,6 +131,16 @@ const getIconByExtension = (filename: string) => {
       return <FileCode size={16} color="#f7df1e" />;
     case 'py':
       return <FileCode size={16} color="#3776ab" />;
+    case 'java':
+      return <FileCode size={16} color="#b07219" />;
+    case 'cs':
+      return <FileCode size={16} color="#178600" />;
+    case 'go':
+      return <FileCode size={16} color="#00add8" />;
+    case 'rs':
+      return <FileCode size={16} color="#dea584" />;
+    case 'swift':
+      return <FileCode size={16} color="#f05138" />;
     case 'json':
       return <FileJson size={16} color="#f59e0b" />;
     case 'md':
@@ -448,7 +484,7 @@ const AnalysisFileTree = ({
 
   // Custom slot component for tree items
   const CustomTreeItem = useMemo(() => {
-    const Component = (props: { itemId: string; label: React.ReactNode; children?: React.ReactNode }) => {
+    const Component = (props: TreeItemProps) => {
       const item = itemsById.get(props.itemId);
       const isSelected = item?.nodeId === selectedFileId;
 
