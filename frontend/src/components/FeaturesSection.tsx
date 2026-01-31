@@ -33,9 +33,9 @@ export default function FeaturesSection() {
             </p>
           </motion.div>
         </div>
-        <div className="grid p-12 md:p-0 md:grid-cols-[2fr_2fr] gap-y-12 lg:gap-x-4 lg:gap-y-4 ">
+        <div className="grid p-12 md:p-0 md:grid-cols-[2fr_2fr] gap-y-12 lg:gap-x-12 lg:gap-y-12 ">
           {/* Feature 1 */}
-          <div className="bg-neutral-100 p-8 space-y-4 h-[420px] rounded-3xl shadow-sm border-4 border-gray-300 hover:shadow-xl transition-all duration-300 relative overflow-hidden">
+          <div className="bg-white p-8 space-y-4 h-[420px] rounded-3xl shadow-sm border-2 border-gray-400 hover:shadow-xl transition-all duration-300 relative overflow-hidden">
             {/* <img src='/blueprint.jpeg' alt='ai' className='absolute top-0 left-0 w-full h-full blur-[2px] ' /> */}
 
               <h3 className="text-3xl sm:text-4xl font-semibold text-black z-20 text-center">AI-powered Analysis</h3>
@@ -58,7 +58,7 @@ export default function FeaturesSection() {
           </div>
 
           {/* Feature 2 */}
-          <div className="bg-neutral-100  h-[420px] rounded-3xl p-8 space-y-4 shadow-sm border-4 border-gray-300 hover:shadow-xl  transition-all duration-300 relative overflow-hidden">
+          <div className="bg-white  h-[420px] rounded-3xl p-8 space-y-4 shadow-sm border-2 border-gray-400 hover:shadow-xl  transition-all duration-300 relative overflow-hidden">
             {/* <img src='/visualization.png' alt='vis' className='absolute top-0 left-0 ml-5 mt-10 w-[80%] object-contain opacity-70 z-0' /> */}
 
             <h3 className="text-2xl md:text-3xl lg:text-4xl font-semibold text-gray-900 mb-3 relative z-20 text-center">Interactive Visualization</h3>
@@ -78,7 +78,7 @@ export default function FeaturesSection() {
           </div>
 
           {/* Feature 3 */}
-          <div className="bg-white h-[420px] rounded-3xl px-4 space-y-4 shadow-sm border-2 border-gray-200 hover:shadow-xl transition-all duration-300 relative overflow-hidden">
+          <div className="bg-white h-[420px] rounded-3xl px-4 space-y-4 shadow-sm border-2 border-gray-400 hover:shadow-xl transition-all duration-300 relative overflow-hidden">
             <img src='/blackbox.png' alt='AI Assistant' className='absolute top-[120px] right-[30px] h-[65%] rounded-lg !opacity-80' />
 
             <h3 className="text-2xl md:text-3xl lg:text-4xl font-semibold text-black text-center  relative z-20">Support for Nearly All Major Programming Languages</h3>
@@ -103,7 +103,7 @@ export default function FeaturesSection() {
           </div>
 
           {/* Feature 4 */}
-          <div className="bg-slate-200 h-[420px] rounded-3xl p-4 space-y-4 shadow-sm border-4 border-gray-400 hover:shadow-xl transition-all duration-300 relative overflow-hidden">
+          <div className="bg-white h-[420px] rounded-3xl p-4 space-y-4 shadow-sm border-2 border-gray-400 hover:shadow-xl transition-all duration-300 relative overflow-hidden">
             <img src='/assistant.png' alt='AI Assistant' className='absolute top-[150px] right-0 h-[65%] rounded-lg !opacity-100' />
 
             <h3 className="text-2xl md:text-3xl lg:text-4xl font-semibold text-gray-900 mb- relative z-20 text-center">On-demand AI Assistance</h3>
