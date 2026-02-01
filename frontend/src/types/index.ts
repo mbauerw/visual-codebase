@@ -78,7 +78,7 @@ export type Category =
   | 'config'
   | 'unknown';
 
-export type LayoutType = 'role' | 'file-hierarchy' | 'dependency';
+export type LayoutType = 'role' | 'file-hierarchy' | 'dependency' | 'nested';
 
 export type AnalysisStatus =
   | 'pending'

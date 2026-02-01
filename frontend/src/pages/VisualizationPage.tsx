@@ -28,10 +28,12 @@ import {
   User,
   ChevronsLeftRight,
   MessageSquare,
+  Layers,
 } from 'lucide-react';
 
 import CustomNode, { type CustomNodeType } from '../components/CustomNode';
 import CategoryNode, { type CategoryNodeType, type CategoryNodeData, CategoryRoleData } from '../components/CategoryNode';
+import { NestedFolderNode, NestedFileNode, buildNestedNodes, CANVAS_BACKGROUND } from '../components/diagram';
 import ImportEdge from '../components/ImportEdge';
 import EdgeDetailPopover from '../components/EdgeDetailPopover';
 import CategoryBackground, { type CategorySection } from '../components/Categorybackground'
@@ -46,6 +48,8 @@ import type { FunctionTierItem } from '../types/tierList';
 import { BarChart3, FileText } from 'lucide-react';
 import type {
   ReactFlowGraph,
+  ReactFlowNode,
+  ReactFlowEdge,
   ReactFlowNodeData,
   Language,
   ArchitecturalRole,
@@ -71,6 +75,8 @@ import { DraggableModal } from '../components/DraggableModal';
 const nodeTypes: NodeTypes = {
   custom: CustomNode,
   category: CategoryNode,
+  nestedFolder: NestedFolderNode,
+  nestedFile: NestedFileNode,
 };
 
 // Define edge types with custom import edge
@@ -1027,6 +1033,26 @@ function VisualizationPageInner() {
           background: '#111a31',
         })
         break;
+      case 'nested':
+        // Convert CustomNodeType[] to ReactFlowNode[] for buildNestedNodes
+        const nodesForNested: ReactFlowNode[] = fileNodesForLayout.map(node => ({
+          id: node.id,
+          type: node.type || 'custom',
+          position: node.position,
+          data: node.data,
+        }));
+        // Cast edges to the expected type for buildNestedNodes
+        const edgesForNested = filteredEdges as unknown as ReactFlowEdge[];
+        const nestedResult = buildNestedNodes(nodesForNested, edgesForNested);
+        layoutResult = {
+          nodes: nestedResult.nodes as unknown as AllNodeTypes[],
+          edges: nestedResult.edges as unknown as Edge[],
+          categorySections: [],
+        };
+        setStyles({
+          background: CANVAS_BACKGROUND, // amber-50 for nested containment diagram
+        });
+        break;
       case 'role':
       default:
         layoutResult = getNestedCategoryLayout(fileNodesForLayout, filteredEdges);
@@ -1824,6 +1850,16 @@ function VisualizationPageInner() {
                         >
                           <Network size={12} />
                           Deps
+                        </button>
+                        <button
+                          onClick={() => setLayoutType('nested')}
+                          className={`flex items-center gap-1 px-2 py-1 text-xs rounded transition-colors ${layoutType === 'nested'
+                            ? 'bg-blue-600 text-white'
+                            : 'bg-slate-700 text-slate-400 hover:text-white'
+                            }`}
+                        >
+                          <Layers size={12} />
+                          Nested
                         </button>
                       </div>
                     </div>
