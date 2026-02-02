@@ -476,11 +476,11 @@ export function buildNestedNodes(
   // Phase 2: Calculate dimensions (bottom-up)
   calculateDimensions(tree, finalConfig);
 
-  // Phase 3: Position top-level children vertically (stacked)
-  let currentY = 0;
+  // Phase 3: Position top-level children horizontally (side by side)
+  let currentX = 0;
   for (const child of tree.children) {
-    assignPositions(child, 0, currentY, finalConfig);
-    currentY += child.height + finalConfig.topLevelGap;
+    assignPositions(child, currentX, 0, finalConfig);
+    currentX += child.width + finalConfig.topLevelGap;
   }
 
   // Convert to ReactFlow format

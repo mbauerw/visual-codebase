@@ -58,10 +58,10 @@ const edgeTypes: EdgeTypes = {
 type AllNodeTypes = CustomNodeType | CategoryNodeType;
 
 // Layout constants
-const nodeWidth = 200;
+const nodeWidth = 220;
 const nodeHeight = 90;
-const nodeGapX = 40;
-const nodeGapY = 35;
+const nodeGapX = 120; // Horizontal gap between nodes
+const nodeGapY = 55; // Vertical gap between nodes
 const rolePadding = 45;
 const roleHeaderHeight = 55;
 
@@ -82,53 +82,73 @@ function categorizeNode(category: Category): 'frontend' | 'backend' {
   }
 }
 
-// Calculate tree layout positions for nodes
-function getTreePositions(nodeCount: number): { row: number; col: number; totalInRow: number }[] {
-  const positions: { row: number; col: number; totalInRow: number }[] = [];
-  let remaining = nodeCount;
-  let row = 0;
+/**
+ * Calculate rectangular grid dimensions for a given node count.
+ * Constraint: rows (height) is always 2 more than cols (width).
+ * Examples: 1x3, 2x4, 3x5, 4x6, 5x7, etc.
+ */
+function calculateGridDimensions(nodeCount: number): { cols: number; rows: number } {
+  if (nodeCount === 0) {
+    return { cols: 0, rows: 0 };
+  }
 
-  while (remaining > 0) {
-    const nodesInRow = row + 1;
-    const actualInRow = Math.min(nodesInRow, remaining);
+  if (nodeCount === 1) {
+    return { cols: 1, rows: 1 };
+  }
 
-    for (let col = 0; col < actualInRow; col++) {
-      positions.push({ row, col, totalInRow: actualInRow });
+  if (nodeCount === 2) {
+    return { cols: 2, rows: 1 };
+  }
+  // Find the smallest grid where:
+  // - cols * rows >= nodeCount
+  // - rows = cols + 2
+  let cols = 1;
+  while (true) {
+    const rows = cols + 2;
+    if (cols * rows >= nodeCount) {
+      return { cols, rows };
     }
+    cols++;
+  }
+}
 
-    remaining -= actualInRow;
-    row++;
+/**
+ * Calculate positions for nodes in a rectangular grid layout.
+ * Returns positions with row and col indices.
+ */
+function getRectangularPositions(nodeCount: number): { row: number; col: number; totalCols: number; totalRows: number }[] {
+  const { cols, rows } = calculateGridDimensions(nodeCount);
+  const positions: { row: number; col: number; totalCols: number; totalRows: number }[] = [];
+
+  let nodeIndex = 0;
+  for (let row = 0; row < rows && nodeIndex < nodeCount; row++) {
+    for (let col = 0; col < cols && nodeIndex < nodeCount; col++) {
+      positions.push({ row, col, totalCols: cols, totalRows: rows });
+      nodeIndex++;
+    }
   }
 
   return positions;
 }
 
-// Calculate dimensions for a role category with tree layout
-function calculateTreeRoleDimensions(nodeCount: number): { width: number; height: number; rows: number; maxCols: number } {
+/**
+ * Calculate dimensions for a role category with rectangular grid layout.
+ */
+function calculateRectangularRoleDimensions(nodeCount: number): { width: number; height: number; rows: number; maxCols: number } {
   if (nodeCount === 0) {
     return { width: 250, height: 150, rows: 0, maxCols: 0 };
   }
 
-  let remaining = nodeCount;
-  let rows = 0;
-  let maxCols = 0;
+  const { cols, rows } = calculateGridDimensions(nodeCount);
 
-  while (remaining > 0) {
-    const nodesInRow = rows + 1;
-    const actualInRow = Math.min(nodesInRow, remaining);
-    maxCols = Math.max(maxCols, actualInRow);
-    remaining -= actualInRow;
-    rows++;
-  }
-
-  const width = maxCols * (nodeWidth + nodeGapX) + rolePadding * 2;
-  const height = roleHeaderHeight + rows * (nodeHeight + nodeGapY) + rolePadding;
+  const width = cols * (nodeWidth + nodeGapX) - nodeGapX + rolePadding * 2;
+  const height = roleHeaderHeight + rows * (nodeHeight + nodeGapY) - nodeGapY + rolePadding;
 
   return {
     width: Math.max(width, 300),
     height: Math.max(height, 180),
     rows,
-    maxCols,
+    maxCols: cols,
   };
 }
 
@@ -222,7 +242,7 @@ function getNestedCategoryLayout(
     }
 
     // Calculate dimensions for all role categories first
-    const roleDimensions = roleGroups.map((rg) => calculateTreeRoleDimensions(rg.nodes.length));
+    const roleDimensions = roleGroups.map((rg) => calculateRectangularRoleDimensions(rg.nodes.length));
     const maxRoleWidth = Math.max(...roleDimensions.map((d) => d.width));
     const maxRoleHeight = Math.max(...roleDimensions.map((d) => d.height));
 
@@ -283,15 +303,28 @@ function getNestedCategoryLayout(
       };
       roleCategoryNodes.push(roleCategoryNode);
 
-      // Position file nodes in tree pattern
-      const treePositions = getTreePositions(roleGroup.nodes.length);
+      // Position file nodes in rectangular grid pattern
+      const gridPositions = getRectangularPositions(roleGroup.nodes.length);
       const containerCenterX = dims.width / 2;
 
       roleGroup.nodes.forEach((node, nodeIndex) => {
-        const pos = treePositions[nodeIndex];
-        const rowWidth = pos.totalInRow * nodeWidth + (pos.totalInRow - 1) * nodeGapX;
+        const pos = gridPositions[nodeIndex];
+
+        // Calculate how many nodes are in this row (last row may have fewer)
+        const nodesInThisRow = pos.row === pos.totalRows - 1
+          ? roleGroup.nodes.length - (pos.totalRows - 1) * pos.totalCols
+          : pos.totalCols;
+
+        // Center each row
+        const rowWidth = nodesInThisRow * nodeWidth + (nodesInThisRow - 1) * nodeGapX;
         const rowStartX = containerCenterX - rowWidth / 2;
-        const nodeX = rowStartX + pos.col * (nodeWidth + nodeGapX);
+
+        // Calculate position within the row
+        const colInRow = pos.row === pos.totalRows - 1
+          ? nodeIndex - (pos.totalRows - 1) * pos.totalCols
+          : pos.col;
+
+        const nodeX = rowStartX + colInRow * (nodeWidth + nodeGapX);
         const nodeY = roleHeaderHeight + pos.row * (nodeHeight + nodeGapY);
 
         positionedFileNodes.push({
