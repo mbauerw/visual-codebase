@@ -4,7 +4,6 @@ import type { Edge } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import {
   ArrowLeft,
-  Search,
   FileCode,
   GitBranch,
   Clock,
@@ -56,7 +55,7 @@ export default function VisualizationPage() {
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [selectionSource, setSelectionSource] = useState<'node' | 'tierlist' | null>(null);
   const [selectedCateogry, setSelectedCategory] = useState<CategoryRoleData | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery] = useState('');
   const [languageFilter, _setLanguageFilter] = useState<Language | 'all'>('all');
   const [roleFilter, _setRoleFilter] = useState<ArchitecturalRole | 'all'>('all');
   // Note: setLanguageFilter and setRoleFilter reserved for future filter UI
@@ -635,50 +634,40 @@ export default function VisualizationPage() {
               <h2 className='text-3xl text-red-500 text-center '>VISUALIZATION</h2>
             </div>
 
-            {/* Layout Selector - Outside graph container */}
-            <div className="flex items-center gap-4 bg-slate-800 rounded-lg px-4 py-2">
-              <span className="text-xs text-slate-500 uppercase tracking-wide">Layout:</span>
-              <div className="flex gap-2">
+            {/* Graph container with manila folder tabs */}
+            <div className='max-w-[1200px] w-full'>
+              {/* Manila folder tabs - attached to top of container */}
+              <div className="flex items-end pl-4">
                 <button
                   onClick={() => setLayoutType('role')}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded transition-colors ${
+                  className={`flex items-center gap-2 px-5 py-2.5 text-sm font-medium rounded-t-lg transition-all relative ${
                     layoutType === 'role'
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-slate-700 text-slate-400 hover:text-white'
+                      ? 'bg-slate-800 text-white z-10 -mb-[2px] border-t-2 border-x-2 border-neutral-600'
+                      : 'bg-slate-600 text-slate-300 hover:bg-slate-700 hover:text-white -mb-[2px] border-t border-x border-neutral-500'
                   }`}
                 >
-                  <LayoutGrid size={14} />
-                  Role
+                  <LayoutGrid size={16} />
+                  Role Layout
                 </button>
                 <button
                   onClick={() => setLayoutType('nested')}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded transition-colors ${
+                  className={`flex items-center gap-2 px-5 py-2.5 text-sm font-medium rounded-t-lg transition-all relative ml-1 ${
                     layoutType === 'nested'
-                      ? 'bg-amber-500 text-white'
-                      : 'bg-slate-700 text-slate-400 hover:text-white'
+                      ? 'bg-amber-100 text-amber-900 z-10 -mb-[2px] border-t-2 border-x-2 border-amber-400'
+                      : 'bg-amber-200/60 text-amber-800 hover:bg-amber-200 hover:text-amber-900 -mb-[2px] border-t border-x border-amber-300'
                   }`}
                 >
-                  <Layers size={14} />
-                  Nested
+                  <Layers size={16} />
+                  Nested Layout
                 </button>
               </div>
-              {/* Search */}
-              <div className="relative ml-4">
-                <Search
-                  size={16}
-                  className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500"
-                />
-                <input
-                  type="text"
-                  placeholder="Search files..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-48 pl-8 pr-3 py-1.5 bg-slate-900 border border-slate-700 rounded text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                />
-              </div>
-            </div>
 
-            <div className='h-[900px] max-w-[1200px] w-full rounded-2xl overflow-hidden border border-4 border-neutral-700 outline outline-2 outline-neutral-500 shadow-2xl shadow-black bg-slate-300 relative'>
+              {/* Graph container */}
+              <div className={`h-[900px] w-full rounded-2xl rounded-tl-none overflow-hidden border-4 shadow-2xl shadow-black relative ${
+                layoutType === 'role'
+                  ? 'border-neutral-600 bg-slate-800'
+                  : 'border-amber-400 bg-amber-50'
+              }`}>
               {/* Render the appropriate graph component based on layout type */}
               {layoutType === 'role' ? (
                 <RoleLayoutGraph
@@ -706,6 +695,7 @@ export default function VisualizationPage() {
                   selectionSource={selectionSource}
                 />
               )}
+              </div>
             </div>
           </div>
 

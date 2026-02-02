@@ -117,7 +117,7 @@ export interface NestedLayoutConfig {
 export const DEFAULT_NESTED_LAYOUT_CONFIG: NestedLayoutConfig = {
   containerPadding: 24,
   headerHeight: 45,
-  itemGapX: 20,
+  itemGapX: 30, // Increased from 20 for better horizontal spacing
   itemGapY: 20,
   maxItemsPerRow: 3, // Fewer columns for more vertical layout
   fileNodeWidth: 150,

@@ -392,6 +392,7 @@ function RoleLayoutGraphInner({
   const [viewport, setViewport] = useState<Viewport>({ x: 0, y: 0, zoom: 1 });
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const lastLayoutRef = useRef<string | null>(null);
+  const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
 
   // Apply layout and filters
   useEffect(() => {
@@ -453,9 +454,10 @@ function RoleLayoutGraphInner({
     }
   }, [nodes.length, isInitialLoad, reactFlowFitView]);
 
-  // Highlight edges and connected nodes when a node is selected
+  // Highlight edges and connected nodes when a node or edge is selected
   useEffect(() => {
-    if (!selectedNodeId) {
+    // No selection at all - reset everything
+    if (!selectedNodeId && !selectedEdgeId) {
       // Reset all edges to default style
       setEdges((currentEdges) =>
         currentEdges.map((edge) => ({
@@ -480,6 +482,71 @@ function RoleLayoutGraphInner({
       );
       return;
     }
+
+    // Edge is selected - highlight edge and connected nodes with blue
+    if (selectedEdgeId && !selectedNodeId) {
+      const highlightColor = '#60a5fa'; // blue-400
+
+      setEdges((currentEdges) =>
+        currentEdges.map((edge) => {
+          if (edge.id === selectedEdgeId) {
+            return {
+              ...edge,
+              selected: true,
+              style: {
+                stroke: highlightColor,
+                strokeWidth: 6,
+              },
+              markerEnd: {
+                type: 'arrowclosed',
+                color: highlightColor,
+                width: 16,
+                height: 16,
+              },
+            };
+          }
+          return {
+            ...edge,
+            selected: false,
+            style: {
+              stroke: '#475569',
+              strokeWidth: 1.5,
+              opacity: 0.3,
+            },
+            markerEnd: {
+              type: 'arrowclosed',
+              color: '#475569',
+              width: 20,
+              height: 20,
+            },
+          };
+        })
+      );
+
+      // Highlight connected nodes with blue ring
+      setNodes((currentNodes) => {
+        const selectedEdge = currentNodes.length > 0
+          ? edges.find(e => e.id === selectedEdgeId)
+          : null;
+
+        return currentNodes.map((node) => {
+          if (selectedEdge && (node.id === selectedEdge.source || node.id === selectedEdge.target)) {
+            return {
+              ...node,
+              className: 'ring-2 ring-blue-400',
+            };
+          }
+          return {
+            ...node,
+            className: '',
+          };
+        });
+      });
+      return;
+    }
+
+    // File node is selected
+    if (!selectedNodeId) return;
 
     // Determine highlight color based on selection source
     const highlightColor = selectionSource === 'tierlist' ? '#60a5fa' : '#fbbf24';
@@ -565,11 +632,14 @@ function RoleLayoutGraphInner({
         })
       );
     }, 0);
-  }, [selectedNodeId, selectionSource, setEdges, setNodes]);
+  }, [selectedNodeId, selectedEdgeId, selectionSource, edges, setEdges, setNodes]);
 
   // Handle node click
   const handleNodeClick = useCallback(
     (_: React.MouseEvent, node: Node) => {
+      // Clear edge selection when clicking a node
+      setSelectedEdgeId(null);
+
       if (node.type === 'custom') {
         const nodeData = node.data as ReactFlowNodeData;
         onNodeSelect(node.id, nodeData);
@@ -597,10 +667,18 @@ function RoleLayoutGraphInner({
   const handleEdgeClick = useCallback(
     (event: React.MouseEvent, edge: Edge) => {
       event.stopPropagation();
+      // Highlight the clicked edge and connected nodes
+      setSelectedEdgeId(edge.id);
       onEdgeClick?.(edge, { x: event.clientX, y: event.clientY });
     },
     [onEdgeClick]
   );
+
+  // Handle pane click - clear all local selections
+  const handlePaneClick = useCallback(() => {
+    setSelectedEdgeId(null);
+    onPaneClick();
+  }, [onPaneClick]);
 
   // Track viewport changes for background sync
   const onMove = useCallback(() => {
@@ -638,7 +716,7 @@ function RoleLayoutGraphInner({
         onEdgesChange={onEdgesChange}
         onNodeClick={handleNodeClick}
         onEdgeClick={handleEdgeClick}
-        onPaneClick={onPaneClick}
+        onPaneClick={handlePaneClick}
         onMove={onMove}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}

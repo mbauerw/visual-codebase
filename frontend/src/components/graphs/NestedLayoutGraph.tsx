@@ -74,6 +74,8 @@ function NestedLayoutGraphInner({
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const lastLayoutRef = useRef<string | null>(null);
+  const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
+  const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
 
   // Apply layout and filters
   useEffect(() => {
@@ -135,9 +137,10 @@ function NestedLayoutGraphInner({
     }
   }, [nodes.length, isInitialLoad, reactFlowFitView]);
 
-  // Highlight edges and connected nodes when a node is selected
+  // Highlight edges and connected nodes when a node or edge is selected
   useEffect(() => {
-    if (!selectedNodeId) {
+    // No selection at all - reset everything
+    if (!selectedNodeId && !selectedEdgeId && !selectedFolderId) {
       // Reset all edges to default style
       setEdges((currentEdges) =>
         currentEdges.map((edge) => ({
@@ -162,6 +165,112 @@ function NestedLayoutGraphInner({
       );
       return;
     }
+
+    // Edge is selected - highlight edge and connected nodes with blue
+    if (selectedEdgeId && !selectedNodeId) {
+      const highlightColor = '#60a5fa'; // blue-400
+
+      setEdges((currentEdges) =>
+        currentEdges.map((edge) => {
+          if (edge.id === selectedEdgeId) {
+            return {
+              ...edge,
+              selected: true,
+              style: {
+                stroke: highlightColor,
+                strokeWidth: 6,
+              },
+              markerEnd: {
+                type: 'arrowclosed',
+                color: highlightColor,
+                width: 16,
+                height: 16,
+              },
+            };
+          }
+          return {
+            ...edge,
+            selected: false,
+            style: {
+              stroke: '#92400e',
+              strokeWidth: 1.5,
+              opacity: 0.3,
+            },
+            markerEnd: {
+              type: 'arrowclosed',
+              color: '#92400e',
+              width: 20,
+              height: 20,
+            },
+          };
+        })
+      );
+
+      // Highlight connected nodes with blue ring
+      setNodes((currentNodes) => {
+        const selectedEdge = currentNodes.length > 0
+          ? edges.find(e => e.id === selectedEdgeId)
+          : null;
+
+        return currentNodes.map((node) => {
+          if (selectedEdge && (node.id === selectedEdge.source || node.id === selectedEdge.target)) {
+            return {
+              ...node,
+              className: 'ring-2 ring-blue-400',
+            };
+          }
+          // Keep folder highlighting if a folder is selected
+          if (selectedFolderId && node.id === selectedFolderId) {
+            return {
+              ...node,
+              className: 'ring-2 ring-amber-800',
+            };
+          }
+          return {
+            ...node,
+            className: '',
+          };
+        });
+      });
+      return;
+    }
+
+    // Folder is selected (but not a file node)
+    if (selectedFolderId && !selectedNodeId) {
+      setNodes((currentNodes) =>
+        currentNodes.map((node) => {
+          if (node.id === selectedFolderId) {
+            return {
+              ...node,
+              className: 'ring-2 ring-amber-800',
+            };
+          }
+          return {
+            ...node,
+            className: '',
+          };
+        })
+      );
+      // Reset edges to default
+      setEdges((currentEdges) =>
+        currentEdges.map((edge) => ({
+          ...edge,
+          style: { stroke: '#92400e', strokeWidth: 1.5 },
+          animated: false,
+          selected: false,
+          markerEnd: {
+            type: 'arrowclosed',
+            color: '#92400e',
+            width: 20,
+            height: 20,
+          },
+        }))
+      );
+      return;
+    }
+
+    // File node is selected
+    if (!selectedNodeId) return;
 
     // Determine highlight color based on selection source
     const highlightColor = selectionSource === 'tierlist' ? '#60a5fa' : '#f59e0b'; // blue vs amber
@@ -246,7 +355,7 @@ function NestedLayoutGraphInner({
         })
       );
     }, 0);
-  }, [selectedNodeId, selectionSource, setEdges, setNodes]);
+  }, [selectedNodeId, selectedEdgeId, selectedFolderId, selectionSource, edges, setEdges, setNodes]);
 
   // Handle node click
   const handleNodeClick = useCallback(
@@ -266,7 +375,14 @@ function NestedLayoutGraphInner({
           size_bytes: data.sizeBytes,
           line_count: data.lineCount,
         };
+        // Clear folder/edge selection when clicking a file
+        setSelectedFolderId(null);
+        setSelectedEdgeId(null);
         onNodeSelect(node.id, nodeData);
+      } else if (node.type === 'nestedFolder') {
+        // Highlight folder on click
+        setSelectedFolderId(node.id);
+        setSelectedEdgeId(null);
       }
     },
     [onNodeSelect]
@@ -276,10 +392,20 @@ function NestedLayoutGraphInner({
   const handleEdgeClick = useCallback(
     (event: React.MouseEvent, edge: Edge) => {
       event.stopPropagation();
+      // Highlight the clicked edge and connected nodes
+      setSelectedEdgeId(edge.id);
+      setSelectedFolderId(null);
       onEdgeClick?.(edge, { x: event.clientX, y: event.clientY });
     },
     [onEdgeClick]
   );
+
+  // Handle pane click - clear all local selections
+  const handlePaneClick = useCallback(() => {
+    setSelectedEdgeId(null);
+    setSelectedFolderId(null);
+    onPaneClick();
+  }, [onPaneClick]);
 
   // Get unique languages and roles for display
   const availableLanguages = useMemo(() => {
@@ -306,7 +432,7 @@ function NestedLayoutGraphInner({
         onEdgesChange={onEdgesChange}
         onNodeClick={handleNodeClick}
         onEdgeClick={handleEdgeClick}
-        onPaneClick={onPaneClick}
+        onPaneClick={handlePaneClick}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
         style={{ background: CANVAS_BACKGROUND }}
