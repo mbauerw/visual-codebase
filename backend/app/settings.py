@@ -41,6 +41,9 @@ class Settings(BaseSettings):
     github_token: str = Field(..., description="GitHub API token")
     github_secret: str = Field(..., description="GitHub Secret")
 
+    # Demo analysis (publicly accessible without authentication)
+    demo_analysis_id: str = "6475bbb4-4362-495a-81de-346128526055"
+
 
     class Config:
         env_file = ".env"

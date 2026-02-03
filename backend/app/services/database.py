@@ -292,6 +292,7 @@ class DatabaseService:
             analysis_id=analysis_data["analysis_id"],
             directory_path=analysis_data["directory_path"],
             github_repo=github_repo,
+            user_title=analysis_data.get("user_title"),
             file_count=analysis_data["file_count"],
             edge_count=analysis_data["edge_count"],
             analysis_time_seconds=analysis_data["analysis_time_seconds"],
@@ -389,26 +390,27 @@ class DatabaseService:
         self,
         analysis_id: str,
         node_id: str,
-        user_id: str,
+        user_id: Optional[str] = None,
     ) -> Optional[Dict[str, Any]]:
         """Get file content for a specific node in an analysis.
 
         Args:
             analysis_id: The analysis identifier
             node_id: The node identifier (relative file path)
-            user_id: The user ID (for ownership verification)
+            user_id: The user ID (for ownership verification), None for public access
 
         Returns:
             Dict with 'content' and 'source' keys, or None if not found
         """
-        # First verify the user owns this analysis and get the DB analysis ID
-        analysis_result = (
+        # Verify the user owns this analysis and get the DB analysis ID
+        query = (
             self.supabase.table("analyses")
             .select("id, github_repo, directory_path")
             .eq("analysis_id", analysis_id)
-            .eq("user_id", user_id)
-            .execute()
         )
+        if user_id:
+            query = query.eq("user_id", user_id)
+        analysis_result = query.execute()
 
         if not analysis_result.data:
             return None
@@ -597,7 +599,7 @@ class DatabaseService:
     async def get_tier_list(
         self,
         analysis_id: str,
-        user_id: str,
+        user_id: Optional[str] = None,
         tier: Optional[str] = None,
         file_filter: Optional[str] = None,
         function_type: Optional[str] = None,
@@ -611,7 +613,7 @@ class DatabaseService:
 
         Args:
             analysis_id: The analysis identifier
-            user_id: User ID for ownership verification
+            user_id: User ID for ownership verification, None for public access
             tier: Filter by tier (S/A/B/C/D/F)
             file_filter: Filter by file path (partial match)
             function_type: Filter by function type
@@ -625,13 +627,14 @@ class DatabaseService:
             TierListResponse with paginated functions
         """
         # Verify ownership and get DB analysis ID
-        analysis_result = (
+        query = (
             self.supabase.table("analyses")
             .select("id, function_count")
             .eq("analysis_id", analysis_id)
-            .eq("user_id", user_id)
-            .execute()
         )
+        if user_id:
+            query = query.eq("user_id", user_id)
+        analysis_result = query.execute()
 
         if not analysis_result.data:
             return None
@@ -757,26 +760,27 @@ class DatabaseService:
         self,
         analysis_id: str,
         function_id: str,
-        user_id: str,
+        user_id: Optional[str] = None,
     ) -> Optional[FunctionDetailResponse]:
         """Get detailed information about a single function.
 
         Args:
             analysis_id: The analysis identifier
             function_id: The function UUID
-            user_id: User ID for ownership verification
+            user_id: User ID for ownership verification, None for public access
 
         Returns:
             FunctionDetailResponse with function details and call info
         """
         # Verify ownership
-        analysis_result = (
+        query = (
             self.supabase.table("analyses")
             .select("id")
             .eq("analysis_id", analysis_id)
-            .eq("user_id", user_id)
-            .execute()
         )
+        if user_id:
+            query = query.eq("user_id", user_id)
+        analysis_result = query.execute()
 
         if not analysis_result.data:
             return None
@@ -900,25 +904,26 @@ class DatabaseService:
     async def get_function_stats(
         self,
         analysis_id: str,
-        user_id: str,
+        user_id: Optional[str] = None,
     ) -> Optional[FunctionStats]:
         """Get aggregate statistics for function analysis.
 
         Args:
             analysis_id: The analysis identifier
-            user_id: User ID for ownership verification
+            user_id: User ID for ownership verification, None for public access
 
         Returns:
             FunctionStats with aggregate data
         """
         # Verify ownership
-        analysis_result = (
+        query = (
             self.supabase.table("analyses")
             .select("id, function_count, function_call_count")
             .eq("analysis_id", analysis_id)
-            .eq("user_id", user_id)
-            .execute()
         )
+        if user_id:
+            query = query.eq("user_id", user_id)
+        analysis_result = query.execute()
 
         if not analysis_result.data:
             return None

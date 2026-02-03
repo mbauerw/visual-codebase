@@ -160,6 +160,9 @@ export default function VisualizationPage() {
     lineCount: number;
   } | null>(null);
 
+  // Ref to track the current analysis ID for detecting project changes
+  const currentAnalysisIdRef = useRef<string | null>(null);
+
   // Get analysis ID from URL or from loaded graph data
   const analysisIdFromUrl = searchParams.get('analysis');
   const analysisId = analysisIdFromUrl || graphData?.metadata?.analysis_id || null;
@@ -218,19 +221,37 @@ export default function VisualizationPage() {
     loadData();
   }, [navigate, searchParams]);
 
-  // Auto-open source panel with main file when graphData loads
+  // Auto-open source panel with main file when graphData loads or project changes
   useEffect(() => {
-    if (!graphData || sourceCodeFile) return; // Don't override if a file is already selected
+    if (!graphData) return;
 
-    const mainFile = findMainFile(graphData.nodes);
-    if (mainFile) {
-      setSourceCodeFile({
-        nodeId: mainFile.id,
-        fileName: mainFile.data.label,
-        language: mainFile.data.language,
-        lineCount: mainFile.data.line_count,
-      });
-      setIsSourcePanelOpen(true);
+    const newAnalysisId = graphData.metadata.analysis_id;
+    const analysisChanged = currentAnalysisIdRef.current !== null && currentAnalysisIdRef.current !== newAnalysisId;
+
+    // Update the ref
+    currentAnalysisIdRef.current = newAnalysisId;
+
+    // Reset to main file if this is a new project, or if no file is currently selected
+    if (analysisChanged || !sourceCodeFile) {
+      // Clear selection state when switching projects
+      if (analysisChanged) {
+        setSelectedNode(null);
+        setSelectedNodeId(null);
+        setSelectionSource(null);
+        setSelectedCategory(null);
+        setHighlightedLines(null);
+      }
+
+      const mainFile = findMainFile(graphData.nodes);
+      if (mainFile) {
+        setSourceCodeFile({
+          nodeId: mainFile.id,
+          fileName: mainFile.data.label,
+          language: mainFile.data.language,
+          lineCount: mainFile.data.line_count,
+        });
+        setIsSourcePanelOpen(true);
+      }
     }
   }, [graphData, sourceCodeFile]);
 
@@ -420,12 +441,13 @@ export default function VisualizationPage() {
           </h1>
         </div>
         <button
-            onClick={() => setChatModalOpen(prev => !prev)}
+            onClick={() => user ? setChatModalOpen(prev => !prev) : handleOpenAuthModal(0)}
             className={`flex items-center gap-2 px-3 py-1.5 rounded transition-colors ${
               chatModalOpen
                 ? 'bg-blue-600 text-white'
                 : 'bg-slate-700 text-slate-400 hover:text-white hover:bg-slate-600'
             }`}
+            title={user ? 'AI Assistant' : 'Sign in to use AI Assistant'}
           >
             <MessageSquare size={16} />
             <span className="text-sm font-medium">AI Assistant</span>
@@ -508,12 +530,13 @@ export default function VisualizationPage() {
         {/* Mobile Stats Only */}
         <div className="flex md:hidden items-center gap-3 text-xs text-slate-400">
           <button
-            onClick={() => setChatModalOpen(prev => !prev)}
+            onClick={() => user ? setChatModalOpen(prev => !prev) : handleOpenAuthModal(0)}
             className={`p-1.5 rounded transition-colors ${
               chatModalOpen
                 ? 'bg-blue-600 text-white'
                 : 'bg-slate-700 text-slate-400'
             }`}
+            title={user ? 'AI Assistant' : 'Sign in to use AI Assistant'}
           >
             <MessageSquare size={14} />
           </button>
@@ -853,6 +876,11 @@ function findMainFile(nodes: ReactFlowGraph['nodes']): ReactFlowGraph['nodes'][0
 
 // Helper function to get display name for the analysis
 function getAnalysisDisplayName(metadata: AnalysisMetadata): string {
+  // Prioritize user-defined title if available
+  if (metadata.user_title) {
+    return metadata.user_title;
+  }
+
   if (metadata.github_repo) {
     // For GitHub repos, show "owner/repo" or just "repo" if path is specified
     const { owner, repo, path } = metadata.github_repo;

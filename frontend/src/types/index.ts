@@ -232,6 +232,7 @@ export interface AnalysisMetadata {
   analysis_id: string;
   directory_path?: string;
   github_repo?: GitHubRepoInfo;
+  user_title?: string;
   file_count: number;
   edge_count: number;
   analysis_time_seconds: number;

@@ -22,6 +22,7 @@ from ..services.github import GitHubService
 from ..services.network_logger import log_clone
 from ..auth import get_current_user, get_optional_user
 from ..security import validate_path_within_base, PathTraversalError
+from ..settings import get_settings
 
 logging.basicConfig(
     level=logging.DEBUG,
@@ -267,11 +268,10 @@ async def get_analysis_result(
     service = get_analysis_service()
     db_service = get_database_service()
 
-    # Try to get result from database first if user is authenticated
-    if current_user:
-        result = await db_service.get_analysis_result(analysis_id)
-        if result:
-            return result
+    # Try to get result from database first
+    result = await db_service.get_analysis_result(analysis_id)
+    if result:
+        return result
 
     # Fallback to in-memory result
     # First check the status
@@ -346,7 +346,7 @@ async def update_analysis(
 async def get_file_content(
     analysis_id: str,
     node_id: str,
-    current_user = Depends(get_current_user),
+    current_user = Depends(get_optional_user),
 ):
     """
     Get file content for a specific node in an analysis.
@@ -354,11 +354,15 @@ async def get_file_content(
     For GitHub analyses: Returns stored content from database.
     For local analyses: Returns info about filesystem path (content not stored).
     """
+    settings = get_settings()
+    if not current_user and analysis_id != settings.demo_analysis_id:
+        raise HTTPException(status_code=401, detail="Authentication required")
+
     db_service = get_database_service()
     result = await db_service.get_file_content(
         analysis_id=analysis_id,
         node_id=node_id,
-        user_id=current_user.id,
+        user_id=current_user.id if current_user else None,
     )
 
     if result is None:
@@ -545,7 +549,7 @@ async def get_function_tier_list(
     sort_order: str = "desc",
     page: int = 1,
     per_page: int = 50,
-    current_user = Depends(get_current_user),
+    current_user = Depends(get_optional_user),
 ):
     """
     Get paginated function tier list for an analysis.
@@ -560,11 +564,15 @@ async def get_function_tier_list(
         page: Page number (default: 1)
         per_page: Items per page, max 100 (default: 50)
     """
+    settings = get_settings()
+    if not current_user and analysis_id != settings.demo_analysis_id:
+        raise HTTPException(status_code=401, detail="Authentication required")
+
     db_service = get_database_service()
 
     result = await db_service.get_tier_list(
         analysis_id=analysis_id,
-        user_id=current_user.id,
+        user_id=current_user.id if current_user else None,
         tier=tier,
         file_filter=file,
         function_type=type,
@@ -587,18 +595,22 @@ async def get_function_tier_list(
 @router.get("/analysis/{analysis_id}/functions/stats", response_model=FunctionStats)
 async def get_function_stats(
     analysis_id: str,
-    current_user = Depends(get_current_user),
+    current_user = Depends(get_optional_user),
 ):
     """
     Get aggregate statistics for function analysis.
 
     Returns total counts, tier distribution, and top functions.
     """
+    settings = get_settings()
+    if not current_user and analysis_id != settings.demo_analysis_id:
+        raise HTTPException(status_code=401, detail="Authentication required")
+
     db_service = get_database_service()
 
     result = await db_service.get_function_stats(
         analysis_id=analysis_id,
-        user_id=current_user.id,
+        user_id=current_user.id if current_user else None,
     )
 
     if result is None:
@@ -614,19 +626,23 @@ async def get_function_stats(
 async def get_function_detail(
     analysis_id: str,
     function_id: str,
-    current_user = Depends(get_current_user),
+    current_user = Depends(get_optional_user),
 ):
     """
     Get detailed information about a specific function.
 
     Returns the function details along with its callers and callees.
     """
+    settings = get_settings()
+    if not current_user and analysis_id != settings.demo_analysis_id:
+        raise HTTPException(status_code=401, detail="Authentication required")
+
     db_service = get_database_service()
 
     result = await db_service.get_function_detail(
         analysis_id=analysis_id,
         function_id=function_id,
-        user_id=current_user.id,
+        user_id=current_user.id if current_user else None,
     )
 
     if result is None:
