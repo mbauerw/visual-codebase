@@ -28,7 +28,7 @@ from .chat_tools import CHAT_TOOLS, ChatToolExecutor, get_tools_for_intent
 from .chat_context import build_base_context, build_general_context, format_user_message
 from .intent_classifier import IntentClassifier
 from .tool_output_formatter import ToolOutputFormatter
-from .chat_constants import MAX_RESPONSE_TOKENS, MAX_TOOL_ITERATIONS
+from .chat_constants import MAX_RESPONSE_TOKENS, MAX_TOOL_ITERATIONS, SYNTHESIS_BUFFER, SYNTHESIS_INSTRUCTION
 from .token_counter import (
     count_message_tokens,
     count_system_prompt_tokens,
@@ -358,8 +358,15 @@ class ChatbotService:
         total_input_tokens = 0
         total_output_tokens = 0
 
-        for _ in range(MAX_TOOL_ITERATIONS):
+        for iteration in range(MAX_TOOL_ITERATIONS):
             try:
+                # Detect when approaching the iteration limit to force synthesis
+                is_synthesis_turn = (
+                    iteration >= (MAX_TOOL_ITERATIONS - SYNTHESIS_BUFFER)
+                    and tools_to_use is not None
+                    and tools_used
+                )
+
                 # Build API call kwargs - only include tools if intent requires them
                 api_kwargs = dict(
                     model=self.settings.llm_model,
@@ -367,7 +374,24 @@ class ChatbotService:
                     system=system_context,
                     messages=conversation.messages,
                 )
-                if tools_to_use:
+
+                if is_synthesis_turn:
+                    # Force a text response by removing tools and injecting synthesis instruction
+                    logger.info(f"Forcing synthesis at iteration {iteration} of {MAX_TOOL_ITERATIONS} ({len(tools_used)} tool calls made)")
+                    messages_copy = [msg if not isinstance(msg, dict) else {**msg} for msg in conversation.messages]
+                    last_msg = messages_copy[-1]
+                    if isinstance(last_msg, dict) and last_msg.get("role") == "user":
+                        content = last_msg.get("content")
+                        if isinstance(content, list):
+                            last_msg["content"] = content + [{"type": "text", "text": SYNTHESIS_INSTRUCTION}]
+                        else:
+                            messages_copy.append({"role": "assistant", "content": "Let me synthesize what I've found."})
+                            messages_copy.append({"role": "user", "content": SYNTHESIS_INSTRUCTION})
+                    else:
+                        messages_copy.append({"role": "user", "content": SYNTHESIS_INSTRUCTION})
+                    api_kwargs["messages"] = messages_copy
+                    # Intentionally omit tools to force text response
+                elif tools_to_use:
                     api_kwargs["tools"] = tools_to_use
 
                 response = await self.client.messages.create(**api_kwargs)
@@ -480,8 +504,8 @@ class ChatbotService:
                     ) if total_input_tokens > 0 or total_output_tokens > 0 else None
                 )
 
-        # Max iterations reached
-        fallback_msg = "I've gathered information but reached my processing limit. Please try a more specific question."
+        # Max iterations reached (safety net -- synthesis should have triggered above)
+        fallback_msg = "I was unable to fully process your request. Please try rephrasing or asking a more specific question."
         conversation.add_assistant_message(fallback_msg)
         return ChatResponse(
             response=fallback_msg,
@@ -572,6 +596,13 @@ class ChatbotService:
 
         for iteration in range(MAX_TOOL_ITERATIONS):
             try:
+                # Detect when approaching the iteration limit to force synthesis
+                is_synthesis_turn = (
+                    iteration >= (MAX_TOOL_ITERATIONS - SYNTHESIS_BUFFER)
+                    and tools_to_use is not None
+                    and tools_used
+                )
+
                 # Build API call kwargs - only include tools for codebase mode
                 api_kwargs = dict(
                     model=self.settings.llm_model,
@@ -579,7 +610,24 @@ class ChatbotService:
                     system=system_context,
                     messages=conversation.messages,
                 )
-                if tools_to_use:
+
+                if is_synthesis_turn:
+                    # Force a text response by removing tools and injecting synthesis instruction
+                    logger.info(f"Forcing synthesis at iteration {iteration} of {MAX_TOOL_ITERATIONS} ({len(tools_used)} tool calls made)")
+                    messages_copy = [msg if not isinstance(msg, dict) else {**msg} for msg in conversation.messages]
+                    last_msg = messages_copy[-1]
+                    if isinstance(last_msg, dict) and last_msg.get("role") == "user":
+                        content = last_msg.get("content")
+                        if isinstance(content, list):
+                            last_msg["content"] = content + [{"type": "text", "text": SYNTHESIS_INSTRUCTION}]
+                        else:
+                            messages_copy.append({"role": "assistant", "content": "Let me synthesize what I've found."})
+                            messages_copy.append({"role": "user", "content": SYNTHESIS_INSTRUCTION})
+                    else:
+                        messages_copy.append({"role": "user", "content": SYNTHESIS_INSTRUCTION})
+                    api_kwargs["messages"] = messages_copy
+                    # Intentionally omit tools to force text response
+                elif tools_to_use:
                     api_kwargs["tools"] = tools_to_use
 
                 # First, do non-streaming call to handle tools
@@ -698,7 +746,12 @@ class ChatbotService:
                     system=system_context,
                     messages=conversation.messages,
                 )
-                if tools_to_use:
+
+                if is_synthesis_turn:
+                    # Keep tools removed and use the same modified messages for streaming
+                    stream_kwargs["messages"] = api_kwargs["messages"]
+                    # Intentionally omit tools to force text response
+                elif tools_to_use:
                     stream_kwargs["tools"] = tools_to_use
 
                 async with self.client.messages.stream(**stream_kwargs) as stream:
@@ -755,8 +808,8 @@ class ChatbotService:
                 )
                 return
 
-        # Max iterations reached
-        fallback_msg = "I've gathered information but reached my processing limit. Please try a more specific question."
+        # Max iterations reached (safety net -- synthesis should have triggered above)
+        fallback_msg = "I was unable to fully process your request. Please try rephrasing or asking a more specific question."
         conversation.add_assistant_message(fallback_msg)
 
         yield StreamEvent(
