@@ -14,7 +14,7 @@ import type { ArchitecturalRole, ReactFlowNodeData } from '../types';
 
 export interface CategoryNodeData extends Record<string, unknown> {
   label: string;
-  category: 'frontend' | 'backend' | 'folder';
+  category: 'frontend' | 'backend' | 'test' | 'folder';
   role?: ArchitecturalRole;
   width: number;
   height: number;

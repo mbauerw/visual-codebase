@@ -11,7 +11,7 @@ CHARS_PER_TOKEN = 4
 
 # API configuration
 MAX_RESPONSE_TOKENS = 2048  # Maximum tokens in Claude response
-MAX_TOOL_ITERATIONS = 10  # Maximum tool execution iterations per request
+MAX_TOOL_ITERATIONS = 20  # Maximum tool execution iterations per request
 
 # Tool result summarization
 DEFAULT_SUMMARIZATION_TOKEN_LIMIT = 2000

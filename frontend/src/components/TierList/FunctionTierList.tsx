@@ -9,6 +9,7 @@ import {
   AlertCircle,
   Loader2,
   BarChart3,
+  ChevronUp,
 } from 'lucide-react';
 import { useTierList } from '../../hooks/useTierList';
 import type { FunctionTierItem, TierLevel } from '../../types/tierList';
@@ -28,6 +29,7 @@ export function FunctionTierList({
 }: FunctionTierListProps) {
   const [selectedFunctionId, setSelectedFunctionId] = useState<string | null>(null);
   const [showFilters, setShowFilters] = useState(false);
+  const [expandStats, setExpandStats] = useState(true);
 
   const {
     tierGroups,
@@ -124,32 +126,40 @@ export function FunctionTierList({
 
       {/* Stats bar */}
       {stats && tierSummary && (
-        <div className="px-4 py-2 border-b border-slate-700 bg-slate-800/50">
-          <div className="flex items-center justify-between text-xs">
-            <span className="text-slate-400">
-              {stats.total_functions} functions, {stats.total_calls} calls
-            </span>
-            <div className="flex items-center gap-1">
-              {(['S', 'A', 'B', 'C', 'D', 'F'] as TierLevel[]).map((tier) => (
-                <button
-                  key={tier}
-                  onClick={() => setTierFilter(tierFilter === tier ? null : tier)}
-                  className={`w-6 h-5 flex items-center justify-center rounded text-xs font-medium transition-all ${
-                    tierFilter === tier
-                      ? 'ring-1 ring-white'
-                      : 'opacity-70 hover:opacity-100'
-                  }`}
-                  style={{
-                    backgroundColor: `${tierColors[tier]}30`,
-                    color: tierColors[tier],
-                  }}
-                  title={`${tierLabels[tier]}: ${tierSummary[tier]}`}
-                >
-                  {tierSummary[tier]}
-                </button>
-              ))}
+        <div className="relative border-b border-slate-700 bg-slate-800/50">
+          <div className={`px-4 transition-all duration-300 ease-in-out overflow-hidden ${expandStats ? 'max-h-96 py-2 opacity-100' : 'max-h-4 h-4 py-0 opacity-0'}`}>
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-slate-400">
+                {stats.total_functions} functions, {stats.total_calls} calls
+              </span>
+              <div className="flex items-center gap-1">
+                {(['S', 'A', 'B', 'C', 'D', 'F'] as TierLevel[]).map((tier) => (
+                  <button
+                    key={tier}
+                    onClick={() => setTierFilter(tierFilter === tier ? null : tier)}
+                    className={`w-6 h-5 flex items-center justify-center rounded text-xs font-medium transition-all ${
+                      tierFilter === tier
+                        ? 'ring-1 ring-white'
+                        : 'opacity-70 hover:opacity-100'
+                    }`}
+                    style={{
+                      backgroundColor: `${tierColors[tier]}30`,
+                      color: tierColors[tier],
+                    }}
+                    title={`${tierLabels[tier]}: ${tierSummary[tier]}`}
+                  >
+                    {tierSummary[tier]}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
+          <button
+            onClick={() => setExpandStats(prev => !prev)}
+            className="absolute right-3 bottom-0 p-0 text-slate-400 hover:text-white transition-colors z-10"
+          >
+            <ChevronUp size={14} className={`transition-transform duration-300 ${expandStats ? '' : 'rotate-180'}`} />
+          </button>
         </div>
       )}
 

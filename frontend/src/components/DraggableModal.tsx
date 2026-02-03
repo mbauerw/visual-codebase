@@ -61,8 +61,6 @@ export function DraggableModal({
     };
   }, [isDragging, width]);
 
-  if (!isOpen) return null;
-
   return (
     <div
       className="fixed z-40 rounded-xl overflow-hidden shadow-2xl border border-slate-700 flex flex-col bg-slate-900"
@@ -71,6 +69,7 @@ export function DraggableModal({
         top: position.y,
         width,
         height,
+        display: isOpen ? undefined : 'none',
       }}
     >
       <div

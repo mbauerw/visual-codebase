@@ -1,11 +1,11 @@
 import { memo } from 'react';
-import { Monitor, Server } from 'lucide-react';
+import { Monitor, Server, FlaskConical } from 'lucide-react';
 import { categoryColors } from '../types';
 
 export interface CategorySection {
   id: string;
   label: string;
-  category: 'frontend' | 'backend';
+  category: 'frontend' | 'backend' | 'test';
   x: number;
   y: number;
   width: number;
@@ -31,10 +31,12 @@ function CategoryBackground({ sections, transform }: CategoryBackgroundProps) {
         }}
       >
         {sections.map((section) => {
-          const baseColor = section.category === 'frontend' 
-            ? categoryColors.frontend 
+          const baseColor = section.category === 'frontend'
+            ? categoryColors.frontend
+            : section.category === 'test'
+            ? categoryColors.test
             : categoryColors.backend;
-          const Icon = section.category === 'frontend' ? Monitor : Server;
+          const Icon = section.category === 'frontend' ? Monitor : section.category === 'test' ? FlaskConical : Server;
 
           return (
             <div

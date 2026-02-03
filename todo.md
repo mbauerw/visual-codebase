@@ -4,10 +4,12 @@
 - ~~Change summary for project overview~~
 - ~~Change visualize page header to include nav bar info~~
 - ~~add title change for stored analysis~~
-- clicking category node causes source file to disappear
-- Add actual file display so users can search through their code and sync it up with the visualization
-- Add AI chatbot with analysis context
+~~- Add actual file display so users can search through their code and sync it up with the visualization~~
+~~- Add AI chatbot with analysis context~~
 - ~~Change edges so they display the actual import name, not the file source~~
+- "main" files needs to be highlighted in AnalysisFileTree.tsx
+- 
+- Go imports are weird
 - custom layouts
 - adjust file layout
 - ~~ add function relations (Function tier list)~~

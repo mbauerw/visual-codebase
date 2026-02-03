@@ -82,6 +82,7 @@ export function ProfessionalDesign({
   const [selectedFunctionId, setSelectedFunctionId] = useState<string | null>(null);
   const [showFilters, setShowFilters] = useState(false);
   const [expandSearch, setExpandSearch] = useState(true);
+  const [expandStats, setExpandStats] = useState(true);
 
   const {
     tierGroups,
@@ -193,45 +194,53 @@ export function ProfessionalDesign({
 
       {/* Stats bar - Refined with subtle grid lines */}
       {stats && tierSummary && (
-        <div className="px-8 py-5 bg-white border-b border-[#e8e6e3]">
-          <div className="flex flex-col items-center gap-6 justify-center">
-            <div className="flex items-center  gap-6">
-              <div className="flex items-center gap-3 text-sm text-[#4a5568]">
-                <span className="text-2xl font-extralight text-[#2d3748] tabular-nums">{stats.total_functions}</span>
-                <span className="text-xs font-light tracking-wider uppercase text-[#a0aec0]">Functions</span>
+        <div className="relative border-b border-[#e8e6e3] bg-white">
+          <div className={`px-8 transition-all duration-300 ease-in-out overflow-hidden ${expandStats ? 'max-h-96 py-5 opacity-100' : 'max-h-4 h-4 py-0 opacity-0'}`}>
+            <div className="flex flex-col items-center gap-6 justify-center">
+              <div className="flex items-center  gap-6">
+                <div className="flex items-center gap-3 text-sm text-[#4a5568]">
+                  <span className="text-2xl font-extralight text-[#2d3748] tabular-nums">{stats.total_functions}</span>
+                  <span className="text-xs font-light tracking-wider uppercase text-[#a0aec0]">Functions</span>
+                </div>
+                <div className="w-px h-8 bg-[#e8e6e3]"></div>
+                <div className="flex items-center gap-3 px-3 text-sm text-[#4a5568]">
+                  <span className="text-2xl font-extralight text-[#2d3748] tabular-nums">{stats.total_calls}</span>
+                  <span className="text-xs font-light tracking-wider uppercase text-[#a0aec0]">Total Calls</span>
+                </div>
               </div>
-              <div className="w-px h-8 bg-[#e8e6e3]"></div>
-              <div className="flex items-center gap-3 px-3 text-sm text-[#4a5568]">
-                <span className="text-2xl font-extralight text-[#2d3748] tabular-nums">{stats.total_calls}</span>
-                <span className="text-xs font-light tracking-wider uppercase text-[#a0aec0]">Total Calls</span>
-              </div>
-            </div>
 
-            {/* Tier quick filters - Elegant minimal badges */}
-            <div className="flex items-center gap-2">
-              {(['S', 'A', 'B', 'C', 'D', 'F'] as TierLevel[]).map((tier) => (
-                <button
-                  key={tier}
-                  onClick={() => setTierFilter(tierFilter === tier ? null : tier)}
-                  className={`min-w-[40px] h-8 px-2.5 flex items-center justify-center text-xs transition-all ${
-                    tierFilter === tier
-                      ? 'bg-[#2d3748] text-white'
-                      : 'bg-transparent text-[#718096] hover:text-[#4a5568] border border-[#e8e6e3] hover:border-[#d4d0cb]'
-                  }`}
-                  style={{
-                    fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace',
-                    fontWeight: tierFilter === tier ? 500 : 400,
-                  }}
-                  title={`${tierLabels[tier]}: ${tierSummary[tier]}`}
-                >
-                  {tier}
-                  <span className="ml-1.5 text-[10px] opacity-70 tabular-nums">
-                    {tierSummary[tier]}
-                  </span>
-                </button>
-              ))}
+              {/* Tier quick filters - Elegant minimal badges */}
+              <div className="flex items-center gap-2">
+                {(['S', 'A', 'B', 'C', 'D', 'F'] as TierLevel[]).map((tier) => (
+                  <button
+                    key={tier}
+                    onClick={() => setTierFilter(tierFilter === tier ? null : tier)}
+                    className={`min-w-[40px] h-8 px-2.5 flex items-center justify-center text-xs transition-all ${
+                      tierFilter === tier
+                        ? 'bg-[#2d3748] text-white'
+                        : 'bg-transparent text-[#718096] hover:text-[#4a5568] border border-[#e8e6e3] hover:border-[#d4d0cb]'
+                    }`}
+                    style={{
+                      fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace',
+                      fontWeight: tierFilter === tier ? 500 : 400,
+                    }}
+                    title={`${tierLabels[tier]}: ${tierSummary[tier]}`}
+                  >
+                    {tier}
+                    <span className="ml-1.5 text-[10px] opacity-70 tabular-nums">
+                      {tierSummary[tier]}
+                    </span>
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
+          <button
+            onClick={() => setExpandStats(prev => !prev)}
+            className="absolute right-3 bottom-0 p-0 text-[#a0aec0] hover:text-[#718096] transition-colors z-10"
+          >
+            <ChevronUp size={14} className={`transition-transform duration-300 ${expandStats ? '' : 'rotate-180'}`} />
+          </button>
         </div>
       )}
 

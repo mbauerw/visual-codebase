@@ -65,16 +65,20 @@ const nodeGapY = 55; // Vertical gap between nodes
 const rolePadding = 45;
 const roleHeaderHeight = 55;
 
-// Categorize nodes into Frontend vs Backend groups
-function categorizeNode(category: Category): 'frontend' | 'backend' {
+// Categorize nodes into Frontend, Backend, or Test groups
+function categorizeNode(category: Category, role: ArchitecturalRole): 'frontend' | 'backend' | 'test' {
+  // Check role first - test role always goes to test group
+  if (role === 'test') return 'test';
+
   switch (category) {
     case 'frontend':
       return 'frontend';
     case 'backend':
     case 'infrastructure':
       return 'backend';
-    case 'shared':
     case 'test':
+      return 'test';
+    case 'shared':
     case 'config':
     case 'unknown':
     default:
@@ -178,15 +182,16 @@ function getNestedCategoryLayout(
     }
   });
 
-  // Group nodes by category (frontend/backend) and then by role
+  // Group nodes by category (frontend/backend/test) and then by role
   type RoleGroup = { role: ArchitecturalRole; nodes: CustomNodeType[] };
 
   const frontendRoles: Map<ArchitecturalRole, CustomNodeType[]> = new Map();
   const backendRoles: Map<ArchitecturalRole, CustomNodeType[]> = new Map();
+  const testRoles: Map<ArchitecturalRole, CustomNodeType[]> = new Map();
 
   fileNodes.forEach((node) => {
-    const categoryGroup = categorizeNode(node.data.category);
-    const roleMap = categoryGroup === 'frontend' ? frontendRoles : backendRoles;
+    const categoryGroup = categorizeNode(node.data.category, node.data.role);
+    const roleMap = categoryGroup === 'frontend' ? frontendRoles : categoryGroup === 'test' ? testRoles : backendRoles;
 
     if (!roleMap.has(node.data.role)) {
       roleMap.set(node.data.role, []);
@@ -200,6 +205,7 @@ function getNestedCategoryLayout(
 
   frontendRoles.forEach((nodes) => nodes.sort(sortByDeps));
   backendRoles.forEach((nodes) => nodes.sort(sortByDeps));
+  testRoles.forEach((nodes) => nodes.sort(sortByDeps));
 
   // Sort role groups by total dependency count
   const sortRoleGroups = (roleMap: Map<ArchitecturalRole, CustomNodeType[]>): RoleGroup[] => {
@@ -214,13 +220,15 @@ function getNestedCategoryLayout(
 
   const frontendRoleGroups = sortRoleGroups(frontendRoles);
   const backendRoleGroups = sortRoleGroups(backendRoles);
+  const testRoleGroups = sortRoleGroups(testRoles);
 
   // Layout role categories in a circular pattern
   const layoutRoleCategoriesInCircle = (
     roleGroups: RoleGroup[],
     categoryId: string,
-    topCategory: 'frontend' | 'backend',
-    offsetX: number
+    topCategory: 'frontend' | 'backend' | 'test',
+    offsetX: number,
+    offsetY: number = 0
   ): {
     roleCategoryNodes: CategoryNodeType[];
     fileNodes: CustomNodeType[];
@@ -237,7 +245,7 @@ function getNestedCategoryLayout(
         fileNodes: positionedFileNodes,
         circleRadius: 300,
         centerX: offsetX + 300,
-        centerY: 300,
+        centerY: offsetY + 300,
       };
     }
 
@@ -265,7 +273,7 @@ function getNestedCategoryLayout(
 
     // Calculate center position
     const centerX = offsetX + circleRadius;
-    const centerY = circleRadius;
+    const centerY = offsetY + circleRadius;
     const placementRadius = circleRadius - maxRoleHeight / 2 - 200;
 
     roleGroups.forEach((roleGroup, index) => {
@@ -354,7 +362,7 @@ function getNestedCategoryLayout(
     50
   );
 
-  // Layout backend categories
+  // Layout backend categories (to the right of frontend)
   const frontendWidth = frontendLayout.circleRadius;
   const backendLayout = layoutRoleCategoriesInCircle(
     backendRoleGroups,
@@ -363,13 +371,26 @@ function getNestedCategoryLayout(
     frontendWidth + 50
   );
 
+  // Layout test categories (below backend)
+  const backendSize = Math.max(backendLayout.circleRadius, 600);
+  const testOffsetY = backendLayout.centerY + backendSize / 2 + 100;
+  const testLayout = layoutRoleCategoriesInCircle(
+    testRoleGroups,
+    'test',
+    'test',
+    frontendWidth + 50,
+    testOffsetY
+  );
+
   // Calculate total node counts
   const frontendNodeCount = frontendRoleGroups.reduce((sum, rg) => sum + rg.nodes.length, 0);
   const backendNodeCount = backendRoleGroups.reduce((sum, rg) => sum + rg.nodes.length, 0);
+  const testNodeCount = testRoleGroups.reduce((sum, rg) => sum + rg.nodes.length, 0);
 
   // Create category sections for the background
   const frontendSize = Math.max(frontendLayout.circleRadius, 600);
-  const backendSize = Math.max(backendLayout.circleRadius, 600);
+  const backendSizeFinal = backendSize;
+  const testSize = Math.max(testLayout.circleRadius, 600);
 
   const categorySections: CategorySection[] = [
     {
@@ -386,20 +407,36 @@ function getNestedCategoryLayout(
       id: 'section-backend',
       label: 'Backend',
       category: 'backend',
-      x: backendLayout.centerX - backendSize / 2,
-      y: backendLayout.centerY - backendSize / 2,
-      width: backendSize,
-      height: backendSize,
+      x: backendLayout.centerX - backendSizeFinal / 2,
+      y: backendLayout.centerY - backendSizeFinal / 2,
+      width: backendSizeFinal,
+      height: backendSizeFinal,
       nodeCount: backendNodeCount,
     },
   ];
+
+  // Only add test section if there are test files
+  if (testNodeCount > 0) {
+    categorySections.push({
+      id: 'section-test',
+      label: 'Tests',
+      category: 'test',
+      x: testLayout.centerX - testSize / 2,
+      y: testLayout.centerY - testSize / 2,
+      width: testSize,
+      height: testSize,
+      nodeCount: testNodeCount,
+    });
+  }
 
   // Combine all nodes
   const allNodes: AllNodeTypes[] = [
     ...frontendLayout.roleCategoryNodes,
     ...backendLayout.roleCategoryNodes,
+    ...testLayout.roleCategoryNodes,
     ...frontendLayout.fileNodes,
     ...backendLayout.fileNodes,
+    ...testLayout.fileNodes,
   ];
 
   return { nodes: allNodes, edges, categorySections };
