@@ -26,13 +26,14 @@ Files: {file_count} | Languages: {languages} | Dependencies: {edge_count}
 
 {function_stats}
 
+{structural_digest}
+
 Tool strategy:
-- For overview/architecture questions: use get_codebase_summary FIRST -- one call is usually sufficient to answer. Only use additional tools if the summary lacks specific details the user asked about.
+- For overview/architecture questions: answer directly from the context above whenever possible. The summary, role distribution, directory structure, and hub files above contain enough information for most broad questions. Only use tools if the user asks about details not present in the context.
 - For questions about specific files: use get_file_info with the exact filename. Do NOT use search_files with vague keywords.
 - For "what imports X" or "what uses X": use get_dependencies with the direction parameter.
 - For aggregate questions (most connected files, statistics): use get_metrics.
 - AVOID multiple search_files calls with different vague keywords. If a search returns no useful results, try get_metrics or get_codebase_summary rather than searching again with a different keyword.
-- For overview questions about the project's purpose, architecture, tech stack, and structure, you can often answer directly from the context above without using any tools.
 
 When [Context: File: ...] is in the message, use that file path directly with get_file_info or get_function_info instead of searching broadly.
 
@@ -72,13 +73,17 @@ def build_base_context(graph: ReactFlowGraph) -> str:
     # Format function stats
     function_stats = _format_function_stats(metadata.function_stats)
 
+    # Format structural digest from graph data
+    structural_digest = _format_structural_digest(graph)
+
     return BASE_CONTEXT_TEMPLATE.format(
         project_name=project_name,
         file_count=metadata.file_count,
         languages=languages,
         edge_count=metadata.edge_count,
         summary=summary,
-        function_stats=function_stats
+        function_stats=function_stats,
+        structural_digest=structural_digest
     )
 
 
@@ -165,6 +170,70 @@ def _format_function_stats(stats: Optional[FunctionStats]) -> str:
         parts.append(f"- Top functions: {', '.join(stats.top_functions[:5])}")
 
     return "\n".join(parts)
+
+
+def _format_structural_digest(graph: ReactFlowGraph) -> str:
+    """Build a structural digest of the codebase from graph data.
+
+    Includes role distribution, directory structure, and most-connected files
+    so the model can answer broad overview questions without tool calls.
+    """
+    if not graph.nodes:
+        return ""
+
+    parts = []
+
+    # 1. Role distribution (top 10)
+    role_counts: dict[str, int] = {}
+    for node in graph.nodes:
+        role = node.data.role.value
+        role_counts[role] = role_counts.get(role, 0) + 1
+    sorted_roles = sorted(role_counts.items(), key=lambda x: x[1], reverse=True)[:10]
+    role_str = ", ".join(f"{role} ({count})" for role, count in sorted_roles)
+    parts.append(f"**Role distribution:** {role_str}")
+
+    # 2. Directory structure (top-level folders, top 10)
+    dir_counts: dict[str, int] = {}
+    for node in graph.nodes:
+        path = node.data.path.replace("\\", "/")
+        folder = path.split("/")[0] if "/" in path else "(root)"
+        dir_counts[folder] = dir_counts.get(folder, 0) + 1
+    sorted_dirs = sorted(dir_counts.items(), key=lambda x: x[1], reverse=True)[:10]
+    dir_str = ", ".join(f"{d}/ ({c} files)" for d, c in sorted_dirs)
+    parts.append(f"**Directory structure:** {dir_str}")
+
+    # 3. Most-connected files (top 5 hub files)
+    import_counts: dict[str, int] = {}
+    imported_by_counts: dict[str, int] = {}
+    for edge in graph.edges:
+        import_counts[edge.source] = import_counts.get(edge.source, 0) + 1
+        imported_by_counts[edge.target] = imported_by_counts.get(edge.target, 0) + 1
+
+    connection_scores = []
+    for node in graph.nodes:
+        total = import_counts.get(node.id, 0) + imported_by_counts.get(node.id, 0)
+        if total > 0:
+            connection_scores.append((node.data.path, node.data.role.value, total))
+    connection_scores.sort(key=lambda x: x[2], reverse=True)
+    top_hubs = connection_scores[:5]
+    if top_hubs:
+        hub_lines = [f"  - {path} ({role}, {total} connections)" for path, role, total in top_hubs]
+        parts.append("**Hub files (most connected):**\n" + "\n".join(hub_lines))
+
+    # 4. Entry points (files with no importers that import others)
+    entry_points = []
+    for node in graph.nodes:
+        imports = import_counts.get(node.id, 0)
+        imported_by = imported_by_counts.get(node.id, 0)
+        if imported_by == 0 and imports > 0:
+            entry_points.append((node.data.path, node.data.role.value, imports))
+    entry_points.sort(key=lambda x: x[2], reverse=True)
+    top_entries = entry_points[:3]
+    if top_entries:
+        entry_lines = [f"  - {path} ({role})" for path, role, _ in top_entries]
+        parts.append("**Entry points:**\n" + "\n".join(entry_lines))
+
+    return "\n".join(parts) if parts else ""
 
 
 def format_user_message(
