@@ -460,6 +460,27 @@ Examples:
             },
             "required": ["metric"]
         }
+    },
+    {
+        "name": "get_codebase_overview",
+        "description": """Get a comprehensive codebase overview in a single call. Combines summary, metrics, directory structure, and entry point identification.
+
+Returns: project type, purpose, architecture summary, tech stack, key modules, complexity,
+role distribution, directory structure, most connected files, entry points, and dependency stats.
+
+When to use:
+- User asks a broad question about the codebase (e.g., "What is this?", "Give me a rundown")
+- User wants to understand the overall architecture or organization
+- PREFERRED over calling get_codebase_summary and get_metrics separately
+
+Examples:
+- "Give me a rundown of this application" -> get_codebase_overview()
+- "How is this codebase organized?" -> get_codebase_overview()
+- "What does this project do?" -> get_codebase_overview()""",
+        "input_schema": {
+            "type": "object",
+            "properties": {}
+        }
     }
 ]
 
@@ -664,6 +685,14 @@ CHAT_TOOLS_COMPRESSED = [
             },
             "required": ["metric"]
         }
+    },
+    {
+        "name": "get_codebase_overview",
+        "description": "Comprehensive codebase overview in one call: summary, purpose, tech stack, role distribution, directory structure, entry points, most connected files, dependency stats. Preferred for broad questions.",
+        "input_schema": {
+            "type": "object",
+            "properties": {}
+        }
     }
 ]
 
@@ -680,7 +709,7 @@ _TOOL_NAMES_BY_INTENT: dict[QuestionIntent, list[str]] = {
         "get_function_info", "list_functions", "compare_files",
     ],
     QuestionIntent.CODEBASE_GENERAL: [
-        "get_codebase_summary", "get_metrics", "search_files",
+        "get_codebase_overview", "search_files",
     ],
     QuestionIntent.DEPENDENCY_ANALYSIS: [
         "get_dependencies", "detect_circular_dependencies",
@@ -807,6 +836,8 @@ class ChatToolExecutor:
                 )
             elif tool_name == "get_metrics":
                 result = self._get_metrics(tool_input.get("metric", "all"))
+            elif tool_name == "get_codebase_overview":
+                result = self._get_codebase_overview()
             else:
                 return {"error": f"Unknown tool: {tool_name}"}
 
@@ -1072,6 +1103,82 @@ class ChatToolExecutor:
                 "tier_counts": metadata.function_stats.tier_counts,
                 "top_functions": metadata.function_stats.top_functions
             }
+
+        return result
+
+    def _get_codebase_overview(self) -> dict[str, Any]:
+        """Get comprehensive codebase overview combining summary, metrics, directory structure, and entry points."""
+        # Start with the full summary
+        result = self._get_codebase_summary()
+
+        # Add role distribution
+        role_distribution: dict[str, int] = {}
+        for node in self.graph.nodes:
+            role = node.data.role.value
+            role_distribution[role] = role_distribution.get(role, 0) + 1
+        result["role_distribution"] = dict(
+            sorted(role_distribution.items(), key=lambda x: x[1], reverse=True)
+        )
+
+        # Add directory structure
+        dirs: dict[str, int] = {}
+        for node in self.graph.nodes:
+            path = node.data.path
+            parts = path.replace("\\", "/").split("/")
+            top_dir = parts[0] if len(parts) > 1 else "(root)"
+            dirs[top_dir] = dirs.get(top_dir, 0) + 1
+        result["directory_structure"] = dict(
+            sorted(dirs.items(), key=lambda x: x[1], reverse=True)
+        )
+
+        # Compute connection counts for most_connected and entry points
+        import_counts: dict[str, int] = {}
+        imported_by_counts: dict[str, int] = {}
+        for edge in self.graph.edges:
+            import_counts[edge.source] = import_counts.get(edge.source, 0) + 1
+            imported_by_counts[edge.target] = imported_by_counts.get(edge.target, 0) + 1
+
+        # Add most connected files (top 5)
+        connection_scores = []
+        for node in self.graph.nodes:
+            imports = import_counts.get(node.id, 0)
+            imported_by = imported_by_counts.get(node.id, 0)
+            connection_scores.append({
+                "path": node.data.path,
+                "role": node.data.role.value,
+                "imports": imports,
+                "imported_by": imported_by,
+                "total": imports + imported_by,
+            })
+        result["most_connected"] = sorted(
+            connection_scores, key=lambda x: x["total"], reverse=True
+        )[:5]
+
+        # Add entry points: files with no importers but that import others
+        entry_points = [
+            {
+                "path": s["path"],
+                "role": s["role"],
+                "imports": s["imports"],
+            }
+            for s in connection_scores
+            if s["imported_by"] == 0 and s["imports"] > 0
+        ]
+        result["entry_points"] = sorted(
+            entry_points, key=lambda x: x["imports"], reverse=True
+        )[:5]
+
+        # Add dependency stats
+        import_values = list(import_counts.values()) if import_counts else [0]
+        result["dependency_stats"] = {
+            "total_dependencies": len(self.graph.edges),
+            "avg_imports_per_file": round(
+                sum(import_values) / len(self.graph.nodes), 2
+            ) if self.graph.nodes else 0,
+            "max_imports": max(import_values) if import_values else 0,
+            "files_with_no_imports": len(self.graph.nodes) - len(import_counts),
+            "files_with_no_importers": len(self.graph.nodes) - len(imported_by_counts),
+        }
 
         return result
 

@@ -65,6 +65,7 @@ class ToolOutputFormatter:
             "analyze_imports": cls._format_imports,
             "get_files_by_role": cls._format_files_by_role,
             "get_codebase_summary": cls._format_codebase_summary,
+            "get_codebase_overview": cls._format_codebase_overview,
             "detect_circular_dependencies": cls._format_circular_deps,
             "find_dependency_path": cls._format_dependency_path,
             "compare_files": cls._format_compare_files,
@@ -195,6 +196,35 @@ class ToolOutputFormatter:
             top_roles = sorted(role_counts.items(), key=lambda x: x[1], reverse=True)[:3]
             role_str = ", ".join(f"{r}: {c}" for r, c in top_roles)
             lines.append(f"Top roles: {role_str}")
+
+        return "\n".join(lines) if lines else cls._format_default(result)
+
+    @classmethod
+    def _format_codebase_overview(cls, result: dict) -> str:
+        """Format get_codebase_overview result."""
+        lines = []
+
+        if result.get("primary_purpose"):
+            lines.append(f"Purpose: {cls._truncate(result['primary_purpose'], 120)}")
+
+        if result.get("file_count"):
+            lines.append(f"Files: {result['file_count']}")
+
+        role_dist = result.get("role_distribution", {})
+        if role_dist:
+            top_roles = list(role_dist.items())[:4]
+            role_str = ", ".join(f"{r}({c})" for r, c in top_roles)
+            lines.append(f"Roles: {role_str}")
+
+        entry_pts = result.get("entry_points", [])
+        if entry_pts:
+            names = [e.get("path", "?").split("/")[-1] for e in entry_pts[:3]]
+            lines.append(f"Entry points: {', '.join(names)}")
+
+        most_conn = result.get("most_connected", [])
+        if most_conn:
+            names = [f.get("path", "?").split("/")[-1] for f in most_conn[:3]]
+            lines.append(f"Hub files: {', '.join(names)}")
 
         return "\n".join(lines) if lines else cls._format_default(result)
 
