@@ -283,11 +283,16 @@ export default function UploadPage() {
             </button>
             <button
               onClick={() => scrollToSection('how-it-works')}
-              className="bg-white hover:bg-gray-50 text-gray-900 px-8 py-4 rounded-full font-medium text-lg border border-gray-200 transition-all hover:border-gray-300"
+              className="bg-white hover:bg-gray-50 text-gray-900 px-8 py-4 rounded-full font-medium text-lg border border-gray-200 transition-all hover:border-gray-300 hover:scale-[1.02]"
             >
               See How It Works
             </button>
           </div>
+          <button
+            className="mt-4 bg-white hover:bg-gray-50 text-gray-900 px-8 py-4 rounded-full font-medium text-lg border border-gray-200 transition-all hover:border-gray-300 hover:scale-[1.02]"
+          >
+            Try Demo
+          </button>
         </div>
 
         {/* Scroll indicator */}

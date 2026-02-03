@@ -82,7 +82,7 @@ function CustomNode({ data, selected }: NodeProps<CustomNodeType>) {
       className={`
         relative px-3 py-4 rounded-lg min-w-[240px] max-w-[320px]
         transition-all duration-400 hover:scale-[1.2]
-        ${selected ? 'ring-4 ring-amber-500 shadow-xl shadow-amber-500 ring-offset-2 scale-[1.2] ring-offset-amber-900' : ''}
+        ${selected ? 'ring-8 ring-amber-500 shadow-xl shadow-amber-500 ring-offset-2 scale-[1.2] ring-offset-amber-900' : ''}
       `}
       style={{
         backgroundColor: '#1e293b',

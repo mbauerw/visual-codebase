@@ -641,7 +641,7 @@ function RoleLayoutGraphInner({
     // Highlight connected nodes
     const selectedNodeClass = selectionSource === 'tierlist'
       ? 'ring-8 ring-blue-500 scale-[1.1]'
-      : 'ring-2 ring-amber-500';
+      : 'ring-8 ring-amber-500';
 
     setTimeout(() => {
       setNodes((currentNodes) =>
@@ -797,7 +797,7 @@ function RoleLayoutGraphInner({
                 placeholder="Search files..."
                 value={searchQuery}
                 readOnly
-                className="w-full pl-8 pr-3 py-1.5 bg-slate-900 border border-slate-700 rounded text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                className="w-full pl-8 pr-3 py-1.5 bg-slate-900 border border-slate-700 rounded text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-4 focus:ring-blue-500"
               />
             </div>
             {/* Language Filter */}
