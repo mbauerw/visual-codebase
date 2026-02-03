@@ -52,7 +52,23 @@ _CODEBASE_GENERAL_KEYWORDS = frozenset({
     "role", "roles", "category", "categories",
     "how many files", "file count",
     "most connected", "distribution",
+    # Broad overview question keywords
+    "application", "app", "rundown", "walkthrough",
+    "organized", "high-level", "big picture", "purpose",
 })
+
+# Regex patterns that indicate broad codebase overview questions.
+# These are checked before specific-file patterns to avoid misclassification.
+_CODEBASE_OVERVIEW_PATTERNS = [
+    r'give me .*(rundown|overview|summary|walkthrough)',
+    r'what (is|does) this (app|application|code|project|codebase)',
+    r'how does (this|the) .* work',
+    r'how is .*(organized|structured|laid out|set up)',
+    r'tell me about (this|the) (code|project|app|application|codebase)',
+    r'walk me through',
+    r'(describe|explain) (this|the) (project|codebase|application|app|code)',
+    r'(high.level|big picture|general) (view|overview|summary|understanding)',
+]
 
 _GENERAL_KNOWLEDGE_PATTERNS = [
     r'^what is ',
@@ -110,6 +126,13 @@ class IntentClassifier:
         # Check for codebase-general questions (architecture, overview, etc.)
         if words & _CODEBASE_GENERAL_KEYWORDS:
             return QuestionIntent.CODEBASE_GENERAL
+
+        # Check for broad overview question patterns before specific-file patterns,
+        # since broad questions like "what does this app do?" can accidentally match
+        # specific-file regexes (e.g., "app." matching the file.ext pattern).
+        for pattern in _CODEBASE_OVERVIEW_PATTERNS:
+            if re.search(pattern, message_lower):
+                return QuestionIntent.CODEBASE_GENERAL
 
         # Check for specific file patterns (e.g., "auth.ts", "src/utils")
         for pattern in _SPECIFIC_FILE_PATTERNS:

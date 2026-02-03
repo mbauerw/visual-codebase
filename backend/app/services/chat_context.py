@@ -26,7 +26,13 @@ Files: {file_count} | Languages: {languages} | Dependencies: {edge_count}
 
 {function_stats}
 
-Use tools to look up files, functions, and dependencies as needed.
+Tool strategy:
+- For overview/architecture questions: use get_codebase_summary FIRST -- one call is usually sufficient to answer. Only use additional tools if the summary lacks specific details the user asked about.
+- For questions about specific files: use get_file_info with the exact filename. Do NOT use search_files with vague keywords.
+- For "what imports X" or "what uses X": use get_dependencies with the direction parameter.
+- For aggregate questions (most connected files, statistics): use get_metrics.
+- AVOID multiple search_files calls with different vague keywords. If a search returns no useful results, try get_metrics or get_codebase_summary rather than searching again with a different keyword.
+- For overview questions about the project's purpose, architecture, tech stack, and structure, you can often answer directly from the context above without using any tools.
 
 When [Context: File: ...] is in the message, use that file path directly with get_file_info or get_function_info instead of searching broadly.
 
