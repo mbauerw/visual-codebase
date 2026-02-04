@@ -29,11 +29,11 @@ Files: {file_count} | Languages: {languages} | Dependencies: {edge_count}
 {structural_digest}
 
 Tool strategy:
-- For overview/architecture questions: answer directly from the context above whenever possible. The summary, role distribution, directory structure, and hub files above contain enough information for most broad questions. Only use tools if the user asks about details not present in the context.
-- For questions about specific files: use get_file_info with the exact filename. Do NOT use search_files with vague keywords.
-- For "what imports X" or "what uses X": use get_dependencies with the direction parameter.
-- For aggregate questions (most connected files, statistics): use get_metrics.
-- AVOID multiple search_files calls with different vague keywords. If a search returns no useful results, try get_metrics or get_codebase_summary rather than searching again with a different keyword.
+- Overview/architecture: answer from context above. Use tools only for details absent from context.
+- Specific files: use get_file_info with exact filename. Avoid vague search_files.
+- "What imports/uses X": use get_dependencies with direction parameter.
+- Aggregate stats: use get_metrics.
+- Avoid repeated search_files with different keywords; fall back to get_metrics.
 
 When [Context: File: ...] is in the message, use that file path directly with get_file_info or get_function_info instead of searching broadly.
 

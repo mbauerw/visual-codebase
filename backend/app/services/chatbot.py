@@ -24,7 +24,7 @@ from ..models.chat_schemas import (
     SelectionContext,
     ContextMode,
 )
-from .chat_tools import CHAT_TOOLS, ChatToolExecutor, get_tools_for_intent
+from .chat_tools import ChatToolExecutor, get_tools_for_intent
 from .chat_context import build_base_context, build_general_context, format_user_message
 from .intent_classifier import IntentClassifier
 from .tool_output_formatter import ToolOutputFormatter
