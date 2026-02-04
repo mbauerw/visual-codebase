@@ -19,14 +19,15 @@ class QuestionIntent(str, Enum):
     GENERAL_KNOWLEDGE = "general_knowledge"   # General programming questions
 
 
-# Keywords that indicate codebase-specific questions
+# Pre-compiled regex patterns for each intent category.
+# Compiling at module load catches syntax errors at import time.
 _SPECIFIC_FILE_PATTERNS = [
-    r'\b\w+\.\w{1,4}\b',       # file.ext pattern
-    r'src/',                     # path pattern
-    r'what does .+ do',          # "what does X do"
-    r'tell me about',            # "tell me about X"
-    r'explain .+ file',          # "explain the X file"
-    r'show me .+ code',          # "show me the code"
+    re.compile(r'\b\w+\.\w{1,4}\b'),       # file.ext pattern
+    re.compile(r'src/'),                     # path pattern
+    re.compile(r'what does .+ do'),          # "what does X do"
+    re.compile(r'tell me about'),            # "tell me about X"
+    re.compile(r'explain .+ file'),          # "explain the X file"
+    re.compile(r'show me .+ code'),          # "show me the code"
 ]
 
 _DEPENDENCY_KEYWORDS = frozenset({
@@ -57,29 +58,27 @@ _CODEBASE_GENERAL_KEYWORDS = frozenset({
     "organized", "high-level", "big picture", "purpose",
 })
 
-# Regex patterns that indicate broad codebase overview questions.
-# These are checked before specific-file patterns to avoid misclassification.
 _CODEBASE_OVERVIEW_PATTERNS = [
-    r'give me .*(rundown|overview|summary|walkthrough)',
-    r'what (is|does) this (app|application|code|project|codebase)',
-    r'how does (this|the) .* work',
-    r'how is .*(organized|structured|laid out|set up)',
-    r'tell me about (this|the) (code|project|app|application|codebase)',
-    r'walk me through',
-    r'(describe|explain) (this|the) (project|codebase|application|app|code)',
-    r'(high.level|big picture|general) (view|overview|summary|understanding)',
+    re.compile(r'give me .*(rundown|overview|summary|walkthrough)'),
+    re.compile(r'what (is|does) this (app|application|code|project|codebase)'),
+    re.compile(r'how does (this|the) .* work'),
+    re.compile(r'how is .*(organized|structured|laid out|set up)'),
+    re.compile(r'tell me about (this|the) (code|project|app|application|codebase)'),
+    re.compile(r'walk me through'),
+    re.compile(r'(describe|explain) (this|the) (project|codebase|application|app|code)'),
+    re.compile(r'(high.level|big picture|general) (view|overview|summary|understanding)'),
 ]
 
 _GENERAL_KNOWLEDGE_PATTERNS = [
-    r'^what is ',
-    r'^what are ',
-    r'^how (?:do|does|to|can) ',
-    r'^explain (?:the concept|how|what)',
-    r'^difference between',
-    r'^best practice',
-    r'^when (?:should|to) ',
-    r'^why (?:should|do|does|is) ',
-    r'^compare .+ (?:and|vs|versus) ',
+    re.compile(r'^what is '),
+    re.compile(r'^what are '),
+    re.compile(r'^how (?:do|does|to|can) '),
+    re.compile(r'^explain (?:the concept|how|what)'),
+    re.compile(r'^difference between'),
+    re.compile(r'^best practice'),
+    re.compile(r'^when (?:should|to) '),
+    re.compile(r'^why (?:should|do|does|is) '),
+    re.compile(r'^compare .+ (?:and|vs|versus) '),
 ]
 
 
@@ -131,17 +130,17 @@ class IntentClassifier:
         # since broad questions like "what does this app do?" can accidentally match
         # specific-file regexes (e.g., "app." matching the file.ext pattern).
         for pattern in _CODEBASE_OVERVIEW_PATTERNS:
-            if re.search(pattern, message_lower):
+            if pattern.search(message_lower):
                 return QuestionIntent.CODEBASE_GENERAL
 
         # Check for specific file patterns (e.g., "auth.ts", "src/utils")
         for pattern in _SPECIFIC_FILE_PATTERNS:
-            if re.search(pattern, message_lower):
+            if pattern.search(message_lower):
                 return QuestionIntent.CODEBASE_SPECIFIC
 
         # Check for general knowledge patterns
         for pattern in _GENERAL_KNOWLEDGE_PATTERNS:
-            if re.search(pattern, message_lower):
+            if pattern.search(message_lower):
                 return QuestionIntent.GENERAL_KNOWLEDGE
 
         # Default: assume codebase-specific (safer to include tools)
