@@ -147,13 +147,11 @@ CHAT_TOOLS_COMPRESSED = [
                 },
                 "role": {
                     "type": "string",
-                    "enum": [r.value for r in ArchitecturalRole],
-                    "description": "Filter by architectural role"
+                    "description": "Architectural role, e.g. react_component, utility, api_service, model, config, test, hook, context, store, middleware, controller, router, schema"
                 },
                 "category": {
                     "type": "string",
-                    "enum": [c.value for c in Category],
-                    "description": "Filter by category"
+                    "description": "Category, e.g. core, feature, infrastructure, shared, external"
                 }
             }
         }
@@ -841,16 +839,16 @@ class ChatToolExecutor:
 
         # Build adjacency lists from pre-computed edge indexes
         forward: dict[str, list[tuple[str, str]]] = {}
-        for source, edges in self._edges_by_source.items():
-            forward[source] = [
+        for node_id, edges in self._edges_by_source.items():
+            forward[node_id] = [
                 (e.target, ", ".join(e.data.imported_names[:3]) if e.data and e.data.imported_names else "imports")
                 for e in edges
             ]
 
         backward: dict[str, list[tuple[str, str]]] = {}
         if bidirectional:
-            for target, edges in self._edges_by_target.items():
-                backward[target] = [(e.source, "imported by") for e in edges]
+            for node_id, edges in self._edges_by_target.items():
+                backward[node_id] = [(e.source, "imported by") for e in edges]
 
         # BFS
         queue = deque([(source_node.id, [(source_node.data.path, "start")])])
@@ -1248,19 +1246,19 @@ class ChatToolExecutor:
 
     def _role_match_result(self, role: ArchitecturalRole) -> dict[str, Any]:
         """Create a role match result."""
-        matching_files = [
+        all_matching = [
             {"path": n.data.path, "name": n.data.label}
             for n in self.graph.nodes
             if n.data.role == role
-        ][:10]
+        ]
         return {
             "type": "architectural_role",
             "match": role.value,
             "details": {
                 "role": role.value,
                 "description": self._get_role_description(role),
-                "file_count": len([n for n in self.graph.nodes if n.data.role == role]),
-                "sample_files": matching_files
+                "file_count": len(all_matching),
+                "sample_files": all_matching[:10]
             }
         }
 
@@ -1288,18 +1286,18 @@ class ChatToolExecutor:
         """Find a category match."""
         for cat in Category:
             if text_lower == cat.value:
-                matching_files = [
+                all_matching = [
                     {"path": n.data.path, "name": n.data.label}
                     for n in self.graph.nodes
                     if n.data.category == cat
-                ][:10]
+                ]
                 return {
                     "type": "category",
                     "match": cat.value,
                     "details": {
                         "category": cat.value,
-                        "file_count": len([n for n in self.graph.nodes if n.data.category == cat]),
-                        "sample_files": matching_files
+                        "file_count": len(all_matching),
+                        "sample_files": all_matching[:10]
                     }
                 }
         return None

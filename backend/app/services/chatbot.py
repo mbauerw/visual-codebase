@@ -298,6 +298,35 @@ class ChatbotService:
             return s
         return s[:max_length - 3] + "..."
 
+    def _build_api_kwargs(self, system_context: str, messages: list[dict]) -> dict:
+        """Build base API call kwargs."""
+        return dict(
+            model=self.settings.llm_model,
+            max_tokens=MAX_RESPONSE_TOKENS,
+            system=system_context,
+            messages=messages,
+        )
+
+    @staticmethod
+    def _prepare_synthesis_messages(messages: list[dict]) -> list[dict]:
+        """Create a message copy with synthesis instruction injected.
+
+        Used when the tool loop approaches its iteration limit to force
+        the model to produce a text response summarizing tool results.
+        """
+        messages_copy = [msg if not isinstance(msg, dict) else {**msg} for msg in messages]
+        last_msg = messages_copy[-1]
+        if isinstance(last_msg, dict) and last_msg.get("role") == "user":
+            content = last_msg.get("content")
+            if isinstance(content, list):
+                last_msg["content"] = content + [{"type": "text", "text": SYNTHESIS_INSTRUCTION}]
+            else:
+                messages_copy.append({"role": "assistant", "content": "Let me synthesize what I've found."})
+                messages_copy.append({"role": "user", "content": SYNTHESIS_INSTRUCTION})
+        else:
+            messages_copy.append({"role": "user", "content": SYNTHESIS_INSTRUCTION})
+        return messages_copy
+
     async def chat(
         self,
         analysis_id: str,
@@ -368,29 +397,12 @@ class ChatbotService:
                 )
 
                 # Build API call kwargs - only include tools if intent requires them
-                api_kwargs = dict(
-                    model=self.settings.llm_model,
-                    max_tokens=MAX_RESPONSE_TOKENS,
-                    system=system_context,
-                    messages=conversation.messages,
-                )
+                api_kwargs = self._build_api_kwargs(system_context, conversation.messages)
 
                 if is_synthesis_turn:
                     # Force a text response by removing tools and injecting synthesis instruction
                     logger.info(f"Forcing synthesis at iteration {iteration} of {MAX_TOOL_ITERATIONS} ({len(tools_used)} tool calls made)")
-                    messages_copy = [msg if not isinstance(msg, dict) else {**msg} for msg in conversation.messages]
-                    last_msg = messages_copy[-1]
-                    if isinstance(last_msg, dict) and last_msg.get("role") == "user":
-                        content = last_msg.get("content")
-                        if isinstance(content, list):
-                            last_msg["content"] = content + [{"type": "text", "text": SYNTHESIS_INSTRUCTION}]
-                        else:
-                            messages_copy.append({"role": "assistant", "content": "Let me synthesize what I've found."})
-                            messages_copy.append({"role": "user", "content": SYNTHESIS_INSTRUCTION})
-                    else:
-                        messages_copy.append({"role": "user", "content": SYNTHESIS_INSTRUCTION})
-                    api_kwargs["messages"] = messages_copy
-                    # Intentionally omit tools to force text response
+                    api_kwargs["messages"] = self._prepare_synthesis_messages(conversation.messages)
                 elif tools_to_use:
                     api_kwargs["tools"] = tools_to_use
 
@@ -604,29 +616,12 @@ class ChatbotService:
                 )
 
                 # Build API call kwargs - only include tools for codebase mode
-                api_kwargs = dict(
-                    model=self.settings.llm_model,
-                    max_tokens=MAX_RESPONSE_TOKENS,
-                    system=system_context,
-                    messages=conversation.messages,
-                )
+                api_kwargs = self._build_api_kwargs(system_context, conversation.messages)
 
                 if is_synthesis_turn:
                     # Force a text response by removing tools and injecting synthesis instruction
                     logger.info(f"Forcing synthesis at iteration {iteration} of {MAX_TOOL_ITERATIONS} ({len(tools_used)} tool calls made)")
-                    messages_copy = [msg if not isinstance(msg, dict) else {**msg} for msg in conversation.messages]
-                    last_msg = messages_copy[-1]
-                    if isinstance(last_msg, dict) and last_msg.get("role") == "user":
-                        content = last_msg.get("content")
-                        if isinstance(content, list):
-                            last_msg["content"] = content + [{"type": "text", "text": SYNTHESIS_INSTRUCTION}]
-                        else:
-                            messages_copy.append({"role": "assistant", "content": "Let me synthesize what I've found."})
-                            messages_copy.append({"role": "user", "content": SYNTHESIS_INSTRUCTION})
-                    else:
-                        messages_copy.append({"role": "user", "content": SYNTHESIS_INSTRUCTION})
-                    api_kwargs["messages"] = messages_copy
-                    # Intentionally omit tools to force text response
+                    api_kwargs["messages"] = self._prepare_synthesis_messages(conversation.messages)
                 elif tools_to_use:
                     api_kwargs["tools"] = tools_to_use
 
