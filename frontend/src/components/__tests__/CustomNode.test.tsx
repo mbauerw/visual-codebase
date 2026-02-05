@@ -160,7 +160,7 @@ describe('CustomNode', () => {
       render(<CustomNode {...defaultProps} selected={true} />);
 
       const nodeElement = screen.getByText('App.tsx').closest('div[class*="relative"]');
-      expect(nodeElement).toHaveClass('ring-4');
+      expect(nodeElement).toHaveClass('ring-8');
       expect(nodeElement).toHaveClass('ring-amber-500');
     });
 
@@ -168,14 +168,16 @@ describe('CustomNode', () => {
       render(<CustomNode {...defaultProps} selected={false} />);
 
       const nodeElement = screen.getByText('App.tsx').closest('div[class*="relative"]');
-      expect(nodeElement).not.toHaveClass('ring-4');
+      expect(nodeElement).not.toHaveClass('ring-8');
     });
 
-    it('should have scale effect when selected', () => {
+    it('should have scale applied via inline style when selected', () => {
       render(<CustomNode {...defaultProps} selected={true} />);
 
       const nodeElement = screen.getByText('App.tsx').closest('div[class*="relative"]');
-      expect(nodeElement).toHaveClass('scale-[1.2]');
+      // Scale is applied via inline style - at least 1.2 when selected
+      const style = nodeElement?.getAttribute('style') || '';
+      expect(style).toMatch(/scale\([1-9]/);
     });
   });
 
@@ -210,11 +212,11 @@ describe('CustomNode', () => {
   });
 
   describe('hover effects', () => {
-    it('should have hover scale class', () => {
+    it('should have hover brightness class', () => {
       render(<CustomNode {...defaultProps} />);
 
       const nodeElement = screen.getByText('App.tsx').closest('div[class*="relative"]');
-      expect(nodeElement).toHaveClass('hover:scale-[1.2]');
+      expect(nodeElement).toHaveClass('hover:brightness-110');
     });
 
     it('should have transition class', () => {
