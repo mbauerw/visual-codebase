@@ -10,18 +10,58 @@ import {
   StopCircle,
   Wrench,
   RefreshCw,
+  GripVertical,
 } from 'lucide-react';
 import { useChat } from '../../hooks/useChat';
 import { useTextSelection } from '../../hooks/useTextSelection';
 import { ChatMessage } from './ChatMessage';
 
+const MIN_WIDTH = 320;
+const MAX_WIDTH = 800;
+const MIN_HEIGHT = 400;
+const MAX_HEIGHT = 900;
+const DEFAULT_WIDTH = 400;
+const DEFAULT_HEIGHT = 580;
+const STORAGE_KEY = 'chat-widget-size';
+
 interface ChatWidgetProps {
   analysisId: string | null;
+}
+
+function loadSavedSize(): { width: number; height: number } {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+      const { width, height } = JSON.parse(saved);
+      return {
+        width: Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, width)),
+        height: Math.min(MAX_HEIGHT, Math.max(MIN_HEIGHT, height)),
+      };
+    }
+  } catch {
+    // Ignore parse errors
+  }
+  return { width: DEFAULT_WIDTH, height: DEFAULT_HEIGHT };
+}
+
+function saveSizeToStorage(width: number, height: number) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ width, height }));
+  } catch {
+    // Ignore storage errors
+  }
 }
 
 export function ChatWidget({ analysisId }: ChatWidgetProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [inputValue, setInputValue] = useState('');
+
+  // Resize state
+  const [size, setSize] = useState(loadSavedSize);
+  const [isResizing, setIsResizing] = useState<'right' | 'top' | 'corner' | null>(null);
+  const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' ? window.innerWidth < 640 : false);
+  const resizeStartRef = useRef<{ x: number; y: number; width: number; height: number } | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -53,6 +93,13 @@ export function ChatWidget({ analysisId }: ChatWidgetProps) {
       setHighlightedText(text);
     },
   });
+
+  // Track window resize for mobile detection
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 640);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // Load suggested questions when opening
   useEffect(() => {
@@ -91,6 +138,63 @@ export function ChatWidget({ analysisId }: ChatWidgetProps) {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen]);
+
+  // Resize handlers
+  const handleResizeStart = useCallback((e: React.MouseEvent, direction: 'right' | 'top' | 'corner') => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsResizing(direction);
+    resizeStartRef.current = {
+      x: e.clientX,
+      y: e.clientY,
+      width: size.width,
+      height: size.height,
+    };
+  }, [size]);
+
+  const handleResetSize = useCallback(() => {
+    setSize({ width: DEFAULT_WIDTH, height: DEFAULT_HEIGHT });
+    saveSizeToStorage(DEFAULT_WIDTH, DEFAULT_HEIGHT);
+  }, []);
+
+  useEffect(() => {
+    if (!isResizing) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!resizeStartRef.current) return;
+
+      const { x, y, width, height } = resizeStartRef.current;
+      let newWidth = width;
+      let newHeight = height;
+
+      if (isResizing === 'right' || isResizing === 'corner') {
+        newWidth = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, width + (e.clientX - x)));
+      }
+      if (isResizing === 'top' || isResizing === 'corner') {
+        newHeight = Math.min(MAX_HEIGHT, Math.max(MIN_HEIGHT, height - (e.clientY - y)));
+      }
+
+      setSize({ width: newWidth, height: newHeight });
+    };
+
+    const handleMouseUp = () => {
+      setIsResizing(null);
+      resizeStartRef.current = null;
+      saveSizeToStorage(size.width, size.height);
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+    document.body.style.cursor = isResizing === 'corner' ? 'nesw-resize' : isResizing === 'right' ? 'ew-resize' : 'ns-resize';
+    document.body.style.userSelect = 'none';
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+  }, [isResizing, size.width, size.height]);
 
   const handleSubmit = useCallback(async (e?: React.FormEvent) => {
     e?.preventDefault();
@@ -133,9 +237,53 @@ export function ChatWidget({ analysisId }: ChatWidgetProps) {
 
   return (
     <div
+      ref={containerRef}
       data-chat-widget
-      className="fixed inset-4 sm:inset-auto sm:bottom-6 sm:left-6 sm:w-[400px] sm:h-[580px] bg-[#fafaf9] rounded-lg border border-[#e8e6e3] shadow-2xl flex flex-col z-50"
+      className={`fixed inset-4 sm:inset-auto sm:bottom-6 sm:left-6 bg-[#fafaf9] rounded-lg border shadow-2xl flex flex-col z-50 ${
+        isResizing ? 'border-[#8b7355]/50' : 'border-[#e8e6e3]'
+      }`}
+      style={isMobile ? undefined : {
+        width: `${size.width}px`,
+        height: `${size.height}px`,
+      }}
     >
+      {/* Resize overlay during drag */}
+      {isResizing && (
+        <div className="absolute inset-0 bg-[#8b7355]/5 rounded-lg pointer-events-none z-30">
+          <div className="absolute top-2 right-2 px-2 py-1 bg-[#2d3748] text-white text-[10px] font-mono rounded">
+            {size.width} × {size.height}
+          </div>
+        </div>
+      )}
+
+      {/* Resize handles (hidden on mobile) */}
+      {!isMobile && (
+        <>
+          {/* Right resize handle */}
+          <div
+            className="absolute right-0 top-0 bottom-0 w-2 cursor-ew-resize hover:bg-[#8b7355]/20 transition-colors z-10 group"
+            onMouseDown={(e) => handleResizeStart(e, 'right')}
+          >
+            <div className="absolute right-0 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
+              <GripVertical size={12} className="text-[#a0aec0]" />
+            </div>
+          </div>
+
+          {/* Top resize handle */}
+          <div
+            className="absolute top-0 left-0 right-0 h-2 cursor-ns-resize hover:bg-[#8b7355]/20 transition-colors z-10"
+            onMouseDown={(e) => handleResizeStart(e, 'top')}
+          />
+
+          {/* Top-right corner resize handle (double-click to reset) */}
+          <div
+            className="absolute top-0 right-0 w-4 h-4 cursor-nesw-resize hover:bg-[#8b7355]/30 transition-colors z-20 rounded-tr-lg"
+            onMouseDown={(e) => handleResizeStart(e, 'corner')}
+            onDoubleClick={handleResetSize}
+            title="Double-click to reset size"
+          />
+        </>
+      )}
       {/* Header */}
       <div className="flex items-center justify-between px-6 py-4 border-b border-[#e8e6e3] bg-white rounded-t-lg">
         <div className="flex items-center gap-4">

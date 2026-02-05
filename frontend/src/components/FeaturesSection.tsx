@@ -37,21 +37,22 @@ export default function FeaturesSection() {
           {/* Feature 1 */}
           <div className="bg-white h-[420px] rounded-3xl shadow-sm border border-gray-100 hover:shadow-xl transition-all duration-300 relative overflow-hidden">
             <img src='/blueprint.jpeg' alt='ai' className='absolute top-0 left-0 w-full h-full blur-[2px] ' />
-            <div className='w-full h-full p-8 z-20 flex flex-col justify-start gap-4 lg:gap-8'>
+            <div className='w-full h-full p-8 z-20 flex flex-col justify-start gap-4 lg:gap-4'>
 
               <h3 className="text-3xl lg:text-4xl font-semibold text-white z-20 text-center">AI-powered Analysis</h3>
 
               <div className='z-20 h-full overflow-hidden'>
                 {/* Pusher element - pushes the floated image to bottom half */}
-                <div className='float-right h-[50%] sm:h-[24%] w-0' />
+                <div className='float-right h-[50%] sm:h-[34%] w-0' />
                 <img
                   src="/analysis-api.png"
                   alt="analysis api"
                   className='float-right clear-right max-h-[50%] lg:max-h-[80%] w-auto max-w-[60%] ml-4 rounded-lg object-contain opacity-50'
                 />
-                <p className="text-gray-100 text-lg md:text-xl pr-8 leading-relaxed ">
-                  Automatically generate a full analysis suite for your codebases.
-                  Uncover tech stacks and key modules without having to parse through thousands of lines of code.
+                <p className="text-gray-100 text-lg md:text-lg pr-0 leading-relaxed ">
+                  Codebase Remap combines upfront syntax parsing through Tree-Sitter with advanced AI reasoning to deliver deep code understanding at a minimum cost.
+                  Automatically generate full analysis suites for your codebases. 
+                  Uncover tech stacks and key modules without having to parse through thousands of lines of code. 
                 </p>
               </div>
 
@@ -72,8 +73,8 @@ export default function FeaturesSection() {
                 className='float-left clear-left max-h-[35%] md:max-h-[45%] mr-8 w-auto max-w-[50%] rounded-lg object-contain opacity-90'
               />
               <p className="text-gray-600 text-lg lg:text-xl leading-relaxed z-20">
-                Build a more complete mental model by exploring your codebase through a visual medium. Visualize function calls and dependency relationships
-                through an interactive graph. Understand archetecture at a glance. There I much More to the story than just lines of code that wrap around the image
+                Build a more complete mental model by exploring your codebase through a visual medium. Function calls and dependency relationships
+                are depicted through an interactive graph, allowing you to easily map out codebases. Understand archetecture through exploration. 
               </p>
             </div>
           </div>
