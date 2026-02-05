@@ -75,18 +75,30 @@ const roleIcons: Record<ArchitecturalRole, React.ReactNode> = {
 function CustomNode({ data, selected }: NodeProps<CustomNodeType>) {
   const roleColor = roleColors[data.role] || roleColors.unknown;
   const langColor = languageColors[data.language] || languageColors.unknown;
-  const borderColor = '#7d7d7de9' ;
+  const borderColor = '#7d7d7de9';
+
+  // Get scale tier from data (based on dependency count percentile within role)
+  // Top 10% = 1.5, Next 25% = 1.25, Bottom 65% = 1.0
+  const baseScale = data.scaleTier ?? 1;
+
+  // Combine base scale with interaction states
+  const getScale = () => {
+    if (selected) return Math.max(baseScale * 1.1, 1.2); // Selected: at least 1.2
+    return baseScale;
+  };
 
   return (
     <div
       className={`
         relative px-3 py-4 rounded-lg min-w-[240px] max-w-[320px]
-        transition-all duration-400 hover:scale-[1.2]
-        ${selected ? 'ring-8 ring-amber-500 shadow-xl shadow-amber-500 ring-offset-2 scale-[1.2] ring-offset-amber-900' : ''}
+        transition-all duration-300 hover:brightness-110
+        ${selected ? 'ring-8 ring-amber-500 shadow-xl shadow-amber-500 ring-offset-2 ring-offset-amber-900' : ''}
       `}
       style={{
         backgroundColor: '#1e293b',
         borderLeft: `4px solid ${borderColor}`,
+        transform: `scale(${getScale()})`,
+        transformOrigin: 'center center',
       }}
     >
       {/* Source handle - exports leave from top */}

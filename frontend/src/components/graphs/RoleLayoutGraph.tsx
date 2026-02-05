@@ -38,8 +38,10 @@ import type {
   ReactFlowNodeData,
   ArchitecturalRole,
   Category,
+  ScaleTier,
 } from '../../types';
 import { roleColors, languageColors, categoryColors, roleLabels } from '../../types';
+import { calculateNodeScales } from '../../hooks/useNodeScaling';
 import type { RoleLayoutGraphProps } from './SharedGraphTypes';
 import { GRAPH_BACKGROUNDS } from './SharedGraphTypes';
 
@@ -60,10 +62,10 @@ type AllNodeTypes = CustomNodeType | CategoryNodeType;
 // Layout constants
 const nodeWidth = 220;
 const nodeHeight = 90;
-const nodeGapX = 120; // Horizontal gap between nodes
-const nodeGapY = 55; // Vertical gap between nodes
-const rolePadding = 45;
-const roleHeaderHeight = 55;
+const nodeGapX = 150; // Horizontal gap between nodes
+const nodeGapY = 85; // Vertical gap between nodes
+const rolePadding = 145; // Padding inside category nodes (10px increase)
+const roleHeaderHeight = 100;
 
 // Categorize nodes into Frontend, Backend, or Test groups
 function categorizeNode(category: Category, role: ArchitecturalRole): 'frontend' | 'backend' | 'test' {
@@ -87,63 +89,62 @@ function categorizeNode(category: Category, role: ArchitecturalRole): 'frontend'
 }
 
 /**
- * Calculate rectangular grid dimensions for a given node count.
+ * Calculate base column count for a given node count.
+ * Used as the base 'n' for pyramid layout calculations.
  * Constraint: rows (height) is always 2 more than cols (width).
- * Examples: 1x3, 2x4, 3x5, 4x6, 5x7, etc.
  */
-function calculateGridDimensions(nodeCount: number): { cols: number; rows: number } {
-  if (nodeCount === 0) {
-    return { cols: 0, rows: 0 };
-  }
+function calculateBaseColumns(nodeCount: number): number {
+  if (nodeCount <= 0) return 0;
+  if (nodeCount === 1) return 1;
+  if (nodeCount === 2) return 2;
 
-  if (nodeCount === 1) {
-    return { cols: 1, rows: 1 };
-  }
-
-  if (nodeCount === 2) {
-    return { cols: 2, rows: 1 };
-  }
-  // Find the smallest grid where:
-  // - cols * rows >= nodeCount
-  // - rows = cols + 2
+  // Find smallest cols where cols * (cols + 2) >= nodeCount
   let cols = 1;
-  while (true) {
-    const rows = cols + 2;
-    if (cols * rows >= nodeCount) {
-      return { cols, rows };
-    }
+  while (cols * (cols + 2) < nodeCount) {
     cols++;
   }
+  return cols;
 }
 
 /**
- * Calculate positions for nodes in a rectangular grid layout.
- * Returns positions with row and col indices.
+ * Check if all nodes in a group have uniform dependency counts.
+ * Used to determine whether to use pyramid or rectangular layout.
  */
-function getRectangularPositions(nodeCount: number): { row: number; col: number; totalCols: number; totalRows: number }[] {
-  const { cols, rows } = calculateGridDimensions(nodeCount);
-  const positions: { row: number; col: number; totalCols: number; totalRows: number }[] = [];
+function hasUniformDependencies(
+  nodes: CustomNodeType[],
+  nodeScales: Map<string, ScaleTier>
+): boolean {
+  if (nodes.length <= 1) return true;
 
-  let nodeIndex = 0;
-  for (let row = 0; row < rows && nodeIndex < nodeCount; row++) {
-    for (let col = 0; col < cols && nodeIndex < nodeCount; col++) {
-      positions.push({ row, col, totalCols: cols, totalRows: rows });
-      nodeIndex++;
-    }
-  }
-
-  return positions;
+  // Check if all nodes have the same scale tier
+  const firstScale = nodeScales.get(nodes[0].id) || 1;
+  return nodes.every(node => (nodeScales.get(node.id) || 1) === firstScale);
 }
 
 /**
- * Calculate dimensions for a role category with rectangular grid layout.
+ * Calculate grid dimensions for rectangular layout (n x n+2).
+ */
+function calculateRectangularGridDimensions(nodeCount: number): { cols: number; rows: number } {
+  if (nodeCount === 0) return { cols: 0, rows: 0 };
+  if (nodeCount === 1) return { cols: 1, rows: 1 };
+  if (nodeCount === 2) return { cols: 2, rows: 1 };
+
+  let cols = 1;
+  while (cols * (cols + 2) < nodeCount) {
+    cols++;
+  }
+  return { cols, rows: cols + 2 };
+}
+
+/**
+ * Calculate dimensions for rectangular grid layout (used when all nodes have same dependency count).
  */
 function calculateRectangularRoleDimensions(nodeCount: number): { width: number; height: number; rows: number; maxCols: number } {
   if (nodeCount === 0) {
     return { width: 250, height: 150, rows: 0, maxCols: 0 };
   }
 
-  const { cols, rows } = calculateGridDimensions(nodeCount);
+  const { cols, rows } = calculateRectangularGridDimensions(nodeCount);
 
   const width = cols * (nodeWidth + nodeGapX) - nodeGapX + rolePadding * 2;
   const height = roleHeaderHeight + rows * (nodeHeight + nodeGapY) - nodeGapY + rolePadding;
@@ -153,6 +154,114 @@ function calculateRectangularRoleDimensions(nodeCount: number): { width: number;
     height: Math.max(height, 180),
     rows,
     maxCols: cols,
+  };
+}
+
+/**
+ * Pyramid layout tier configuration.
+ * Top 10% (scale 1.5): n - 2 max nodes per row
+ * Next 25% (scale 1.25): n - 1 max nodes per row
+ * Bottom 65% (scale 1.0): n max nodes per row
+ */
+interface PyramidTier {
+  scaleTier: ScaleTier;
+  maxCols: number;
+  nodes: CustomNodeType[];
+}
+
+/**
+ * Separate nodes into pyramid tiers and calculate max columns for each.
+ * Nodes should already be sorted by dependency count (highest first).
+ */
+function createPyramidTiers(
+  sortedNodes: CustomNodeType[],
+  nodeScales: Map<string, ScaleTier>,
+  baseCols: number
+): PyramidTier[] {
+  // Separate nodes by their scale tier
+  const topTier: CustomNodeType[] = [];    // scale 1.5 (top 10%)
+  const midTier: CustomNodeType[] = [];    // scale 1.25 (next 25%)
+  const bottomTier: CustomNodeType[] = []; // scale 1.0 (bottom 65%)
+
+  sortedNodes.forEach(node => {
+    const scale = nodeScales.get(node.id) || 1;
+    if (scale === 1.5) {
+      topTier.push(node);
+    } else if (scale === 1.25) {
+      midTier.push(node);
+    } else {
+      bottomTier.push(node);
+    }
+  });
+
+  // Calculate max columns per tier (ensure at least 1)
+  const tiers: PyramidTier[] = [];
+
+  if (topTier.length > 0) {
+    tiers.push({
+      scaleTier: 1.5,
+      maxCols: Math.max(1, baseCols - 2),
+      nodes: topTier,
+    });
+  }
+
+  if (midTier.length > 0) {
+    tiers.push({
+      scaleTier: 1.25,
+      maxCols: Math.max(1, baseCols - 1),
+      nodes: midTier,
+    });
+  }
+
+  if (bottomTier.length > 0) {
+    tiers.push({
+      scaleTier: 1,
+      maxCols: Math.max(1, baseCols),
+      nodes: bottomTier,
+    });
+  }
+
+  return tiers;
+}
+
+/**
+ * Calculate pyramid layout dimensions for a role category.
+ * Returns width based on widest tier (bottom) and height for all tiers stacked.
+ */
+function calculatePyramidRoleDimensions(
+  nodeCount: number,
+  nodeScales: Map<string, ScaleTier>,
+  sortedNodes: CustomNodeType[]
+): { width: number; height: number; rows: number; maxCols: number } {
+  if (nodeCount === 0) {
+    return { width: 250, height: 150, rows: 0, maxCols: 0 };
+  }
+
+  const baseCols = calculateBaseColumns(nodeCount);
+  const tiers = createPyramidTiers(sortedNodes, nodeScales, baseCols);
+
+  // Calculate total height across all tiers (accounting for tier-specific gaps)
+  let totalHeight = roleHeaderHeight;
+  let totalRows = 0;
+  tiers.forEach(tier => {
+    const tierRows = Math.ceil(tier.nodes.length / tier.maxCols);
+    totalRows += tierRows;
+    // Top 10% tier gets extra vertical spacing (+40px)
+    const tierGapY = tier.scaleTier === 1.5 ? nodeGapY + 40 : nodeGapY;
+    totalHeight += tierRows * (nodeHeight + tierGapY);
+  });
+  totalHeight += rolePadding - nodeGapY; // Adjust for last row (no gap after) + padding
+
+  // Width based on widest tier (bottom tier with baseCols) or top tier with extra horizontal gap
+  const topTierWidth = Math.max(1, baseCols - 2) * (nodeWidth + nodeGapX + 90) - (nodeGapX + 90) + rolePadding * 2;
+  const bottomTierWidth = baseCols * (nodeWidth + nodeGapX) - nodeGapX + rolePadding * 2;
+  const width = Math.max(topTierWidth, bottomTierWidth);
+
+  return {
+    width: Math.max(width, 300),
+    height: Math.max(totalHeight, 180),
+    rows: totalRows,
+    maxCols: baseCols,
   };
 }
 
@@ -181,6 +290,9 @@ function getNestedCategoryLayout(
       dependencyCount[edge.target]++;
     }
   });
+
+  // Calculate scale tiers based on dependency percentiles within each role
+  const nodeScales: Map<string, ScaleTier> = calculateNodeScales(fileNodes, edges);
 
   // Group nodes by category (frontend/backend/test) and then by role
   type RoleGroup = { role: ArchitecturalRole; nodes: CustomNodeType[] };
@@ -249,8 +361,14 @@ function getNestedCategoryLayout(
       };
     }
 
-    // Calculate dimensions for all role categories first
-    const roleDimensions = roleGroups.map((rg) => calculateRectangularRoleDimensions(rg.nodes.length));
+    // Calculate dimensions for all role categories
+    // Use rectangular layout for uniform dependencies, pyramid layout otherwise
+    const roleDimensions = roleGroups.map((rg) => {
+      if (hasUniformDependencies(rg.nodes, nodeScales)) {
+        return calculateRectangularRoleDimensions(rg.nodes.length);
+      }
+      return calculatePyramidRoleDimensions(rg.nodes.length, nodeScales, rg.nodes);
+    });
     const maxRoleWidth = Math.max(...roleDimensions.map((d) => d.width));
     const maxRoleHeight = Math.max(...roleDimensions.map((d) => d.height));
 
@@ -311,38 +429,112 @@ function getNestedCategoryLayout(
       };
       roleCategoryNodes.push(roleCategoryNode);
 
-      // Position file nodes in rectangular grid pattern
-      const gridPositions = getRectangularPositions(roleGroup.nodes.length);
       const containerCenterX = dims.width / 2;
+      const isUniform = hasUniformDependencies(roleGroup.nodes, nodeScales);
 
-      roleGroup.nodes.forEach((node, nodeIndex) => {
-        const pos = gridPositions[nodeIndex];
+      if (isUniform) {
+        // Rectangular layout for uniform dependencies (n x n+2 grid)
+        // Bottom rows fill first (top row may be partial)
+        const { cols } = calculateRectangularGridDimensions(roleGroup.nodes.length);
+        const uniformScaleTier = nodeScales.get(roleGroup.nodes[0]?.id) || 1;
+        const totalRows = Math.ceil(roleGroup.nodes.length / cols);
+        // First row (top) may have fewer nodes
+        const nodesInFirstRow = roleGroup.nodes.length - (totalRows - 1) * cols;
 
-        // Calculate how many nodes are in this row (last row may have fewer)
-        const nodesInThisRow = pos.row === pos.totalRows - 1
-          ? roleGroup.nodes.length - (pos.totalRows - 1) * pos.totalCols
-          : pos.totalCols;
+        roleGroup.nodes.forEach((node, nodeIndex) => {
+          let row: number, colInRow: number, nodesInThisRow: number;
 
-        // Center each row
-        const rowWidth = nodesInThisRow * nodeWidth + (nodesInThisRow - 1) * nodeGapX;
-        const rowStartX = containerCenterX - rowWidth / 2;
+          if (nodeIndex < nodesInFirstRow) {
+            // Top row (may be partial)
+            row = 0;
+            colInRow = nodeIndex;
+            nodesInThisRow = nodesInFirstRow;
+          } else {
+            // Remaining rows (always full)
+            const adjustedIndex = nodeIndex - nodesInFirstRow;
+            row = 1 + Math.floor(adjustedIndex / cols);
+            colInRow = adjustedIndex % cols;
+            nodesInThisRow = cols;
+          }
 
-        // Calculate position within the row
-        const colInRow = pos.row === pos.totalRows - 1
-          ? nodeIndex - (pos.totalRows - 1) * pos.totalCols
-          : pos.col;
+          // Center each row
+          const rowWidth = nodesInThisRow * nodeWidth + (nodesInThisRow - 1) * nodeGapX;
+          const rowStartX = containerCenterX - rowWidth / 2;
 
-        const nodeX = rowStartX + colInRow * (nodeWidth + nodeGapX);
-        const nodeY = roleHeaderHeight + pos.row * (nodeHeight + nodeGapY);
+          const nodeX = rowStartX + colInRow * (nodeWidth + nodeGapX);
+          const nodeY = roleHeaderHeight + row * (nodeHeight + nodeGapY);
 
-        positionedFileNodes.push({
-          ...node,
-          position: { x: nodeX, y: nodeY },
-          parentId: roleCategoryId,
-          extent: 'parent' as const,
-          expandParent: true,
+          positionedFileNodes.push({
+            ...node,
+            position: { x: nodeX, y: nodeY },
+            parentId: roleCategoryId,
+            extent: 'parent' as const,
+            expandParent: true,
+            data: {
+              ...node.data,
+              scaleTier: uniformScaleTier,
+            },
+          });
         });
-      });
+      } else {
+        // Pyramid layout for varied dependencies (tiers stacked vertically)
+        // Bottom rows fill first within each tier (top row may be partial)
+        const baseCols = calculateBaseColumns(roleGroup.nodes.length);
+        const tiers = createPyramidTiers(roleGroup.nodes, nodeScales, baseCols);
+
+        let currentYOffset = roleHeaderHeight;
+
+        tiers.forEach((tier) => {
+          const { maxCols, nodes: tierNodes, scaleTier } = tier;
+
+          // Top 10% tier gets extra spacing (+90px horizontal, +40px vertical)
+          const tierGapX = scaleTier === 1.5 ? nodeGapX + 90 : nodeGapX;
+          const tierGapY = scaleTier === 1.5 ? nodeGapY + 40 : nodeGapY;
+
+          const tierRowCount = Math.ceil(tierNodes.length / maxCols);
+          // First row (top) of this tier may have fewer nodes
+          const nodesInFirstRow = tierNodes.length - (tierRowCount - 1) * maxCols;
+
+          tierNodes.forEach((node, nodeIndexInTier) => {
+            let rowInTier: number, colInRow: number, nodesInThisRow: number;
+
+            if (nodeIndexInTier < nodesInFirstRow) {
+              // Top row of tier (may be partial)
+              rowInTier = 0;
+              colInRow = nodeIndexInTier;
+              nodesInThisRow = nodesInFirstRow;
+            } else {
+              // Remaining rows (always full)
+              const adjustedIndex = nodeIndexInTier - nodesInFirstRow;
+              rowInTier = 1 + Math.floor(adjustedIndex / maxCols);
+              colInRow = adjustedIndex % maxCols;
+              nodesInThisRow = maxCols;
+            }
+
+            // Center each row
+            const rowWidth = nodesInThisRow * nodeWidth + (nodesInThisRow - 1) * tierGapX;
+            const rowStartX = containerCenterX - rowWidth / 2;
+
+            const nodeX = rowStartX + colInRow * (nodeWidth + tierGapX);
+            const nodeY = currentYOffset + rowInTier * (nodeHeight + tierGapY);
+
+            positionedFileNodes.push({
+              ...node,
+              position: { x: nodeX, y: nodeY },
+              parentId: roleCategoryId,
+              extent: 'parent' as const,
+              expandParent: true,
+              data: {
+                ...node.data,
+                scaleTier,
+              },
+            });
+          });
+
+          // Move Y offset to next tier (add this tier's total height)
+          currentYOffset += tierRowCount * (nodeHeight + tierGapY);
+        });
+      }
     });
 
     return {

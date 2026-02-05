@@ -159,6 +159,9 @@ export interface AnalysisStatusResponse {
   error?: string;
 }
 
+// Scale tier for dependency-based node sizing
+export type ScaleTier = 1 | 1.25 | 1.5;
+
 // Graph data types
 // Adding index signature for React Flow v12 compatibility
 export interface ReactFlowNodeData extends Record<string, unknown> {
@@ -172,6 +175,7 @@ export interface ReactFlowNodeData extends Record<string, unknown> {
   imports: string[];
   size_bytes: number;
   line_count: number;
+  scaleTier?: ScaleTier; // Scale based on dependency count percentile within role
 }
 
 export interface ReactFlowNode {
