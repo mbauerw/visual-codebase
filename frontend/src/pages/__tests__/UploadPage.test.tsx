@@ -219,7 +219,9 @@ describe('UploadPage', () => {
   describe('supported languages info', () => {
     it('should display supported languages', () => {
       render(<UploadPage />);
-      expect(screen.getByText(/JavaScript \(\.js, \.jsx\), TypeScript \(\.ts, \.tsx\), Python \(\.py\)/i)).toBeInTheDocument();
+      // Text format: "Supported: JavaScript, TypeScript, Python, Java, C#, Go, Rust, Swift"
+      const elements = screen.getAllByText(/JavaScript.*TypeScript.*Python/i);
+      expect(elements.length).toBeGreaterThan(0);
     });
   });
 
