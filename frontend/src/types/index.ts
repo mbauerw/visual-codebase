@@ -160,7 +160,7 @@ export interface AnalysisStatusResponse {
 }
 
 // Scale tier for dependency-based node sizing
-export type ScaleTier = 1 | 1.25 | 1.5;
+export type ScaleTier = 1 | 1.25 | 1.5 | 2 | 2.5 | 3;
 
 // Graph data types
 // Adding index signature for React Flow v12 compatibility

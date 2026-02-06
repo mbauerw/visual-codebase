@@ -4,7 +4,7 @@ import { BlueVideoBackground } from './backgrounds';
 
 export default function FeaturesSection() {
   return (
-    <section id="features" className="py-20 md:py-40 min-h-[130vh] flex flex-col justify-center px-4 relative overflow-hidden">
+    <section id="features" className="py-20 md:py-40 min-h-[130vh] flex flex-col justify-center px-4 relative overflow-hidden ">
       {/* <img className="absolute top-0 left-0 w-full h-full opacity-[0.6] z-0  scale-108 pointer-events-none" src="/hills-grey.jpeg" /> */}
       {/* Dome-shaped fade overlay - fades top corners, reveals image in dome shape */}
       <BlueVideoBackground />
@@ -47,7 +47,7 @@ export default function FeaturesSection() {
                 <img
                   src="/analysis-api.png"
                   alt="analysis api"
-                  className='float-right clear-right max-h-[50%] lg:max-h-[80%] w-auto max-w-[60%] ml-4 rounded-lg object-contain opacity-50'
+                  className='float-right clear-right max-h-[50%] lg:max-h-[80%] w-auto max-w-[60%] lg:max-w-[60%] ml-4 rounded-lg object-contain opacity-50'
                 />
                 <p className="text-gray-100 text-lg md:text-lg pr-0 leading-relaxed ">
                   Codebase Remap combines upfront syntax parsing through Tree-Sitter with advanced AI reasoning to deliver deep code understanding at a minimum cost.

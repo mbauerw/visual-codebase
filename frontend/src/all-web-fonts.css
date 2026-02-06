@@ -1,0 +1,224 @@
+/*
+ * ALL WEB FONTS - DEVELOPMENT ONLY
+ * DO NOT USE IN PRODUCTION
+ */
+
+/* Sans-Serif - Geometric */
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Raleway:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Quicksand:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Comfortaa:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Urbanist:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap');
+
+/* Sans-Serif - Grotesque */
+@import url('https://fonts.googleapis.com/css2?family=Work+Sans:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Barlow:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&display=swap');
+
+/* Sans-Serif - Humanist */
+@import url('https://fonts.googleapis.com/css2?family=Open+Sans:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Cabin:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Karla:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Rubik:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Albert+Sans:wght@300;400;500;600;700&display=swap');
+
+/* Sans-Serif - Technical/Industrial */
+@import url('https://fonts.googleapis.com/css2?family=Oswald:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Anton&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Teko:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Fjalla+One&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Saira:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@400;500;600;700&display=swap');
+
+/* Serif - Classical */
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Libre+Baskerville:wght@400;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=EB+Garamond:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Crimson+Pro:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Spectral:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Noto+Serif:wght@400;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Source+Serif+4:wght@300;400;500;600;700&display=swap');
+
+/* Serif - Modern/Display */
+@import url('https://fonts.googleapis.com/css2?family=Abril+Fatface&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Bodoni+Moda:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Yeseva+One&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Oranienbaum&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Sorts+Mill+Goudy&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Young+Serif&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:wght@400;500;600;700&display=swap');
+
+/* Serif - Slab */
+@import url('https://fonts.googleapis.com/css2?family=Roboto+Slab:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Arvo:wght@400;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Zilla+Slab:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Bitter:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Crete+Round&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Slabo+27px&display=swap');
+
+/* Display - Retro/Vintage */
+@import url('https://fonts.googleapis.com/css2?family=Pacifico&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Righteous&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Bungee&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Monoton&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Lobster&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Permanent+Marker&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Titan+One&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Bangers&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Alfa+Slab+One&display=swap');
+
+/* Display - Elegant/Script */
+@import url('https://fonts.googleapis.com/css2?family=Great+Vibes&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Dancing+Script:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Pinyon+Script&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Alex+Brush&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Tangerine:wght@400;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Allura&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Sacramento&display=swap');
+
+/* Display - Handwritten/Casual */
+@import url('https://fonts.googleapis.com/css2?family=Caveat:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Kalam:wght@300;400;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Patrick+Hand&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Shadows+Into+Light&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Indie+Flower&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Amatic+SC:wght@400;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Architects+Daughter&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Handlee&display=swap');
+
+/* Monospace */
+@import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Source+Code+Pro:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inconsolata:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Ubuntu+Mono:wght@400;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Anonymous+Pro:wght@400;700&display=swap');
+
+
+/*
+ * FONT FAMILY REFERENCE
+ * Copy these values into your font-family declarations
+ *
+ * SANS-SERIF - GEOMETRIC
+ * 'Poppins', sans-serif
+ * 'Montserrat', sans-serif
+ * 'Raleway', sans-serif
+ * 'Quicksand', sans-serif
+ * 'Comfortaa', sans-serif
+ * 'Nunito', sans-serif
+ * 'Outfit', sans-serif
+ * 'Urbanist', sans-serif
+ * 'DM Sans', sans-serif
+ * 'Plus Jakarta Sans', sans-serif
+ *
+ * SANS-SERIF - GROTESQUE
+ * 'Work Sans', sans-serif
+ * 'Source Sans 3', sans-serif
+ * 'Barlow', sans-serif
+ * 'Manrope', sans-serif
+ * 'Sora', sans-serif
+ *
+ * SANS-SERIF - HUMANIST
+ * 'Open Sans', sans-serif
+ * 'Lato', sans-serif
+ * 'Nunito Sans', sans-serif
+ * 'Cabin', sans-serif
+ * 'Karla', sans-serif
+ * 'Rubik', sans-serif
+ * 'Albert Sans', sans-serif
+ *
+ * SANS-SERIF - TECHNICAL
+ * 'Oswald', sans-serif
+ * 'Bebas Neue', sans-serif
+ * 'Anton', sans-serif
+ * 'Teko', sans-serif
+ * 'Fjalla One', sans-serif
+ * 'Barlow Condensed', sans-serif
+ * 'Saira', sans-serif
+ * 'Big Shoulders Display', sans-serif
+ *
+ * SERIF - CLASSICAL
+ * 'Playfair Display', serif
+ * 'Cormorant Garamond', serif
+ * 'Libre Baskerville', serif
+ * 'EB Garamond', serif
+ * 'Crimson Pro', serif
+ * 'Spectral', serif
+ * 'Noto Serif', serif
+ * 'Source Serif 4', serif
+ *
+ * SERIF - MODERN/DISPLAY
+ * 'Abril Fatface', serif
+ * 'Bodoni Moda', serif
+ * 'Yeseva One', serif
+ * 'Oranienbaum', serif
+ * 'Sorts Mill Goudy', serif
+ * 'DM Serif Display', serif
+ * 'Young Serif', serif
+ * 'Fraunces', serif
+ *
+ * SERIF - SLAB
+ * 'Roboto Slab', serif
+ * 'Arvo', serif
+ * 'Zilla Slab', serif
+ * 'Bitter', serif
+ * 'Crete Round', serif
+ * 'Slabo 27px', serif
+ *
+ * DISPLAY - RETRO/VINTAGE
+ * 'Pacifico', cursive
+ * 'Righteous', sans-serif
+ * 'Bungee', sans-serif
+ * 'Monoton', sans-serif
+ * 'Lobster', cursive
+ * 'Permanent Marker', cursive
+ * 'Titan One', sans-serif
+ * 'Bangers', sans-serif
+ * 'Alfa Slab One', serif
+ *
+ * DISPLAY - ELEGANT/SCRIPT
+ * 'Great Vibes', cursive
+ * 'Dancing Script', cursive
+ * 'Pinyon Script', cursive
+ * 'Alex Brush', cursive
+ * 'Tangerine', cursive
+ * 'Allura', cursive
+ * 'Sacramento', cursive
+ *
+ * DISPLAY - HANDWRITTEN
+ * 'Caveat', cursive
+ * 'Kalam', cursive
+ * 'Patrick Hand', cursive
+ * 'Shadows Into Light', cursive
+ * 'Indie Flower', cursive
+ * 'Amatic SC', cursive
+ * 'Architects Daughter', cursive
+ * 'Handlee', cursive
+ *
+ * MONOSPACE
+ * 'Fira Code', monospace
+ * 'JetBrains Mono', monospace
+ * 'Source Code Pro', monospace
+ * 'IBM Plex Mono', monospace
+ * 'Space Mono', monospace
+ * 'Inconsolata', monospace
+ * 'Roboto Mono', monospace
+ * 'Ubuntu Mono', monospace
+ * 'Anonymous Pro', monospace
+ */

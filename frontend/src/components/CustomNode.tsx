@@ -81,10 +81,30 @@ function CustomNode({ data, selected }: NodeProps<CustomNodeType>) {
   // Top 10% = 1.5, Next 25% = 1.25, Bottom 65% = 1.0
   const baseScale = data.scaleTier ?? 1;
 
+  // Get highlight type from data (set by RoleLayoutGraph when selecting nodes)
+  const highlightType = (data as ReactFlowNodeData & { highlightType?: string }).highlightType;
+
   // Combine base scale with interaction states
   const getScale = () => {
-    if (selected) return Math.max(baseScale * 1.1, 1.2); // Selected: at least 1.2
+    if (selected || highlightType === 'tierlist') return Math.max(baseScale * 1.1, 1.2); // Selected: at least 1.2
     return baseScale;
+  };
+
+  // Determine ring styling based on highlight type
+  const getRingClass = () => {
+    if (highlightType === 'tierlist') {
+      return 'ring-8 ring-blue-500 shadow-xl shadow-blue-500/50 ring-offset-2 ring-offset-slate-900';
+    }
+    if (highlightType === 'selected') {
+      return 'ring-8 ring-amber-500 shadow-xl shadow-amber-500/50 ring-offset-2 ring-offset-amber-900';
+    }
+    if (highlightType === 'connected') {
+      return 'ring-4 ring-blue-400/70';
+    }
+    if (selected) {
+      return 'ring-8 ring-amber-500 shadow-xl shadow-amber-500 ring-offset-2 ring-offset-amber-900';
+    }
+    return '';
   };
 
   return (
@@ -92,7 +112,7 @@ function CustomNode({ data, selected }: NodeProps<CustomNodeType>) {
       className={`
         relative px-3 py-4 rounded-lg min-w-[240px] max-w-[320px]
         transition-all duration-300 hover:brightness-110
-        ${selected ? 'ring-8 ring-amber-500 shadow-xl shadow-amber-500 ring-offset-2 ring-offset-amber-900' : ''}
+        ${getRingClass()}
       `}
       style={{
         backgroundColor: '#1e293b',

@@ -317,7 +317,11 @@ export default function VisualizationPage() {
   // Handle function selection from tier list
   const handleFunctionSelect = useCallback((func: FunctionTierItem) => {
     // Find the node that corresponds to this function's file from graphData
-    const targetNode = graphData?.nodes.find(node => node.id === func.node_id);
+    // Try to find by node_id first, then fallback to file_path for non-exported functions
+    let targetNode = graphData?.nodes.find(node => node.id === func.node_id);
+    if (!targetNode && func.file_path) {
+      targetNode = graphData?.nodes.find(node => node.data.path === func.file_path);
+    }
 
     if (targetNode) {
       // Set the selected node
@@ -564,7 +568,7 @@ export default function VisualizationPage() {
         >
 
           {/* Overview Section */}
-          <div className='max-w-[1000px] w-full py-12 px-8'>
+          <div className='max-w-[1000px] w-full py-12 px-8 '>
             <div className='rounded-2xl p-8 '>
               <div className='flex flex-col gap-6'>
                 {/* Header */}
@@ -681,7 +685,7 @@ export default function VisualizationPage() {
                   }`}
                 >
                   <Layers size={16} />
-                  Nested Layout
+                  Folder Layout
                 </button>
               </div>
 

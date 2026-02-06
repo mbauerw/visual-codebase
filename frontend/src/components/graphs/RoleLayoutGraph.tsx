@@ -178,15 +178,18 @@ function createPyramidTiers(
   nodeScales: Map<string, ScaleTier>,
   baseCols: number
 ): PyramidTier[] {
-  // Separate nodes by their scale tier
-  const topTier: CustomNodeType[] = [];    // scale 1.5 (top 10%)
-  const midTier: CustomNodeType[] = [];    // scale 1.25 (next 25%)
-  const bottomTier: CustomNodeType[] = []; // scale 1.0 (bottom 65%)
+  // Separate nodes by their scale tier using range-based comparisons
+  // to support any ScaleTier value (1, 1.25, 1.5, 2, 2.5, 3, etc.)
+  const topTier: CustomNodeType[] = [];    // scale > 1.25 (top 10%)
+  const midTier: CustomNodeType[] = [];    // scale === 1.25 (next 25%)
+  const bottomTier: CustomNodeType[] = []; // scale <= 1 (bottom 65%)
+  let topTierScale: ScaleTier = 1.5;
 
   sortedNodes.forEach(node => {
     const scale = nodeScales.get(node.id) || 1;
-    if (scale === 1.5) {
+    if (scale > 1.25) {
       topTier.push(node);
+      topTierScale = scale; // Track the actual scale used
     } else if (scale === 1.25) {
       midTier.push(node);
     } else {
@@ -199,7 +202,7 @@ function createPyramidTiers(
 
   if (topTier.length > 0) {
     tiers.push({
-      scaleTier: 1.5,
+      scaleTier: topTierScale,
       maxCols: Math.max(1, baseCols - 2),
       nodes: topTier,
     });
@@ -246,14 +249,16 @@ function calculatePyramidRoleDimensions(
   tiers.forEach(tier => {
     const tierRows = Math.ceil(tier.nodes.length / tier.maxCols);
     totalRows += tierRows;
-    // Top 10% tier gets extra vertical spacing (+40px)
-    const tierGapY = tier.scaleTier === 1.5 ? nodeGapY + 40 : nodeGapY;
+    // Top tier gets extra vertical spacing scaled proportionally
+    const tierGapY = tier.scaleTier > 1.25 ? nodeGapY + Math.round(40 * (tier.scaleTier / 1.5)) : nodeGapY;
     totalHeight += tierRows * (nodeHeight + tierGapY);
   });
   totalHeight += rolePadding - nodeGapY; // Adjust for last row (no gap after) + padding
 
   // Width based on widest tier (bottom tier with baseCols) or top tier with extra horizontal gap
-  const topTierWidth = Math.max(1, baseCols - 2) * (nodeWidth + nodeGapX + 90) - (nodeGapX + 90) + rolePadding * 2;
+  const topTierScaleForWidth = tiers.find(t => t.scaleTier > 1.25)?.scaleTier || 1.5;
+  const topTierExtraGapX = Math.round(90 * (topTierScaleForWidth / 1.5)) + 50;
+  const topTierWidth = Math.max(1, baseCols - 2) * (nodeWidth + nodeGapX + topTierExtraGapX) - (nodeGapX + topTierExtraGapX) + rolePadding * 2;
   const bottomTierWidth = baseCols * (nodeWidth + nodeGapX) - nodeGapX + rolePadding * 2;
   const width = Math.max(topTierWidth, bottomTierWidth);
 
@@ -450,7 +455,8 @@ function getNestedCategoryLayout(
         // Rectangular layout for uniform dependencies (n x n+2 grid)
         // Bottom rows fill first (top row may be partial)
         const { cols } = calculateRectangularGridDimensions(roleGroup.nodes.length);
-        const uniformScaleTier = nodeScales.get(roleGroup.nodes[0]?.id) || 1;
+        // When all nodes have the same dependency count, use baseline scale (no scaling)
+        const uniformScaleTier: ScaleTier = 1;
         const totalRows = Math.ceil(roleGroup.nodes.length / cols);
         // First row (top) may have fewer nodes
         const nodesInFirstRow = roleGroup.nodes.length - (totalRows - 1) * cols;
@@ -501,9 +507,9 @@ function getNestedCategoryLayout(
         tiers.forEach((tier) => {
           const { maxCols, nodes: tierNodes, scaleTier } = tier;
 
-          // Top 10% tier gets extra spacing (+90px horizontal, +40px vertical)
-          const tierGapX = scaleTier === 1.5 ? nodeGapX + 90 : nodeGapX;
-          const tierGapY = scaleTier === 1.5 ? nodeGapY + 40 : nodeGapY;
+          // Top tier gets extra spacing scaled proportionally to the scale value
+          const tierGapX = scaleTier > 1.25 ? nodeGapX + Math.round(90 * (scaleTier / 1.5)) + 50 : nodeGapX;
+          const tierGapY = scaleTier > 1.25 ? nodeGapY + Math.round(40 * (scaleTier / 1.5)) : nodeGapY;
 
           const tierRowCount = Math.ceil(tierNodes.length / maxCols);
           // First row (top) of this tier may have fewer nodes
@@ -664,6 +670,7 @@ function RoleLayoutGraphInner({
   const { fitView: reactFlowFitView, getViewport } = useReactFlow();
   const [nodes, setNodes, onNodesChange] = useNodesState<AllNodeTypes>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
+  const edgesRef = useRef<Edge[]>([]); // Ref to track edges without causing effect re-runs
   const [categorySections, setCategorySections] = useState<CategorySection[]>([]);
   const [viewport, setViewport] = useState<Viewport>({ x: 0, y: 0, zoom: 1 });
   const [isInitialLoad, setIsInitialLoad] = useState(true);
@@ -729,6 +736,11 @@ function RoleLayoutGraphInner({
       }, 50);
     }
   }, [nodes.length, isInitialLoad, reactFlowFitView]);
+
+  // Keep edgesRef in sync with edges state (without triggering effect re-runs)
+  useEffect(() => {
+    edgesRef.current = edges;
+  }, [edges]);
 
   // Highlight edges and connected nodes when a node or edge is selected
   useEffect(() => {
@@ -802,7 +814,7 @@ function RoleLayoutGraphInner({
       // Highlight connected nodes with blue ring
       setNodes((currentNodes) => {
         const selectedEdge = currentNodes.length > 0
-          ? edges.find(e => e.id === selectedEdgeId)
+          ? edgesRef.current.find(e => e.id === selectedEdgeId)
           : null;
 
         return currentNodes.map((node) => {
@@ -893,22 +905,34 @@ function RoleLayoutGraphInner({
             return {
               ...node,
               className: selectedNodeClass,
+              data: {
+                ...node.data,
+                highlightType: selectionSource === 'tierlist' ? 'tierlist' : 'selected',
+              } as ReactFlowNodeData,
             };
           }
           if (connectedNodeIds.has(node.id)) {
             return {
               ...node,
               className: ringClass,
+              data: {
+                ...node.data,
+                highlightType: 'connected',
+              } as ReactFlowNodeData,
             };
           }
           return {
             ...node,
             className: '',
+            data: {
+              ...node.data,
+              highlightType: undefined,
+            } as ReactFlowNodeData,
           };
         })
       );
     }, 0);
-  }, [selectedNodeId, selectedEdgeId, selectionSource, edges, setEdges, setNodes]);
+  }, [selectedNodeId, selectedEdgeId, selectionSource, setEdges, setNodes]);
 
   // Handle node click
   const handleNodeClick = useCallback(

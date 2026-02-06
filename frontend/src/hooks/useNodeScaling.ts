@@ -113,7 +113,7 @@ function assignScaleTier(
 ): ScaleTier {
   // Tie-breaking: >= threshold promotes to that tier
   if (count >= p10Threshold) {
-    return 1.5; // Top 10%
+    return 2; // Top 10%
   }
   if (count >= p35Threshold) {
     return 1.25; // Next 25% (10-35th percentile)

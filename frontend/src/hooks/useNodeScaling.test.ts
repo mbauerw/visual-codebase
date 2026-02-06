@@ -36,8 +36,8 @@ describe('calculateNodeScales', () => {
       const result = calculateNodeScales(nodes, edges);
 
       expect(result.size).toBe(1);
-      // Single node in a role gets top tier (1.5)
-      expect(result.get('n1')).toBe(1.5);
+      // Single node in a role gets top tier (2)
+      expect(result.get('n1')).toBe(2);
     });
 
     it('should handle single node per role', () => {
@@ -51,9 +51,9 @@ describe('calculateNodeScales', () => {
       const result = calculateNodeScales(nodes, edges);
 
       // Each node is the only one in its role, so each gets top tier
-      expect(result.get('n1')).toBe(1.5);
-      expect(result.get('n2')).toBe(1.5);
-      expect(result.get('n3')).toBe(1.5);
+      expect(result.get('n1')).toBe(2);
+      expect(result.get('n2')).toBe(2);
+      expect(result.get('n3')).toBe(2);
     });
 
     it('should handle nodes with no matching edges', () => {
@@ -91,7 +91,7 @@ describe('calculateNodeScales', () => {
       const result = calculateNodeScales(nodes, edges);
 
       // n1 has highest dependency count (2), should be top tier
-      expect(result.get('n1')).toBe(1.5);
+      expect(result.get('n1')).toBe(2);
     });
 
     it('should count multiple imports from same node', () => {
@@ -109,7 +109,7 @@ describe('calculateNodeScales', () => {
       const result = calculateNodeScales(nodes, edges);
 
       // n1 has 2 connections (as target), n2 and n3 have 1 each (as source)
-      expect(result.get('n1')).toBe(1.5);
+      expect(result.get('n1')).toBe(2);
     });
   });
 
@@ -134,8 +134,8 @@ describe('calculateNodeScales', () => {
 
       const result = calculateNodeScales(nodes, edges);
 
-      // n0 should be top 10% (1.5)
-      expect(result.get('n0')).toBe(1.5);
+      // n0 should be top 10% (2)
+      expect(result.get('n0')).toBe(2);
     });
 
     it('should handle ties by promoting to higher tier', () => {
@@ -165,7 +165,7 @@ describe('calculateNodeScales', () => {
   });
 
   describe('tier assignment', () => {
-    it('should assign 1.5 to top 10%', () => {
+    it('should assign 2 to top 10%', () => {
       // Create 100 nodes to test percentiles properly
       const nodes = Array.from({ length: 100 }, (_, i) =>
         createNode(`n${i}`, 'utility')
@@ -180,7 +180,7 @@ describe('calculateNodeScales', () => {
       const result = calculateNodeScales(nodes, edges);
 
       // n0 has 99 connections, should be top tier
-      expect(result.get('n0')).toBe(1.5);
+      expect(result.get('n0')).toBe(2);
     });
 
     it('should assign 1.25 to 10th-35th percentile', () => {
@@ -204,8 +204,8 @@ describe('calculateNodeScales', () => {
 
       const result = calculateNodeScales(nodes, edges);
 
-      // n0 should be 1.5 (top tier)
-      expect(result.get('n0')).toBe(1.5);
+      // n0 should be 2 (top tier)
+      expect(result.get('n0')).toBe(2);
     });
 
     it('should assign 1.0 to bottom 65%', () => {
@@ -236,15 +236,17 @@ describe('calculateNodeScales', () => {
       const tierCounts = {
         1: 0,
         1.25: 0,
-        1.5: 0,
+        2: 0,
       };
       result.forEach((tier) => {
-        tierCounts[tier as 1 | 1.25 | 1.5]++;
+        if (tier === 1) tierCounts[1]++;
+        else if (tier === 1.25) tierCounts[1.25]++;
+        else tierCounts[2]++;
       });
 
       // At least some nodes should be in bottom tier (1.0)
       // Note: Due to tie-breaking rules, lower-connected nodes get tier 1.0
-      expect(tierCounts[1] + tierCounts[1.25] + tierCounts[1.5]).toBe(20);
+      expect(tierCounts[1] + tierCounts[1.25] + tierCounts[2]).toBe(20);
     });
   });
 
@@ -273,8 +275,8 @@ describe('calculateNodeScales', () => {
       const result = calculateNodeScales(nodes, edges);
 
       // Both u1 and c1 should be top tier in their respective roles
-      expect(result.get('u1')).toBe(1.5);
-      expect(result.get('c1')).toBe(1.5);
+      expect(result.get('u1')).toBe(2);
+      expect(result.get('c1')).toBe(2);
     });
 
     it('should not mix roles when calculating percentiles', () => {
@@ -298,7 +300,7 @@ describe('calculateNodeScales', () => {
       const result = calculateNodeScales(nodes, edges);
 
       // u0 should be top tier within utilities
-      expect(result.get('u0')).toBe(1.5);
+      expect(result.get('u0')).toBe(2);
 
       // Each component with no connections is in its own role group
       // All components have 0 connections, so they're all equal within their role
@@ -354,7 +356,7 @@ describe('useNodeScaling hook', () => {
 
     expect(result.current instanceof Map).toBe(true);
     expect(result.current.size).toBe(3);
-    expect(result.current.get('n1')).toBe(1.5); // Most connected
+    expect(result.current.get('n1')).toBe(2); // Most connected
   });
 
   it('should memoize result when inputs are unchanged', () => {
@@ -431,7 +433,7 @@ describe('edge case scenarios', () => {
 
     expect(result.size).toBe(1);
     // n1 has 2 connections to itself
-    expect(result.get('n1')).toBe(1.5);
+    expect(result.get('n1')).toBe(2);
   });
 
   it('should handle duplicate edges', () => {
@@ -464,7 +466,7 @@ describe('edge case scenarios', () => {
     const result = calculateNodeScales(nodes, edges);
 
     // Should work the same as any other role
-    expect(result.get('n1')).toBe(1.5);
+    expect(result.get('n1')).toBe(2);
   });
 
   it('should handle mixed roles with no edges', () => {
@@ -480,9 +482,9 @@ describe('edge case scenarios', () => {
     // Each node is alone in its role with 0 deps
     expect(result.size).toBe(4);
     // Single node per role gets top tier
-    expect(result.get('n1')).toBe(1.5);
-    expect(result.get('n2')).toBe(1.5);
-    expect(result.get('n3')).toBe(1.5);
-    expect(result.get('n4')).toBe(1.5);
+    expect(result.get('n1')).toBe(2);
+    expect(result.get('n2')).toBe(2);
+    expect(result.get('n3')).toBe(2);
+    expect(result.get('n4')).toBe(2);
   });
 });
