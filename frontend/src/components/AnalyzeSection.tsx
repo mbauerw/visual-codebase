@@ -130,7 +130,7 @@ export default function AnalyzeSection({
               <div>
                 <label
                   htmlFor="directory"
-                  className="block text-sm font-medium text-gray-700 mb-2"
+                  className="block text-md font-medium text-gray-700 mb-2 ml-1"
                 >
                   Directory Path
                 </label>

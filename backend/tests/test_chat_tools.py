@@ -514,10 +514,13 @@ class TestGetToolsForIntent:
         assert "search_files" in tool_names
         assert "get_dependencies" in tool_names
 
-    def test_codebase_general_intent_returns_empty(self):
-        """CODEBASE_GENERAL returns empty list (system prompt is enough)."""
+    def test_codebase_general_intent_returns_minimal_tools(self):
+        """CODEBASE_GENERAL returns minimal tools for file verification."""
         tools = get_tools_for_intent(QuestionIntent.CODEBASE_GENERAL)
-        assert tools == []
+        tool_names = [t["name"] for t in tools]
+        assert "search_files" in tool_names
+        assert "get_file_info" in tool_names
+        assert len(tool_names) == 2
 
     def test_dependency_analysis_intent(self):
         """DEPENDENCY_ANALYSIS should return dependency-related tools."""

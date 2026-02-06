@@ -28,7 +28,7 @@ Files: {file_count} | Languages: {languages} | Dependencies: {edge_count}
 
 {structural_digest}
 
-Tools: get_file_info (specific files), get_dependencies (imports/relationships), get_metrics (stats). Answer overview questions from context above — only use tools for details not already provided. When [Context: File: ...] is present, use that path directly. Be concise.
+Tools: get_file_info (specific files), search_files (find files by name/role), get_dependencies (imports/relationships), get_metrics (stats). Use the context above for architecture and overview answers. When answering about specific files, always verify names using tools — never guess file names. When [Context: File: ...] is present, use that path directly. Be concise.
 """
 
 
@@ -174,14 +174,18 @@ def _format_structural_digest(graph: ReactFlowGraph) -> str:
 
     parts = []
 
-    # 1. Role distribution (top 10)
-    role_counts: dict[str, int] = {}
+    # 1. Role distribution with key file names (top 10 roles, up to 3 files each)
+    role_files: dict[str, list[str]] = {}
     for node in graph.nodes:
         role = node.data.role.value
-        role_counts[role] = role_counts.get(role, 0) + 1
-    sorted_roles = sorted(role_counts.items(), key=lambda x: x[1], reverse=True)[:10]
-    role_str = ", ".join(f"{role} ({count})" for role, count in sorted_roles)
-    parts.append(f"**Role distribution:** {role_str}")
+        role_files.setdefault(role, []).append(node.data.path)
+    sorted_roles = sorted(role_files.items(), key=lambda x: len(x[1]), reverse=True)[:10]
+    role_lines = []
+    for role, files in sorted_roles:
+        sample = ", ".join(files[:3])
+        suffix = f", +{len(files) - 3} more" if len(files) > 3 else ""
+        role_lines.append(f"  - {role} ({len(files)}): {sample}{suffix}")
+    parts.append("**Role distribution:**\n" + "\n".join(role_lines))
 
     # 2. Directory structure (top-level folders, top 10)
     dir_counts: dict[str, int] = {}

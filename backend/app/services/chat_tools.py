@@ -323,7 +323,9 @@ _TOOL_NAMES_BY_INTENT: dict[QuestionIntent, list[str]] = {
         "get_file_info", "search_files", "get_dependencies",
         "get_function_info", "list_functions", "compare_files",
     ],
-    QuestionIntent.CODEBASE_GENERAL: [],  # System prompt has enough context for overview answers
+    QuestionIntent.CODEBASE_GENERAL: [
+        "search_files", "get_file_info",
+    ],
     QuestionIntent.DEPENDENCY_ANALYSIS: [
         "get_dependencies", "detect_circular_dependencies",
         "find_dependency_path", "get_file_info", "search_files",
