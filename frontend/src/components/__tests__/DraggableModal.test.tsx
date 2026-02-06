@@ -170,22 +170,25 @@ describe('DraggableModal', () => {
   });
 
   describe('resize handles', () => {
-    it('should have left resize handle', () => {
+    it('should have left and right resize handles', () => {
       render(<DraggableModal {...defaultProps} />);
-      const leftHandle = document.querySelector('[class*="cursor-ew-resize"]');
-      expect(leftHandle).toBeInTheDocument();
+      const ewHandles = document.querySelectorAll('[class*="cursor-ew-resize"]');
+      expect(ewHandles.length).toBe(2); // left and right
     });
 
-    it('should have bottom resize handle', () => {
+    it('should have top and bottom resize handles', () => {
       render(<DraggableModal {...defaultProps} />);
-      const bottomHandle = document.querySelector('[class*="cursor-ns-resize"]');
-      expect(bottomHandle).toBeInTheDocument();
+      const nsHandles = document.querySelectorAll('[class*="cursor-ns-resize"]');
+      expect(nsHandles.length).toBe(2); // top and bottom
     });
 
-    it('should have corner resize handle', () => {
+    it('should have corner resize handles', () => {
       render(<DraggableModal {...defaultProps} />);
-      const cornerHandle = document.querySelector('[class*="cursor-nesw-resize"]');
-      expect(cornerHandle).toBeInTheDocument();
+      // All four corners should have resize handles
+      const nwseHandles = document.querySelectorAll('[class*="cursor-nwse-resize"]');
+      const neswHandles = document.querySelectorAll('[class*="cursor-nesw-resize"]');
+      expect(nwseHandles.length).toBe(2); // top-left, bottom-right
+      expect(neswHandles.length).toBe(2); // top-right, bottom-left
     });
 
     it('should reset size on corner handle double-click', () => {
@@ -198,8 +201,10 @@ describe('DraggableModal', () => {
       const modal = screen.getByText('Test Modal').closest('div[class*="fixed"]');
       expect(modal).toHaveStyle({ width: '600px', height: '800px' });
 
-      const cornerHandle = document.querySelector('[class*="cursor-nesw-resize"]');
-      fireEvent.doubleClick(cornerHandle!);
+      // Use bottom-right corner (cursor-nwse-resize, last one in DOM)
+      const cornerHandles = document.querySelectorAll('[class*="cursor-nwse-resize"]');
+      const bottomRightHandle = cornerHandles[cornerHandles.length - 1];
+      fireEvent.doubleClick(bottomRightHandle!);
 
       // Should reset to default size
       expect(modal).toHaveStyle({ width: '420px', height: '600px' });
