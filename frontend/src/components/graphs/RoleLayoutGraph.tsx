@@ -373,18 +373,31 @@ function getNestedCategoryLayout(
     const maxRoleHeight = Math.max(...roleDimensions.map((d) => d.height));
 
     // Calculate the circle radius needed
+    // The radius must accommodate all role boxes placed around the circle
+    // Each role box has dimensions up to maxRoleWidth × maxRoleHeight
     const numRoles = roleGroups.length;
     const roleSpacing = 10;
+    const edgePadding = 100; // Padding from role edges to circle boundary
 
     let circleRadius: number;
     if (numRoles <= 1) {
-      circleRadius = Math.max(maxRoleWidth, maxRoleHeight) / 2;
+      // Single role: radius needs to fit the role plus padding
+      circleRadius = Math.max(maxRoleWidth, maxRoleHeight) / 2 + edgePadding;
+    } else if (numRoles === 2) {
+      // Two roles placed opposite each other
+      circleRadius = maxRoleWidth / 2 + maxRoleHeight / 2 + edgePadding;
     } else if (numRoles <= 4) {
-      circleRadius = (maxRoleWidth + roleSpacing);
-    } else if (numRoles <= 8) {
-      circleRadius = (numRoles * (maxRoleWidth + roleSpacing)) / (2 * Math.PI) + maxRoleHeight;
+      // Small number of roles: ensure enough space between them
+      // Roles are placed on a circle, so we need radius = placement_radius + role_extent
+      const placementRadius = Math.max(maxRoleWidth, maxRoleHeight) + roleSpacing;
+      circleRadius = placementRadius + maxRoleHeight / 2 + edgePadding;
     } else {
-      circleRadius = (numRoles * (maxRoleWidth + roleSpacing)) / (2 * Math.PI) + maxRoleHeight;
+      // Larger numbers: use circumference-based calculation
+      // Circumference must fit all roles: C = numRoles * (maxRoleWidth + spacing)
+      // C = 2 * PI * placementRadius, so placementRadius = C / (2 * PI)
+      const circumference = numRoles * (maxRoleWidth + roleSpacing);
+      const placementRadius = circumference / (2 * Math.PI);
+      circleRadius = placementRadius + maxRoleHeight / 2 + edgePadding;
     }
 
     circleRadius = Math.max(circleRadius, 400);
@@ -392,7 +405,8 @@ function getNestedCategoryLayout(
     // Calculate center position
     const centerX = offsetX + circleRadius;
     const centerY = offsetY + circleRadius;
-    const placementRadius = circleRadius - maxRoleHeight / 2 - 200;
+    // Place roles so their outer edges are edgePadding away from the circle boundary
+    const placementRadius = circleRadius - maxRoleHeight / 2 - edgePadding;
 
     roleGroups.forEach((roleGroup, index) => {
       const dims = roleDimensions[index];
