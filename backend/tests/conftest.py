@@ -270,6 +270,73 @@ def sample_function_tier_item():
     )
 
 
+@pytest.fixture
+def sample_codebase_rundown():
+    """Create a sample codebase rundown."""
+    from app.models.schemas import (
+        CodebaseRundown,
+        RundownLayer,
+        RundownEntryPoint,
+        RundownFlowStep,
+        RundownFlow,
+        RundownCrossCutting,
+    )
+    return CodebaseRundown(
+        layers=[
+            RundownLayer(
+                id="presentation",
+                label="Presentation Layer",
+                description="Handles UI rendering",
+                order=0,
+                roles=["react_component", "hook"],
+                key_files=["src/App.tsx"],
+            ),
+            RundownLayer(
+                id="data",
+                label="Data Access",
+                description="Database interactions",
+                order=1,
+                roles=["api_service"],
+                key_files=["src/api/client.ts"],
+            ),
+        ],
+        entry_points=[
+            RundownEntryPoint(
+                file_path="src/App.tsx",
+                description="Main entry point",
+                starts_flow="main_flow",
+            ),
+        ],
+        flows=[
+            RundownFlow(
+                id="main_flow",
+                name="Main Flow",
+                description="Primary application flow",
+                steps=[
+                    RundownFlowStep(
+                        layer_id="presentation",
+                        action="Renders UI",
+                        key_files=["src/App.tsx"],
+                    ),
+                    RundownFlowStep(
+                        layer_id="data",
+                        action="Fetches data",
+                        key_files=["src/api/client.ts"],
+                    ),
+                ],
+            ),
+        ],
+        cross_cutting=[
+            RundownCrossCutting(
+                name="Configuration",
+                description="App configuration",
+                files=["src/config.ts"],
+            ),
+        ],
+        narrative="This is a sample architectural rundown narrative.",
+    )
+
+
 # ==================== Temporary Directory Fixtures ====================
 
 @pytest.fixture

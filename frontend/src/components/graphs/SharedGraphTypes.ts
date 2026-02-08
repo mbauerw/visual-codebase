@@ -37,6 +37,10 @@ export interface BaseGraphProps {
   selectedNodeId: string | null;
   /** Source of the selection (for styling differences) */
   selectionSource: 'node' | 'tierlist' | null;
+  /** Callback when language filter changes */
+  onLanguageFilterChange?: (language: Language | 'all') => void;
+  /** Callback when role filter changes */
+  onRoleFilterChange?: (role: ArchitecturalRole | 'all') => void;
 }
 
 /**

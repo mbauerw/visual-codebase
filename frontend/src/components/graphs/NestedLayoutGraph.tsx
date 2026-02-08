@@ -68,6 +68,8 @@ function NestedLayoutGraphInner({
   onPaneClick,
   selectedNodeId,
   selectionSource,
+  onLanguageFilterChange,
+  onRoleFilterChange,
 }: NestedLayoutGraphProps) {
   const { fitView: reactFlowFitView } = useReactFlow();
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
@@ -486,29 +488,31 @@ function NestedLayoutGraphInner({
                 Language
               </label>
               <div className="flex flex-wrap gap-1">
-                <span
-                  className={`px-2 py-1 text-xs rounded ${
+                <button
+                  onClick={() => onLanguageFilterChange?.('all')}
+                  className={`px-2 py-1 text-xs rounded cursor-pointer transition-colors ${
                     languageFilter === 'all'
                       ? 'bg-amber-500 text-white'
-                      : 'bg-amber-100 text-amber-700'
+                      : 'bg-amber-100 text-amber-700 hover:bg-amber-200'
                   }`}
                 >
                   All
-                </span>
+                </button>
                 {availableLanguages.map((lang) => (
-                  <span
+                  <button
                     key={lang}
-                    className={`px-2 py-1 text-xs rounded ${
+                    onClick={() => onLanguageFilterChange?.(lang)}
+                    className={`px-2 py-1 text-xs rounded cursor-pointer transition-colors ${
                       languageFilter === lang
                         ? 'bg-amber-500 text-white'
-                        : 'bg-amber-100 text-amber-700'
+                        : 'bg-amber-100 text-amber-700 hover:bg-amber-200'
                     }`}
                     style={{
                       borderLeft: `2px solid ${languageColors[lang]}`,
                     }}
                   >
                     {lang}
-                  </span>
+                  </button>
                 ))}
               </div>
             </div>
@@ -518,29 +522,31 @@ function NestedLayoutGraphInner({
                 Role
               </label>
               <div className="flex flex-wrap gap-1 max-h-24 overflow-y-auto">
-                <span
-                  className={`px-2 py-1 text-xs rounded ${
+                <button
+                  onClick={() => onRoleFilterChange?.('all')}
+                  className={`px-2 py-1 text-xs rounded cursor-pointer transition-colors ${
                     roleFilter === 'all'
                       ? 'bg-amber-500 text-white'
-                      : 'bg-amber-100 text-amber-700'
+                      : 'bg-amber-100 text-amber-700 hover:bg-amber-200'
                   }`}
                 >
                   All
-                </span>
+                </button>
                 {availableRoles.map((role) => (
-                  <span
+                  <button
                     key={role}
-                    className={`px-2 py-1 text-xs rounded ${
+                    onClick={() => onRoleFilterChange?.(role)}
+                    className={`px-2 py-1 text-xs rounded cursor-pointer transition-colors ${
                       roleFilter === role
                         ? 'bg-amber-500 text-white'
-                        : 'bg-amber-100 text-amber-700'
+                        : 'bg-amber-100 text-amber-700 hover:bg-amber-200'
                     }`}
                     style={{
                       borderLeft: `2px solid ${roleColors[role]}`,
                     }}
                   >
                     {role.replace('_', ' ')}
-                  </span>
+                  </button>
                 ))}
               </div>
             </div>

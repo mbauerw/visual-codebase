@@ -30,6 +30,10 @@ class Settings(BaseSettings):
     llm_max_tokens: int = 4096
     llm_parallel_batches: int = 4  # Number of batches to process concurrently
 
+    # Rundown settings
+    rundown_max_tokens: int = 4096
+    rundown_min_files: int = 5
+
     # Redis settings (optional, for distributed rate limiting)
     redis_url: str = ""  # e.g., "redis://localhost:6379/0"
 

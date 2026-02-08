@@ -38,6 +38,7 @@ import { useSourceCode } from '../hooks/useSourceCode';
 import { ProfessionalDesign } from '../components/TierList/designs/ProfessionalDesign';
 import { ChatPanel } from '../components/chat';
 import AnalysisFileTree from '../components/AnalysisFileTree';
+import { RundownSection } from '../components/rundown';
 import type { SelectionContext } from '../types/chat';
 import { DraggableModal } from '../components/DraggableModal';
 import { RoleLayoutGraph, NestedLayoutGraph } from '../components/graphs';
@@ -56,11 +57,8 @@ export default function VisualizationPage() {
   const [selectionSource, setSelectionSource] = useState<'node' | 'tierlist' | null>(null);
   const [selectedCateogry, setSelectedCategory] = useState<CategoryRoleData | null>(null);
   const [searchQuery] = useState('');
-  const [languageFilter, _setLanguageFilter] = useState<Language | 'all'>('all');
-  const [roleFilter, _setRoleFilter] = useState<ArchitecturalRole | 'all'>('all');
-  // Note: setLanguageFilter and setRoleFilter reserved for future filter UI
-  void _setLanguageFilter;
-  void _setRoleFilter;
+  const [languageFilter, setLanguageFilter] = useState<Language | 'all'>('all');
+  const [roleFilter, setRoleFilter] = useState<ArchitecturalRole | 'all'>('all');
   const [layoutType, setLayoutType] = useState<SimplifiedLayoutType>('role');
   const [expanded, setExpanded] = useState<boolean>(true);
   const [dashboardOpen, setDashboardOpen] = useState(false);
@@ -88,6 +86,7 @@ export default function VisualizationPage() {
   const [panelWidth, setPanelWidth] = useState(400);
   const [isResizing, setIsResizing] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const visualizationRef = useRef<HTMLDivElement>(null);
 
   const MIN_PANEL_WIDTH = 50; // Minimum when resizing (before auto-collapse)
   const COLLAPSE_THRESHOLD = 80; // Auto-collapse when dragged below this
@@ -373,6 +372,22 @@ export default function VisualizationPage() {
     setHighlightedLines(null);
   }, []);
 
+  // Handle file click from rundown section
+  const handleRundownFileClick = useCallback((filePath: string) => {
+    const targetNode = graphData?.nodes.find(node => node.data.path === filePath);
+    if (targetNode) {
+      handleFileTreeSelect(targetNode.id, targetNode.data);
+    }
+  }, [graphData, handleFileTreeSelect]);
+
+  // Handle layer click from rundown section — scroll to visualization and apply role filter
+  const handleLayerClick = useCallback((roles: string[]) => {
+    if (roles.length > 0) {
+      setRoleFilter(roles[0] as ArchitecturalRole);
+    }
+    visualizationRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, []);
+
   // Build selection context for the chat panel
   const selectionContextForChat = useMemo((): SelectionContext | null => {
     if (!sourceCodeFile && !selectedNode) {
@@ -608,6 +623,20 @@ export default function VisualizationPage() {
             </div>
           </div>
 
+          {/* The Rundown Section */}
+          {graphData.metadata.rundown && (
+            <div className='max-w-[1200px] w-full px-8'>
+              <div className='flex w-full items-center justify-center relative h-16'>
+                <h2 className='text-3xl text-red-500 text-center'>THE RUNDOWN</h2>
+              </div>
+              <RundownSection
+                rundown={graphData.metadata.rundown}
+                onFileClick={handleRundownFileClick}
+                onLayerClick={handleLayerClick}
+              />
+            </div>
+          )}
+
           {/* Files Section */}
           <div className='h-[1000px] w-full flex items-center justify-start px-8'>
             <div className='flex flex-col w-2/5 h-full items-start justify-center px-2'>
@@ -656,7 +685,7 @@ export default function VisualizationPage() {
           </div>
 
           {/* Graph Visualization Container */}
-          <div className='w-full px-8 pb-12 justify-center flex flex-col gap-10 items-center'>
+          <div ref={visualizationRef} className='w-full px-8 pb-12 justify-center flex flex-col gap-10 items-center'>
             <div className='flex w-full items-center justify-center relative h-12'>
               <h2 className='text-3xl text-red-500 text-center '>VISUALIZATION</h2>
             </div>
@@ -708,6 +737,8 @@ export default function VisualizationPage() {
                   onPaneClick={handlePaneClick}
                   selectedNodeId={selectedNodeId}
                   selectionSource={selectionSource}
+                  onLanguageFilterChange={setLanguageFilter}
+                  onRoleFilterChange={setRoleFilter}
                 />
               ) : (
                 <NestedLayoutGraph
@@ -718,6 +749,8 @@ export default function VisualizationPage() {
                   onNodeSelect={handleNodeSelect}
                   onEdgeClick={handleEdgeClick}
                   onPaneClick={handlePaneClick}
+                  onLanguageFilterChange={setLanguageFilter}
+                  onRoleFilterChange={setRoleFilter}
                   selectedNodeId={selectedNodeId}
                   selectionSource={selectionSource}
                 />

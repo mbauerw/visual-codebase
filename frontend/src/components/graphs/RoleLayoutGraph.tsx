@@ -666,6 +666,8 @@ function RoleLayoutGraphInner({
   onPaneClick,
   selectedNodeId,
   selectionSource,
+  onLanguageFilterChange,
+  onRoleFilterChange,
 }: RoleLayoutGraphProps) {
   const { fitView: reactFlowFitView, getViewport } = useReactFlow();
   const [nodes, setNodes, onNodesChange] = useNodesState<AllNodeTypes>([]);
@@ -1021,7 +1023,7 @@ function RoleLayoutGraphInner({
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
         style={{ background: GRAPH_BACKGROUNDS.role }}
-        minZoom={0.1}
+        minZoom={0.05}
         maxZoom={2}
         defaultEdgeOptions={{
           type: 'import',
@@ -1073,29 +1075,31 @@ function RoleLayoutGraphInner({
                 Language
               </label>
               <div className="flex flex-wrap gap-1">
-                <span
-                  className={`px-2 py-1 text-xs rounded ${
+                <button
+                  onClick={() => onLanguageFilterChange?.('all')}
+                  className={`px-2 py-1 text-xs rounded cursor-pointer transition-colors ${
                     languageFilter === 'all'
                       ? 'bg-blue-600 text-white'
-                      : 'bg-slate-700 text-slate-400'
+                      : 'bg-slate-700 text-slate-400 hover:bg-slate-600'
                   }`}
                 >
                   All
-                </span>
+                </button>
                 {availableLanguages.map((lang) => (
-                  <span
+                  <button
                     key={lang}
-                    className={`px-2 py-1 text-xs rounded ${
+                    onClick={() => onLanguageFilterChange?.(lang)}
+                    className={`px-2 py-1 text-xs rounded cursor-pointer transition-colors ${
                       languageFilter === lang
                         ? 'bg-blue-600 text-white'
-                        : 'bg-slate-700 text-slate-400'
+                        : 'bg-slate-700 text-slate-400 hover:bg-slate-600'
                     }`}
                     style={{
                       borderLeft: `2px solid ${languageColors[lang]}`,
                     }}
                   >
                     {lang}
-                  </span>
+                  </button>
                 ))}
               </div>
             </div>
@@ -1105,29 +1109,31 @@ function RoleLayoutGraphInner({
                 Role
               </label>
               <div className="flex flex-wrap gap-1 max-h-24 overflow-y-auto">
-                <span
-                  className={`px-2 py-1 text-xs rounded ${
+                <button
+                  onClick={() => onRoleFilterChange?.('all')}
+                  className={`px-2 py-1 text-xs rounded cursor-pointer transition-colors ${
                     roleFilter === 'all'
                       ? 'bg-blue-600 text-white'
-                      : 'bg-slate-700 text-slate-400'
+                      : 'bg-slate-700 text-slate-400 hover:bg-slate-600'
                   }`}
                 >
                   All
-                </span>
+                </button>
                 {availableRoles.map((role) => (
-                  <span
+                  <button
                     key={role}
-                    className={`px-2 py-1 text-xs rounded ${
+                    onClick={() => onRoleFilterChange?.(role)}
+                    className={`px-2 py-1 text-xs rounded cursor-pointer transition-colors ${
                       roleFilter === role
                         ? 'bg-blue-600 text-white'
-                        : 'bg-slate-700 text-slate-400'
+                        : 'bg-slate-700 text-slate-400 hover:bg-slate-600'
                     }`}
                     style={{
                       borderLeft: `2px solid ${roleColors[role]}`,
                     }}
                   >
                     {role.replace('_', ' ')}
-                  </span>
+                  </button>
                 ))}
               </div>
             </div>

@@ -24,7 +24,7 @@ from .parser import get_parser
 from .function_analyzer import get_function_analyzer
 from .call_resolver import create_call_resolver
 from .tier_calculator import create_tier_calculator
-from .network_logger import log_parse, log_llm_analyze, log_build_graph, log_analyze_functions, log_generate_summary
+from .network_logger import log_parse, log_llm_analyze, log_build_graph, log_analyze_functions, log_generate_summary, log_generate_rundown
 
 
 # Progress percentages for each phase (reflecting actual time distribution)
@@ -33,9 +33,10 @@ PROGRESS_MAP = {
     AnalysisStatus.CLONING: 5,       # Clone is fast
     AnalysisStatus.PARSING: 10,      # Parsing is quick
     AnalysisStatus.ANALYZING: 15,    # Start of LLM (main work starts here)
-    AnalysisStatus.ANALYZING_FUNCTIONS: 75,  # After LLM
-    AnalysisStatus.BUILDING_GRAPH: 85,
-    AnalysisStatus.GENERATING_SUMMARY: 92,
+    AnalysisStatus.ANALYZING_FUNCTIONS: 70,  # After LLM
+    AnalysisStatus.BUILDING_GRAPH: 80,
+    AnalysisStatus.GENERATING_SUMMARY: 88,
+    AnalysisStatus.GENERATING_RUNDOWN: 94,
     AnalysisStatus.COMPLETED: 100,
     AnalysisStatus.FAILED: 0,
 }
@@ -264,6 +265,23 @@ class AnalysisService:
             summary_duration = time.perf_counter() - summary_start
             log_generate_summary(summary_duration, True)
 
+            # Step 6: Generate rundown (non-fatal)
+            job.set_status(AnalysisStatus.GENERATING_RUNDOWN, "Generating codebase rundown...")
+            rundown_start = time.perf_counter()
+            rundown = None
+            try:
+                from .rundown_generator import get_rundown_generator
+                rundown_generator = get_rundown_generator()
+                rundown = await rundown_generator.generate_rundown(
+                    nodes=nodes,
+                    edges=edges,
+                    language_distribution=language_counts,
+                )
+            except Exception as e:
+                print(f"Rundown generation failed (non-fatal): {e}")
+            rundown_duration = time.perf_counter() - rundown_start
+            log_generate_rundown(rundown_duration, rundown is not None)
+
             # Create metadata
             analysis_time = time.time() - start_time
             metadata = AnalysisMetadata(
@@ -279,6 +297,7 @@ class AnalysisService:
                 summary=summary,
                 readme_detected=readme_detected,
                 function_stats=function_stats,
+                rundown=rundown,
             )
 
             # Convert to React Flow format

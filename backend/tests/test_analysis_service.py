@@ -381,7 +381,12 @@ class TestStatusTransitions:
                 mock_generator.generate_summary = AsyncMock(return_value=(create_mock_summary(), False))
                 mock_summary.return_value = mock_generator
 
-                await analysis_service.run_analysis(analysis_id)
+                with patch("app.services.rundown_generator.get_rundown_generator") as mock_rundown:
+                    mock_rundown_gen = MagicMock()
+                    mock_rundown_gen.generate_rundown = AsyncMock(return_value=None)
+                    mock_rundown.return_value = mock_rundown_gen
+
+                    await analysis_service.run_analysis(analysis_id)
 
         # Verify order
         expected_order = [
@@ -390,6 +395,7 @@ class TestStatusTransitions:
             AnalysisStatus.BUILDING_GRAPH,
             AnalysisStatus.ANALYZING_FUNCTIONS,
             AnalysisStatus.GENERATING_SUMMARY,
+            AnalysisStatus.GENERATING_RUNDOWN,
             AnalysisStatus.COMPLETED,
         ]
 
@@ -417,6 +423,7 @@ class TestProgressUpdates:
             AnalysisStatus.ANALYZING_FUNCTIONS,
             AnalysisStatus.BUILDING_GRAPH,
             AnalysisStatus.GENERATING_SUMMARY,
+            AnalysisStatus.GENERATING_RUNDOWN,
             AnalysisStatus.COMPLETED,
         ]
 

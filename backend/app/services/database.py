@@ -113,6 +113,8 @@ class DatabaseService:
             "summary": metadata.summary.model_dump() if metadata.summary else None,
             "readme_detected": metadata.readme_detected,
             "summary_generated_at": datetime.utcnow().isoformat() if metadata.summary else None,
+            "rundown": metadata.rundown.model_dump() if metadata.rundown else None,
+            "rundown_generated_at": datetime.utcnow().isoformat() if metadata.rundown else None,
             "completed_at": metadata.completed_at.isoformat() if metadata.completed_at else None,
             "updated_at": datetime.utcnow().isoformat(),
         }
@@ -288,6 +290,15 @@ class DatabaseService:
             from ..models.schemas import CodebaseSummary
             summary = CodebaseSummary(**summary_data)
 
+        # Parse rundown if present
+        rundown = None
+        rundown_data = analysis_data.get("rundown")
+        if rundown_data:
+            if isinstance(rundown_data, str):
+                rundown_data = json.loads(rundown_data)
+            from ..models.schemas import CodebaseRundown
+            rundown = CodebaseRundown(**rundown_data)
+
         metadata = AnalysisMetadata(
             analysis_id=analysis_data["analysis_id"],
             directory_path=analysis_data["directory_path"],
@@ -302,6 +313,7 @@ class DatabaseService:
             errors=analysis_data["errors"] or [],
             summary=summary,
             readme_detected=analysis_data.get("readme_detected", False),
+            rundown=rundown,
         )
 
         # Convert database records back to domain objects

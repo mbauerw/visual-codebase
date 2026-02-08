@@ -7,7 +7,8 @@
 ~~- Add actual file display so users can search through their code and sync it up with the visualization~~
 ~~- Add AI chatbot with analysis context~~
 - ~~Change edges so they display the actual import name, not the file source~~
-- "main" files needs to be highlighted in AnalysisFileTree.tsx
+- Local Directory analysis still possible for unauthenticated users. 
+- Progress bar not connected to actual progress
 - 
 - Go imports are weird
 - custom layouts

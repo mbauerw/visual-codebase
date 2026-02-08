@@ -129,6 +129,15 @@ def log_generate_summary(
     log_operation("generate_summary", duration_seconds, success, None, error_message)
 
 
+def log_generate_rundown(
+    duration_seconds: float,
+    success: bool,
+    error_message: Optional[str] = None,
+) -> None:
+    """Log a rundown generation operation."""
+    log_operation("generate_rundown", duration_seconds, success, None, error_message)
+
+
 class PhaseTimer:
     """Context manager for timing and logging a phase."""
 

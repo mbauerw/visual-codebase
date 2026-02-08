@@ -143,6 +143,7 @@ class AnalysisStatus(str, Enum):
     ANALYZING_FUNCTIONS = "analyzing_functions"
     BUILDING_GRAPH = "building_graph"
     GENERATING_SUMMARY = "generating_summary"
+    GENERATING_RUNDOWN = "generating_rundown"
     COMPLETED = "completed"
     FAILED = "failed"
 
@@ -564,6 +565,60 @@ class CodebaseSummary(BaseModel):
     )
 
 
+class RundownLayer(BaseModel):
+    """An architectural layer in the codebase."""
+
+    id: str = Field(..., description="Unique layer identifier")
+    label: str = Field(..., description="Human-readable layer name")
+    description: str = Field(..., description="What this layer does")
+    order: int = Field(..., description="Layer order (0 = topmost)")
+    roles: list[str] = Field(default_factory=list, description="ArchitecturalRole values in this layer")
+    key_files: list[str] = Field(default_factory=list, description="Representative file paths")
+
+
+class RundownEntryPoint(BaseModel):
+    """An application entry point."""
+
+    file_path: str = Field(..., description="Path to the entry point file")
+    description: str = Field(..., description="What this entry point does")
+    starts_flow: str = Field(default="", description="ID of the flow this entry point initiates")
+
+
+class RundownFlowStep(BaseModel):
+    """A single step in an application flow."""
+
+    layer_id: str = Field(..., description="Layer this step occurs in")
+    action: str = Field(..., description="What happens at this step")
+    key_files: list[str] = Field(default_factory=list, description="Files involved")
+
+
+class RundownFlow(BaseModel):
+    """A logical flow through the application."""
+
+    id: str = Field(..., description="Unique flow identifier")
+    name: str = Field(..., description="Flow name, e.g. 'User Authentication'")
+    description: str = Field(..., description="What this flow accomplishes")
+    steps: list[RundownFlowStep] = Field(default_factory=list, description="Ordered steps")
+
+
+class RundownCrossCutting(BaseModel):
+    """A cross-cutting concern."""
+
+    name: str = Field(..., description="Concern name, e.g. 'Error Handling'")
+    description: str = Field(..., description="How this concern is handled")
+    files: list[str] = Field(default_factory=list, description="Files involved")
+
+
+class CodebaseRundown(BaseModel):
+    """LLM-generated architectural rundown of the codebase."""
+
+    layers: list[RundownLayer] = Field(default_factory=list)
+    entry_points: list[RundownEntryPoint] = Field(default_factory=list)
+    flows: list[RundownFlow] = Field(default_factory=list)
+    cross_cutting: list[RundownCrossCutting] = Field(default_factory=list)
+    narrative: str = Field(default="")
+
+
 class AnalysisMetadata(BaseModel):
     """Metadata about the analysis."""
 
@@ -592,6 +647,9 @@ class AnalysisMetadata(BaseModel):
     )
     function_stats: Optional[FunctionStats] = Field(
         default=None, description="Function tier list statistics"
+    )
+    rundown: Optional[CodebaseRundown] = Field(
+        default=None, description="LLM-generated architectural rundown"
     )
 
 

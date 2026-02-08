@@ -87,6 +87,7 @@ export type AnalysisStatus =
   | 'analyzing'
   | 'building_graph'
   | 'generating_summary'
+  | 'generating_rundown'
   | 'completed'
   | 'failed';
 
@@ -232,6 +233,50 @@ export interface CodebaseSummary {
   notable_aspects: string[];
 }
 
+// ==================== Codebase Rundown Types ====================
+
+export interface RundownLayer {
+  id: string;
+  label: string;
+  description: string;
+  order: number;
+  roles: string[];
+  key_files: string[];
+}
+
+export interface RundownEntryPoint {
+  file_path: string;
+  description: string;
+  starts_flow: string;
+}
+
+export interface RundownFlowStep {
+  layer_id: string;
+  action: string;
+  key_files: string[];
+}
+
+export interface RundownFlow {
+  id: string;
+  name: string;
+  description: string;
+  steps: RundownFlowStep[];
+}
+
+export interface RundownCrossCutting {
+  name: string;
+  description: string;
+  files: string[];
+}
+
+export interface CodebaseRundown {
+  layers: RundownLayer[];
+  entry_points: RundownEntryPoint[];
+  flows: RundownFlow[];
+  cross_cutting: RundownCrossCutting[];
+  narrative: string;
+}
+
 export interface AnalysisMetadata {
   analysis_id: string;
   directory_path?: string;
@@ -246,6 +291,7 @@ export interface AnalysisMetadata {
   errors: string[];
   summary?: CodebaseSummary;
   readme_detected?: boolean;
+  rundown?: CodebaseRundown;
 }
 
 export interface ReactFlowGraph {
