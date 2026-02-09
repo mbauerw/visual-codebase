@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { ChevronDown } from 'lucide-react';
+import { useState, useCallback } from 'react';
+import { Route } from 'lucide-react';
 import type { CodebaseRundown } from '../../types';
 import RundownNarrative from './RundownNarrative';
 import RundownLayers from './RundownLayers';
@@ -11,32 +11,27 @@ interface RundownSectionProps {
   rundown: CodebaseRundown;
   onFileClick?: (filePath: string) => void;
   onLayerClick?: (roles: string[]) => void;
+  isSectionExpanded?: boolean;
 }
 
-export default function RundownSection({ rundown, onFileClick, onLayerClick }: RundownSectionProps) {
+export default function RundownSection({ rundown, onFileClick, onLayerClick, isSectionExpanded }: RundownSectionProps) {
   const [activeFlowIndex, setActiveFlowIndex] = useState(0);
-  const [isSectionExpanded, setIsSectionExpanded] = useState(true);
   const [isFlowsExpanded, setIsFlowsExpanded] = useState(true);
+  const [isFlowsHoveringBg, setIsFlowsHoveringBg] = useState(false);
+
+  const handleFlowsMouseMove = useCallback((e: React.MouseEvent) => {
+    const isOverInteractive = !!(e.target as HTMLElement).closest('[data-flow-interactive]');
+    setIsFlowsHoveringBg(!isOverInteractive);
+  }, []);
+
+  const handleFlowsMouseLeave = useCallback(() => {
+    setIsFlowsHoveringBg(false);
+  }, []);
 
   const activeFlow = rundown.flows[activeFlowIndex];
 
   return (
-    <section aria-label="The Rundown - Application Flow Analysis">
-      {/* Overarching collapse toggle */}
-      <button
-        onClick={() => setIsSectionExpanded(!isSectionExpanded)}
-        className="flex items-center gap-2 cursor-pointer group w-full text-left mb-6"
-      >
-        <span className="text-sm font-medium text-slate-500">
-          {isSectionExpanded ? 'Collapse all' : 'Expand all'}
-        </span>
-        <ChevronDown
-          size={16}
-          className={`text-slate-400 group-hover:text-slate-600 transition-transform duration-300 ${
-            isSectionExpanded ? 'rotate-180' : ''
-          }`}
-        />
-      </button>
+    <section aria-label="The Rundown - Application Flow Analysis" className="bg-slate-700 w-full px-8">
 
       <div
         className="grid transition-[grid-template-rows] duration-500 ease-in-out"
@@ -58,35 +53,37 @@ export default function RundownSection({ rundown, onFileClick, onLayerClick }: R
 
             {/* Flows */}
             {rundown.flows.length > 0 && (
-              <div>
-                <button
-                  onClick={() => setIsFlowsExpanded(!isFlowsExpanded)}
-                  className="flex items-center gap-2 mb-3 cursor-pointer group w-full text-left"
-                >
-                  <h3 className="text-sm font-semibold text-slate-900">Application Flows</h3>
-                  <ChevronDown
-                    size={16}
-                    className={`text-slate-400 group-hover:text-slate-600 transition-transform duration-300 ${
-                      isFlowsExpanded ? 'rotate-180' : ''
-                    }`}
-                  />
-                </button>
+              <div
+                onClick={() => setIsFlowsExpanded(!isFlowsExpanded)}
+                onMouseMove={handleFlowsMouseMove}
+                onMouseLeave={handleFlowsMouseLeave}
+                className={`bg-gradient-to-r border border-indigo-200 rounded-xl p-6 cursor-pointer transition-colors duration-200 ${
+                  isFlowsHoveringBg ? 'from-indigo-50/50 to-blue-50/50' : ''
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <Route size={20} className="text-black flex-shrink-0" />
+                  <h3 className="text-xl font-semibold text-slate-900">Application Flows</h3>
+                </div>
 
                 <div
                   className="grid transition-[grid-template-rows] duration-500 ease-in-out"
                   style={{ gridTemplateRows: isFlowsExpanded ? '1fr' : '0fr' }}
                 >
-                  <div className="overflow-hidden">
+                  <div className={`overflow-hidden bg-white transition-all duration-500 ease-in-out ${isFlowsExpanded ? 'mt-6 p-4' : 'mt-0'}`}>
                     {/* Flow tab selector */}
                     {rundown.flows.length > 1 && (
-                      <div className="flex flex-wrap gap-2 mb-4" role="tablist">
+                      <div className="flex flex-wrap gap-2 mb-4" role="tablist" data-flow-interactive>
                         {rundown.flows.map((flow, index) => (
                           <button
                             key={flow.id}
                             role="tab"
                             aria-selected={index === activeFlowIndex}
                             aria-controls={`flow-panel-${flow.id}`}
-                            onClick={() => setActiveFlowIndex(index)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setActiveFlowIndex(index);
+                            }}
                             className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
                               index === activeFlowIndex
                                 ? 'bg-indigo-100 text-indigo-800'
@@ -104,6 +101,7 @@ export default function RundownSection({ rundown, onFileClick, onLayerClick }: R
                       <div
                         role="tabpanel"
                         id={`flow-panel-${activeFlow.id}`}
+                        data-flow-interactive
                       >
                         {/* Desktop: Flow diagram */}
                         <div className="hidden sm:block">

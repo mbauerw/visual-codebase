@@ -12,6 +12,7 @@ import {
   ChevronsLeftRight,
   MessageSquare,
   Layers,
+  ChevronDown
 } from 'lucide-react';
 
 import { type CategoryRoleData } from '../components/CategoryNode';
@@ -88,6 +89,9 @@ export default function VisualizationPage() {
   const containerRef = useRef<HTMLDivElement>(null);
   const visualizationRef = useRef<HTMLDivElement>(null);
 
+  const [isSectionExpanded, setIsSectionExpanded] = useState(true);
+
+  // Graph Constants
   const MIN_PANEL_WIDTH = 50; // Minimum when resizing (before auto-collapse)
   const COLLAPSE_THRESHOLD = 80; // Auto-collapse when dragged below this
   const TAB_WIDTH = 40; // Width of the expand tab when collapsed
@@ -313,6 +317,9 @@ export default function VisualizationPage() {
     setEdgePopoverPosition(null);
   }, []);
 
+  // Rundown Expand/Collapse Handler
+
+
   // Handle function selection from tier list
   const handleFunctionSelect = useCallback((func: FunctionTierItem) => {
     // Find the node that corresponds to this function's file from graphData
@@ -397,7 +404,7 @@ export default function VisualizationPage() {
     // Determine the source based on how the selection was made
     const source = selectionSource === 'tierlist' ? 'tier_list' as const
       : selectionSource === 'node' ? 'graph_node' as const
-      : 'source_code_panel' as const;
+        : 'source_code_panel' as const;
 
     const context: SelectionContext = {
       source,
@@ -460,17 +467,16 @@ export default function VisualizationPage() {
           </h1>
         </div>
         <button
-            onClick={() => user ? setChatModalOpen(prev => !prev) : handleOpenAuthModal(0)}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded transition-colors ${
-              chatModalOpen
-                ? 'bg-blue-600 text-white'
-                : 'bg-slate-700 text-slate-400 hover:text-white hover:bg-slate-600'
+          onClick={() => user ? setChatModalOpen(prev => !prev) : handleOpenAuthModal(0)}
+          className={`flex items-center gap-2 px-3 py-1.5 rounded transition-colors ${chatModalOpen
+              ? 'bg-blue-600 text-white'
+              : 'bg-slate-700 text-slate-400 hover:text-white hover:bg-slate-600'
             }`}
-            title={user ? 'AI Assistant' : 'Sign in to use AI Assistant'}
-          >
-            <MessageSquare size={16} />
-            <span className="text-sm font-medium">AI Assistant</span>
-          </button> 
+          title={user ? 'AI Assistant' : 'Sign in to use AI Assistant'}
+        >
+          <MessageSquare size={16} />
+          <span className="text-sm font-medium">AI Assistant</span>
+        </button>
 
         {/* Desktop Stats and Auth */}
         <div className="hidden md:flex items-center gap-4">
@@ -550,11 +556,10 @@ export default function VisualizationPage() {
         <div className="flex md:hidden items-center gap-3 text-xs text-slate-400">
           <button
             onClick={() => user ? setChatModalOpen(prev => !prev) : handleOpenAuthModal(0)}
-            className={`p-1.5 rounded transition-colors ${
-              chatModalOpen
+            className={`p-1.5 rounded transition-colors ${chatModalOpen
                 ? 'bg-blue-600 text-white'
                 : 'bg-slate-700 text-slate-400'
-            }`}
+              }`}
             title={user ? 'AI Assistant' : 'Sign in to use AI Assistant'}
           >
             <MessageSquare size={14} />
@@ -625,14 +630,18 @@ export default function VisualizationPage() {
 
           {/* The Rundown Section */}
           {graphData.metadata.rundown && (
-            <div className='max-w-[1200px] w-full px-8'>
-              <div className='flex w-full items-center justify-center relative h-16'>
-                <h2 className='text-3xl text-red-500 text-center'>THE RUNDOWN</h2>
+            <div className={`w-full bg-slate-700 rounded-2xl py-8 `}>
+              <div
+                onClick={() => setIsSectionExpanded(!isSectionExpanded)}
+                className='flex w-full items-center justify-center relative cursor-pointer'
+              >
+                  <h2 className='text-3xl text-red-500 text-center'>THE RUNDOWN</h2>
               </div>
               <RundownSection
                 rundown={graphData.metadata.rundown}
                 onFileClick={handleRundownFileClick}
                 onLayerClick={handleLayerClick}
+                isSectionExpanded={isSectionExpanded}
               />
             </div>
           )}
@@ -696,22 +705,20 @@ export default function VisualizationPage() {
               <div className="flex items-end pl-4">
                 <button
                   onClick={() => setLayoutType('role')}
-                  className={`flex items-center gap-2 px-5 py-2.5 text-sm font-medium rounded-t-lg transition-all relative ${
-                    layoutType === 'role'
+                  className={`flex items-center gap-2 px-5 py-2.5 text-sm font-medium rounded-t-lg transition-all relative ${layoutType === 'role'
                       ? 'bg-slate-800 text-white z-10 -mb-[2px] border-t-2 border-x-2 border-neutral-600'
                       : 'bg-slate-600 text-slate-300 hover:bg-slate-700 hover:text-white -mb-[2px] border-t border-x border-neutral-500'
-                  }`}
+                    }`}
                 >
                   <LayoutGrid size={16} />
                   Role Layout
                 </button>
                 <button
                   onClick={() => setLayoutType('nested')}
-                  className={`flex items-center gap-2 px-5 py-2.5 text-sm font-medium rounded-t-lg transition-all relative ml-1 ${
-                    layoutType === 'nested'
+                  className={`flex items-center gap-2 px-5 py-2.5 text-sm font-medium rounded-t-lg transition-all relative ml-1 ${layoutType === 'nested'
                       ? 'bg-amber-100 text-amber-900 z-10 -mb-[2px] border-t-2 border-x-2 border-amber-400'
                       : 'bg-amber-200/60 text-amber-800 hover:bg-amber-200 hover:text-amber-900 -mb-[2px] border-t border-x border-amber-300'
-                  }`}
+                    }`}
                 >
                   <Layers size={16} />
                   Folder Layout
@@ -719,42 +726,41 @@ export default function VisualizationPage() {
               </div>
 
               {/* Graph container */}
-              <div className={`h-[900px] w-full rounded-2xl rounded-tl-none overflow-hidden border-4 shadow-2xl shadow-black relative ${
-                layoutType === 'role'
+              <div className={`h-[900px] w-full rounded-2xl rounded-tl-none overflow-hidden border-4 shadow-2xl shadow-black relative ${layoutType === 'role'
                   ? 'border-neutral-600 bg-slate-800'
                   : 'border-amber-400 bg-amber-50'
-              }`}>
-              {/* Render the appropriate graph component based on layout type */}
-              {layoutType === 'role' ? (
-                <RoleLayoutGraph
-                  graphData={graphData}
-                  searchQuery={searchQuery}
-                  languageFilter={languageFilter}
-                  roleFilter={roleFilter}
-                  onNodeSelect={handleNodeSelect}
-                  onCategorySelect={handleCategorySelect}
-                  onEdgeClick={handleEdgeClick}
-                  onPaneClick={handlePaneClick}
-                  selectedNodeId={selectedNodeId}
-                  selectionSource={selectionSource}
-                  onLanguageFilterChange={setLanguageFilter}
-                  onRoleFilterChange={setRoleFilter}
-                />
-              ) : (
-                <NestedLayoutGraph
-                  graphData={graphData}
-                  searchQuery={searchQuery}
-                  languageFilter={languageFilter}
-                  roleFilter={roleFilter}
-                  onNodeSelect={handleNodeSelect}
-                  onEdgeClick={handleEdgeClick}
-                  onPaneClick={handlePaneClick}
-                  onLanguageFilterChange={setLanguageFilter}
-                  onRoleFilterChange={setRoleFilter}
-                  selectedNodeId={selectedNodeId}
-                  selectionSource={selectionSource}
-                />
-              )}
+                }`}>
+                {/* Render the appropriate graph component based on layout type */}
+                {layoutType === 'role' ? (
+                  <RoleLayoutGraph
+                    graphData={graphData}
+                    searchQuery={searchQuery}
+                    languageFilter={languageFilter}
+                    roleFilter={roleFilter}
+                    onNodeSelect={handleNodeSelect}
+                    onCategorySelect={handleCategorySelect}
+                    onEdgeClick={handleEdgeClick}
+                    onPaneClick={handlePaneClick}
+                    selectedNodeId={selectedNodeId}
+                    selectionSource={selectionSource}
+                    onLanguageFilterChange={setLanguageFilter}
+                    onRoleFilterChange={setRoleFilter}
+                  />
+                ) : (
+                  <NestedLayoutGraph
+                    graphData={graphData}
+                    searchQuery={searchQuery}
+                    languageFilter={languageFilter}
+                    roleFilter={roleFilter}
+                    onNodeSelect={handleNodeSelect}
+                    onEdgeClick={handleEdgeClick}
+                    onPaneClick={handlePaneClick}
+                    onLanguageFilterChange={setLanguageFilter}
+                    onRoleFilterChange={setRoleFilter}
+                    selectedNodeId={selectedNodeId}
+                    selectionSource={selectionSource}
+                  />
+                )}
               </div>
             </div>
           </div>
