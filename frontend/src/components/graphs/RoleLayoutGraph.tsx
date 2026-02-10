@@ -62,10 +62,10 @@ type AllNodeTypes = CustomNodeType | CategoryNodeType;
 // Layout constants
 const nodeWidth = 220;
 const nodeHeight = 90;
-const nodeGapX = 150; // Horizontal gap between nodes
+const nodeGapX = 220; // Horizontal gap between nodes
 const nodeGapY = 85; // Vertical gap between nodes
-const rolePadding = 145; // Padding inside category nodes (10px increase)
-const roleHeaderHeight = 100;
+const rolePadding = 195; // Padding inside category nodes
+const roleHeaderHeight = 150;
 
 // Categorize nodes into Frontend, Backend, or Test groups
 function categorizeNode(category: Category, role: ArchitecturalRole): 'frontend' | 'backend' | 'test' {
@@ -445,6 +445,7 @@ function getNestedCategoryLayout(
         },
         draggable: true,
         selectable: true,
+        style: { pointerEvents: 'none' },
       };
       roleCategoryNodes.push(roleCategoryNode);
 
@@ -1022,6 +1023,11 @@ function RoleLayoutGraphInner({
         onMove={onMove}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
+        panOnDrag={[2]}
+        panActivationKeyCode={['Space', 'Meta']}
+        onPaneContextMenu={(e) => e.preventDefault()}
+        onNodeContextMenu={(e) => e.preventDefault()}
+        onEdgeContextMenu={(e) => e.preventDefault()}
         style={{ background: GRAPH_BACKGROUNDS.role }}
         minZoom={0.05}
         maxZoom={2}

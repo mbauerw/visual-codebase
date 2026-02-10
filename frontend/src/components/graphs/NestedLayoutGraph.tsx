@@ -437,6 +437,11 @@ function NestedLayoutGraphInner({
         onPaneClick={handlePaneClick}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
+        panOnDrag={[2]}
+        panActivationKeyCode={['Space', 'Meta']}
+        onPaneContextMenu={(e) => e.preventDefault()}
+        onNodeContextMenu={(e) => e.preventDefault()}
+        onEdgeContextMenu={(e) => e.preventDefault()}
         style={{ background: CANVAS_BACKGROUND }}
         minZoom={0.1}
         maxZoom={2}
