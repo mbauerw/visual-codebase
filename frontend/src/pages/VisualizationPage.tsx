@@ -43,7 +43,6 @@ import { Rundown } from '../components/rundown';
 import type { SelectionContext } from '../types/chat';
 import { DraggableModal } from '../components/DraggableModal';
 import { RoleLayoutGraph, NestedLayoutGraph } from '../components/graphs';
-import TabTable from '../tavily/TabTable';
 
 // Simplified LayoutType for two layouts only
 type SimplifiedLayoutType = 'role' | 'nested';
@@ -89,8 +88,6 @@ export default function VisualizationPage() {
   const [isResizing, setIsResizing] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const visualizationRef = useRef<HTMLDivElement>(null);
-
-  const [isSectionExpanded, setIsSectionExpanded] = useState(true);
 
   // Graph Constants
   const MIN_PANEL_WIDTH = 50; // Minimum when resizing (before auto-collapse)
@@ -645,7 +642,11 @@ export default function VisualizationPage() {
             //     isSectionExpanded={isSectionExpanded}
             //   />
             // </div>
-            <TabTable></TabTable>
+            <Rundown
+              rundown={graphData.metadata.rundown}
+              onFileClick={handleRundownFileClick}
+              onLayerClick={handleLayerClick}
+            />
           )}
 
           {/* Files Section */}
