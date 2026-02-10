@@ -192,7 +192,7 @@ function CategoryNode({ data, selected }: NodeProps<CategoryNodeType>) {
     >
       {/* Header label */}
       <div
-        className="absolute -top-3 left-20 flex items-center gap-2 rounded-full px-3 py-1.5  transition-all duration-800 hover:scale-[1.1]"
+        className="absolute -top-8 left-[60px] flex items-center gap-2 rounded-full px-3 py-1.5  transition-all duration-800 hover:scale-[1.1]"
         style={{
           pointerEvents: 'auto',
           backgroundColor: '#0f172a',
@@ -204,13 +204,13 @@ function CategoryNode({ data, selected }: NodeProps<CategoryNodeType>) {
           {data.role && roleIcons[data.role]}
         </span>
         <span
-          className="font-semibold text-5xl group-hover:"
+          className="font-semibold text-7xl group-hover:"
           style={{ color: baseColor }}
         >
           {data.label}
         </span>
         <span
-          className="px-2 py-0.5 rounded-full ml-1 text-2xl"
+          className="px-5 py-0.5 rounded-full ml-1 text-5xl"
           style={{
             backgroundColor: `${baseColor}25`,
             color: baseColor,

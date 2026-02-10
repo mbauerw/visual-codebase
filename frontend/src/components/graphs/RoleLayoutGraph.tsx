@@ -1023,7 +1023,7 @@ function RoleLayoutGraphInner({
         onMove={onMove}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
-        panOnDrag={[2]}
+        panOnDrag={[0, 1, 2]}
         panActivationKeyCode={['Space', 'Meta']}
         onPaneContextMenu={(e) => e.preventDefault()}
         onNodeContextMenu={(e) => e.preventDefault()}

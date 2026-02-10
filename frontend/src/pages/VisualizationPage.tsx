@@ -39,10 +39,11 @@ import { useSourceCode } from '../hooks/useSourceCode';
 import { ProfessionalDesign } from '../components/TierList/designs/ProfessionalDesign';
 import { ChatPanel } from '../components/chat';
 import AnalysisFileTree from '../components/AnalysisFileTree';
-import { RundownSection } from '../components/rundown';
+import { Rundown } from '../components/rundown';
 import type { SelectionContext } from '../types/chat';
 import { DraggableModal } from '../components/DraggableModal';
 import { RoleLayoutGraph, NestedLayoutGraph } from '../components/graphs';
+import TabTable from '../tavily/TabTable';
 
 // Simplified LayoutType for two layouts only
 type SimplifiedLayoutType = 'role' | 'nested';
@@ -630,20 +631,21 @@ export default function VisualizationPage() {
 
           {/* The Rundown Section */}
           {graphData.metadata.rundown && (
-            <div className={`w-full bg-slate-700 rounded-2xl py-8 `}>
-              <div
-                onClick={() => setIsSectionExpanded(!isSectionExpanded)}
-                className='flex w-full items-center justify-center relative cursor-pointer'
-              >
-                  <h2 className='text-3xl text-red-500 text-center'>THE RUNDOWN</h2>
-              </div>
-              <RundownSection
-                rundown={graphData.metadata.rundown}
-                onFileClick={handleRundownFileClick}
-                onLayerClick={handleLayerClick}
-                isSectionExpanded={isSectionExpanded}
-              />
-            </div>
+            // <div className={`w-full bg-slate-700 rounded-2xl py-8 `}>
+            //   <div
+            //     onClick={() => setIsSectionExpanded(!isSectionExpanded)}
+            //     className='flex w-full items-center justify-center relative cursor-pointer'
+            //   >
+            //       <h2 className='text-3xl text-red-500 text-center'>THE RUNDOWN</h2>
+            //   </div>
+            //   <Rundown
+            //     rundown={graphData.metadata.rundown}
+            //     onFileClick={handleRundownFileClick}
+            //     onLayerClick={handleLayerClick}
+            //     isSectionExpanded={isSectionExpanded}
+            //   />
+            // </div>
+            <TabTable></TabTable>
           )}
 
           {/* Files Section */}
