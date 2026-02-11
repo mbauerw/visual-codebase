@@ -38,7 +38,7 @@ function RundownFlowDiagramInner({
 
   return (
     <div
-      className="h-[560px] w-full rounded-xl border border-slate-200 overflow-hidden bg-slate-50"
+      className="h-[540px] w-full rounded-xl border border-slate-200 overflow-hidden bg-slate-50"
       aria-hidden="true"
     >
       <ReactFlow

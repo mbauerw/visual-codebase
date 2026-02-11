@@ -85,7 +85,8 @@ Each flow must reference only layer IDs that exist in the layers array.
 - Entry points: 1-5 entry points. Use exact file paths from the input.
 - Cross-cutting: 0-4 concerns (config, logging, auth, etc.). Omit if none.
 - Narrative: Written as a senior engineer explaining architecture to a new \
-team member. Reference specific layers and files. Minimum 200 words.
+team member. Reference specific layers and files. Minimum 200 words. Must be separated \
+into at least three distinct paragraphs.
 - ALL file paths in the output must appear exactly as provided in the input.
 - ALL layer_id references in flows must match an id in the layers array."""
 

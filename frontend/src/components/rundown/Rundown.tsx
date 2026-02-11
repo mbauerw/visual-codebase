@@ -422,7 +422,7 @@ export default function Rundown({
         }
         const activeFlow = flows[activeFlowIndex] ?? flows[0];
         return (
-          <div>
+          <div className='pt-4'>
             {/* Flow selector if multiple flows */}
             {flows.length > 1 && (
               <div className="flex flex-wrap gap-2 mb-4">
@@ -616,7 +616,7 @@ export default function Rundown({
           >
             {/* Controls bar: badge */}
             {activeTabId != 'flow-diagram' && (
-            <div className="flex items-center justify-end px-8 pt-6 pb-0">
+            <div className="flex items-center justify-end px-8 pt-6 pb-2">
               <span
                 className="inline-flex items-center px-5 py-1.5 rounded-full text-sm font-semibold"
                 style={{
