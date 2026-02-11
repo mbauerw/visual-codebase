@@ -9,8 +9,6 @@ import RundownCrossCutting from './RundownCrossCutting';
 
 // ── Design tokens ─────────────────────────────────────────────────────
 const CREAM_BG = '#faf8f3';
-const TAB_ACTIVE_BG = 'rgb(230, 243, 243)';
-const ACCENT_CYAN = '#79deeb';
 const TEXT_HEADING = '#1a1a1a';
 const TEXT_BODY = '#333333';
 const TEXT_MUTED = '#808080';
@@ -24,6 +22,18 @@ const INDICATOR_TRANSLATE_Y = 4;
 const CORNER_RADIUS = 14;
 
 const CONTENT_MAX_HEIGHT = 540;
+
+// ── Per-tab color palette ─────────────────────────────────────────────
+// bg: light pastel for indicator + content card
+// accent: saturated shade for the badge pill
+const TAB_COLORS: Record<string, { bg: string; accent: string }> = {
+  'summary':              { bg: 'rgb(230, 243, 243)', accent: '#79deeb' },   // teal / cyan
+  'architecture-layers':  { bg: 'rgb(243, 230, 238)', accent: '#eb79a5' },   // light rose
+  'flow-diagram':         { bg: 'rgb(243, 236, 228)', accent: '#eb9a79' },   // burnt orange
+  'cross-cutting':        { bg: 'rgb(235, 230, 243)', accent: '#a579eb' },   // lavender
+};
+
+const DEFAULT_TAB_COLOR = TAB_COLORS['summary'];
 
 // ── Default data ──────────────────────────────────────────────────────
 const DEFAULT_TABS = [
@@ -287,6 +297,7 @@ export default function Rundown({
     tabs.find((t) => t.id === activeTabId)?.label ?? '';
 
   const aboutContent = TAB_ABOUT[activeTabId] ?? TAB_ABOUT['summary'];
+  const activeColor = TAB_COLORS[activeTabId] ?? DEFAULT_TAB_COLOR;
 
   const measureTab = useCallback((tabId: string) => {
     const el = tabRefs.current.get(tabId);
@@ -400,11 +411,11 @@ export default function Rundown({
                     className="px-3 py-1.5 rounded-full text-xs font-medium transition-colors cursor-pointer"
                     style={{
                       backgroundColor: i === activeFlowIndex
-                        ? `${ACCENT_CYAN}40`
+                        ? `${activeColor.accent}40`
                         : 'rgba(0,0,0,0.05)',
                       color: i === activeFlowIndex ? TEXT_HEADING : TEXT_MUTED,
                       border: i === activeFlowIndex
-                        ? `1px solid ${ACCENT_CYAN}`
+                        ? `1px solid ${activeColor.accent}`
                         : '1px solid transparent',
                     }}
                   >
@@ -551,18 +562,18 @@ export default function Rundown({
                   left: indicatorStyle.left - INDICATOR_PAD_X,
                   width: indicatorStyle.width + INDICATOR_PAD_X * 2,
                   height: indicatorStyle.height + INDICATOR_TRANSLATE_Y,
-                  backgroundColor: TAB_ACTIVE_BG,
+                  backgroundColor: activeColor.bg,
                   borderTopLeftRadius: 10,
                   borderTopRightRadius: 10,
                   transition: isInitialized
-                    ? 'left 300ms cubic-bezier(0.4, 0, 0.2, 1), width 300ms cubic-bezier(0.4, 0, 0.2, 1)'
+                    ? 'left 300ms cubic-bezier(0.4, 0, 0.2, 1), width 300ms cubic-bezier(0.4, 0, 0.2, 1), background-color 300ms ease'
                     : 'none',
                   zIndex: 1,
                 }}
                 aria-hidden="true"
               >
-                {!isFirst && <CornerCutoutLeft fill={TAB_ACTIVE_BG} />}
-                {!isLast && <CornerCutoutRight fill={TAB_ACTIVE_BG} />}
+                {!isFirst && <CornerCutoutLeft fill={activeColor.bg} />}
+                {!isLast && <CornerCutoutRight fill={activeColor.bg} />}
               </div>
             )}
           </div>
@@ -574,9 +585,10 @@ export default function Rundown({
             aria-labelledby={`tab-${activeTabId}`}
             className="rounded-b-2xl relative"
             style={{
-              backgroundColor: TAB_ACTIVE_BG,
+              backgroundColor: activeColor.bg,
               borderTopLeftRadius: isFirst ? 0 : '1rem',
               borderTopRightRadius: isLast ? 0 : '1rem',
+              transition: 'background-color 300ms ease',
             }}
           >
             {/* Controls bar: badge */}
@@ -584,8 +596,9 @@ export default function Rundown({
               <span
                 className="inline-flex items-center px-5 py-1.5 rounded-full text-sm font-semibold"
                 style={{
-                  backgroundColor: ACCENT_CYAN,
+                  backgroundColor: activeColor.accent,
                   color: TEXT_HEADING,
+                  transition: 'background-color 300ms ease',
                 }}
               >
                 {activeLabel}
