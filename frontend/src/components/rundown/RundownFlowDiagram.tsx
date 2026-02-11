@@ -49,17 +49,17 @@ function RundownFlowDiagramInner({
         fitViewOptions={{ padding: 0.3 }}
         minZoom={0.5}
         maxZoom={1.5}
-        panOnDrag={false}
+        panOnDrag={true}
         panOnScroll={false}
-        zoomOnScroll={false}
+        zoomOnScroll={true}
         zoomOnPinch={false}
         zoomOnDoubleClick={false}
-        preventScrolling={false}
+        preventScrolling={true}
         nodesDraggable={false}
         nodesConnectable={false}
         elementsSelectable={false}
         proOptions={{ hideAttribution: true }}
-        style={{ background: '#f8fafc', pointerEvents: 'none' }}
+        style={{ background: '#f8fafc'}}
       />
     </div>
   );

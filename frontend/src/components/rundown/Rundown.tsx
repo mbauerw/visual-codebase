@@ -27,10 +27,10 @@ const CONTENT_MAX_HEIGHT = 540;
 // bg: light pastel for indicator + content card
 // accent: saturated shade for the badge pill
 const TAB_COLORS: Record<string, { bg: string; accent: string }> = {
-  'summary':              { bg: 'rgb(230, 243, 243)', accent: '#79deeb' },   // teal / cyan
-  'architecture-layers':  { bg: 'rgb(243, 230, 238)', accent: '#eb79a5' },   // light rose
-  'flow-diagram':         { bg: 'rgb(243, 236, 228)', accent: '#eb9a79' },   // burnt orange
-  'cross-cutting':        { bg: 'rgb(235, 230, 243)', accent: '#a579eb' },   // lavender
+  'summary': { bg: 'rgb(230, 243, 243)', accent: '#79deeb' },   // teal / cyan
+  'architecture-layers': { bg: 'rgb(243, 230, 238)', accent: '#eb79a5' },   // light rose
+  'flow-diagram': { bg: 'rgb(243, 236, 228)', accent: '#eb9a79' },   // burnt orange
+  'cross-cutting': { bg: 'rgb(235, 230, 243)', accent: '#a579eb' },   // lavender
 };
 
 const DEFAULT_TAB_COLOR = TAB_COLORS['summary'];
@@ -210,6 +210,7 @@ interface RundownProps {
   rundown: CodebaseRundown;
   onFileClick?: (filePath: string) => void;
   onLayerClick?: (roles: string[]) => void;
+  validFilePaths?: string[];
   title?: string;
   eyebrow?: string;
   aboutTitle?: string;
@@ -264,6 +265,7 @@ export default function Rundown({
   rundown,
   onFileClick,
   onLayerClick,
+  validFilePaths = [],
   title = 'The Rundown',
   eyebrow = '',
 }: RundownProps) {
@@ -292,6 +294,21 @@ export default function Rundown({
     // Could filter out tabs with no data, but keep them all for consistency
     return available;
   }, []);
+
+  // Extract structural keywords from rundown data for narrative highlighting
+  const narrativeKeywords = useMemo(() => {
+    const kws: string[] = [];
+    for (const layer of rundown.layers) {
+      if (layer.label) kws.push(layer.label);
+    }
+    for (const flow of rundown.flows) {
+      if (flow.name) kws.push(flow.name);
+    }
+    for (const concern of rundown.cross_cutting) {
+      if (concern.name) kws.push(concern.name);
+    }
+    return kws;
+  }, [rundown.layers, rundown.flows, rundown.cross_cutting]);
 
   const activeLabel =
     tabs.find((t) => t.id === activeTabId)?.label ?? '';
@@ -377,7 +394,12 @@ export default function Rundown({
     switch (activeTabId) {
       case 'summary':
         return (
-          <RundownNarrative narrative={rundown.narrative} />
+          <RundownNarrative
+            narrative={rundown.narrative}
+            validFilePaths={validFilePaths}
+            keywords={narrativeKeywords}
+            onFileClick={onFileClick}
+          />
         );
 
       case 'architecture-layers':
@@ -559,8 +581,8 @@ export default function Rundown({
                 className="absolute pointer-events-none"
                 style={{
                   bottom: 0,
-                  left: indicatorStyle.left - INDICATOR_PAD_X,
-                  width: indicatorStyle.width + INDICATOR_PAD_X * 2,
+                  left: indicatorStyle.left - INDICATOR_PAD_X + 10,
+                  width: indicatorStyle.width + INDICATOR_PAD_X * 2 - 20,
                   height: indicatorStyle.height + INDICATOR_TRANSLATE_Y,
                   backgroundColor: activeColor.bg,
                   borderTopLeftRadius: 10,
@@ -589,10 +611,12 @@ export default function Rundown({
               borderTopLeftRadius: isFirst ? 0 : '1rem',
               borderTopRightRadius: isLast ? 0 : '1rem',
               transition: 'background-color 300ms ease',
+              minHeight: CONTENT_MAX_HEIGHT + 100
             }}
           >
             {/* Controls bar: badge */}
-            <div className="flex items-center justify-end px-8 pt-6 pb-6">
+            {activeTabId != 'flow-diagram' && (
+            <div className="flex items-center justify-end px-8 pt-6 pb-0">
               <span
                 className="inline-flex items-center px-5 py-1.5 rounded-full text-sm font-semibold"
                 style={{
@@ -604,14 +628,14 @@ export default function Rundown({
                 {activeLabel}
               </span>
             </div>
-
+            )}
             {/* Scrollable content area */}
             <div
               className="px-12 py-6"
               style={{
-                maxHeight: CONTENT_MAX_HEIGHT,
+                maxHeight: activeTabId != 'flow-diagram' ? CONTENT_MAX_HEIGHT : CONTENT_MAX_HEIGHT + 100,
                 overflowX: 'auto',
-                overflowY: 'auto',
+                overflowY: activeTabId != 'flow-diagram' ? 'auto' : 'hidden',
               }}
             >
               {renderTabContent()}

@@ -393,6 +393,12 @@ export default function VisualizationPage() {
     visualizationRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }, []);
 
+  // Build list of valid file paths for narrative keyword highlighting
+  const validFilePaths = useMemo(
+    () => graphData?.nodes.map((n) => n.data.path) ?? [],
+    [graphData],
+  );
+
   // Build selection context for the chat panel
   const selectionContextForChat = useMemo((): SelectionContext | null => {
     if (!sourceCodeFile && !selectedNode) {
@@ -646,6 +652,7 @@ export default function VisualizationPage() {
               rundown={graphData.metadata.rundown}
               onFileClick={handleRundownFileClick}
               onLayerClick={handleLayerClick}
+              validFilePaths={validFilePaths}
             />
           )}
 

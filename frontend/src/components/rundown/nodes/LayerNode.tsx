@@ -35,7 +35,7 @@ export default function LayerNode({ data }: NodeProps<LayerNodeType>) {
         </div>
 
         {data.isActive && data.keyFiles.length > 0 && (
-          <div className="flex flex-wrap gap-1 justify-end shrink-0">
+          <div className="flex flex-wrap gap-1 justify-end" style={{ maxWidth: '66%' }}>
             {data.keyFiles.map((file) => (
               <span
                 key={file}
