@@ -292,6 +292,7 @@ export interface AnalysisMetadata {
   summary?: CodebaseSummary;
   readme_detected?: boolean;
   rundown?: CodebaseRundown;
+  rundown_status?: 'generating' | 'completed' | 'failed' | null;
 }
 
 export interface ReactFlowGraph {

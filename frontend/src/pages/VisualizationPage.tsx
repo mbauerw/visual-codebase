@@ -39,7 +39,7 @@ import { useSourceCode } from '../hooks/useSourceCode';
 import { ProfessionalDesign } from '../components/TierList/designs/ProfessionalDesign';
 import { ChatPanel } from '../components/chat';
 import AnalysisFileTree from '../components/AnalysisFileTree';
-import { Rundown } from '../components/rundown';
+import { RundownSection } from '../components/rundown';
 import type { SelectionContext } from '../types/chat';
 import { DraggableModal } from '../components/DraggableModal';
 import { RoleLayoutGraph, NestedLayoutGraph } from '../components/graphs';
@@ -592,7 +592,7 @@ export default function VisualizationPage() {
         >
 
           {/* Overview Section */}
-          <div className='max-w-[1000px] w-full py-12 px-8 '>
+          <div className='max-w-[1000px] w-full pt-12 px-8 '>
             <div className='rounded-2xl p-8 '>
               <div className='flex flex-col gap-6'>
                 {/* Header */}
@@ -633,28 +633,14 @@ export default function VisualizationPage() {
           </div>
 
           {/* The Rundown Section */}
-          {graphData.metadata.rundown && (
-            // <div className={`w-full bg-slate-700 rounded-2xl py-8 `}>
-            //   <div
-            //     onClick={() => setIsSectionExpanded(!isSectionExpanded)}
-            //     className='flex w-full items-center justify-center relative cursor-pointer'
-            //   >
-            //       <h2 className='text-3xl text-red-500 text-center'>THE RUNDOWN</h2>
-            //   </div>
-            //   <Rundown
-            //     rundown={graphData.metadata.rundown}
-            //     onFileClick={handleRundownFileClick}
-            //     onLayerClick={handleLayerClick}
-            //     isSectionExpanded={isSectionExpanded}
-            //   />
-            // </div>
-            <Rundown
-              rundown={graphData.metadata.rundown}
-              onFileClick={handleRundownFileClick}
-              onLayerClick={handleLayerClick}
-              validFilePaths={validFilePaths}
-            />
-          )}
+          <RundownSection
+            analysisId={graphData.metadata.analysis_id}
+            existingRundown={graphData.metadata.rundown}
+            fileCount={graphData.metadata.file_count}
+            onFileClick={handleRundownFileClick}
+            onLayerClick={handleLayerClick}
+            validFilePaths={validFilePaths}
+          />
 
           {/* Files Section */}
           <div className='h-[1000px] w-full flex items-center justify-start px-8'>

@@ -117,6 +117,32 @@ export async function getFileContent(
   return response.data;
 }
 
+// ==================== Rundown API ====================
+
+export interface RundownStatusResponse {
+  status: 'not_started' | 'generating' | 'completed' | 'failed';
+  rundown?: Record<string, unknown>;
+  analysis_id?: string;
+}
+
+export async function generateRundown(
+  analysisId: string
+): Promise<RundownStatusResponse> {
+  const response = await client.post<RundownStatusResponse>(
+    `/analysis/${analysisId}/rundown`
+  );
+  return response.data;
+}
+
+export async function getRundownStatus(
+  analysisId: string
+): Promise<RundownStatusResponse> {
+  const response = await client.get<RundownStatusResponse>(
+    `/analysis/${analysisId}/rundown`
+  );
+  return response.data;
+}
+
 // ==================== Function Tier List API ====================
 
 export async function getTierList(

@@ -913,6 +913,176 @@ class DatabaseService:
             callee_count=callee_count_result.count or 0,
         )
 
+    # ==================== Rundown Methods ====================
+
+    async def get_analysis_nodes_and_edges(
+        self,
+        analysis_id: str,
+    ) -> Optional[tuple[List[FileNode], List[DependencyEdge], Dict[str, int]]]:
+        """Get nodes, edges, and language distribution for an analysis.
+
+        Returns (nodes, edges, language_distribution) or None if not found.
+        """
+        # Get analysis record
+        analysis_result = (
+            self.supabase.table("analyses")
+            .select("id, languages")
+            .eq("analysis_id", analysis_id)
+            .execute()
+        )
+
+        if not analysis_result.data:
+            return None
+
+        db_analysis_id = analysis_result.data[0]["id"]
+        languages = analysis_result.data[0].get("languages") or {}
+
+        # Get nodes
+        nodes_result = (
+            self.supabase.table("analysis_nodes")
+            .select("*")
+            .eq("analysis_id", db_analysis_id)
+            .execute()
+        )
+
+        # Get edges
+        edges_result = (
+            self.supabase.table("analysis_edges")
+            .select("*")
+            .eq("analysis_id", db_analysis_id)
+            .execute()
+        )
+
+        from ..models.schemas import Language, ArchitecturalRole, Category, ImportType
+
+        nodes = []
+        for node_data in nodes_result.data:
+            node = FileNode(
+                id=node_data["node_id"],
+                path=node_data["path"],
+                name=node_data["name"],
+                folder=node_data["folder"],
+                language=Language(node_data["language"]),
+                role=ArchitecturalRole(node_data["role"]),
+                description=node_data["description"],
+                category=Category(node_data["category"]),
+                imports=node_data["imports"] or [],
+                size_bytes=node_data["size_bytes"],
+                line_count=node_data["line_count"],
+            )
+            nodes.append(node)
+
+        edges = []
+        for edge_data in edges_result.data:
+            edge = DependencyEdge(
+                id=edge_data["edge_id"],
+                source=edge_data["source_node_id"],
+                target=edge_data["target_node_id"],
+                import_type=ImportType(edge_data["import_type"]),
+                label=edge_data["label"],
+                imported_names=edge_data.get("imported_names") or [],
+                module_path=edge_data.get("module_path"),
+            )
+            edges.append(edge)
+
+        return nodes, edges, languages
+
+    async def is_rundown_stale(
+        self,
+        analysis_id: str,
+        max_age_seconds: int = 120,
+    ) -> bool:
+        """Check if rundown_status has been 'generating' for too long."""
+        result = (
+            self.supabase.table("analyses")
+            .select("updated_at, rundown_status")
+            .eq("analysis_id", analysis_id)
+            .execute()
+        )
+        if not result.data:
+            return False
+
+        data = result.data[0]
+        if data.get("rundown_status") != "generating":
+            return False
+
+        updated_at_str = data.get("updated_at")
+        if not updated_at_str:
+            return True  # No timestamp — treat as stale
+
+        updated_at = datetime.fromisoformat(updated_at_str.replace("Z", "+00:00"))
+        now = datetime.utcnow().replace(tzinfo=updated_at.tzinfo)
+        age = (now - updated_at).total_seconds()
+        return age > max_age_seconds
+
+    async def set_rundown_status(
+        self,
+        analysis_id: str,
+        status: str,
+    ) -> bool:
+        """Set rundown_status. Returns True if row was updated.
+
+        Concurrency is handled at the endpoint level (status checks
+        before calling this method).
+        """
+        result = (
+            self.supabase.table("analyses")
+            .update({
+                "rundown_status": status,
+                "updated_at": datetime.utcnow().isoformat(),
+            })
+            .eq("analysis_id", analysis_id)
+            .execute()
+        )
+        return bool(result.data)
+
+    async def save_rundown(
+        self,
+        analysis_id: str,
+        rundown,
+    ) -> None:
+        """Save generated rundown and mark status as completed."""
+        self.supabase.table("analyses").update({
+            "rundown": rundown.model_dump() if rundown else None,
+            "rundown_generated_at": datetime.utcnow().isoformat(),
+            "rundown_status": "completed",
+            "updated_at": datetime.utcnow().isoformat(),
+        }).eq("analysis_id", analysis_id).execute()
+
+    async def get_rundown_status(
+        self,
+        analysis_id: str,
+    ) -> Optional[Dict[str, Any]]:
+        """Get rundown status and data for an analysis."""
+        result = (
+            self.supabase.table("analyses")
+            .select("rundown, rundown_status, rundown_generated_at")
+            .eq("analysis_id", analysis_id)
+            .execute()
+        )
+
+        if not result.data:
+            return None
+
+        data = result.data[0]
+        rundown_status = data.get("rundown_status")
+        rundown_data = data.get("rundown")
+
+        if rundown_status == "completed":
+            if rundown_data:
+                if isinstance(rundown_data, str):
+                    rundown_data = json.loads(rundown_data)
+                return {"status": "completed", "rundown": rundown_data}
+            else:
+                # Status says completed but no data — treat as failed
+                return {"status": "failed"}
+        elif rundown_status == "generating":
+            return {"status": "generating"}
+        elif rundown_status == "failed":
+            return {"status": "failed"}
+        else:
+            return {"status": "not_started"}
+
     async def get_function_stats(
         self,
         analysis_id: str,
