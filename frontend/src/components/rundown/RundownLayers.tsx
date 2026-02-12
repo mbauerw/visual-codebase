@@ -1,94 +1,192 @@
+import { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import type { RundownLayer } from '../../types';
 import { roleColors } from '../../types';
 import type { ArchitecturalRole } from '../../types';
 
-const LAYER_COLORS = [
-  { bg: 'bg-sky-50', border: 'border-l-sky-500', text: 'text-sky-700', hover: 'hover:bg-sky-100' },
-  { bg: 'bg-indigo-50', border: 'border-l-indigo-500', text: 'text-indigo-700', hover: 'hover:bg-indigo-100' },
-  { bg: 'bg-violet-50', border: 'border-l-violet-500', text: 'text-violet-700', hover: 'hover:bg-violet-100' },
-  { bg: 'bg-purple-50', border: 'border-l-purple-500', text: 'text-purple-700', hover: 'hover:bg-purple-100' },
-  { bg: 'bg-fuchsia-50', border: 'border-l-fuchsia-500', text: 'text-fuchsia-700', hover: 'hover:bg-fuchsia-100' },
-  { bg: 'bg-rose-50', border: 'border-l-rose-500', text: 'text-rose-700', hover: 'hover:bg-rose-100' },
-];
-
 interface RundownLayersProps {
   layers: RundownLayer[];
-  onLayerClick?: (roles: string[]) => void;
   onFileClick?: (filePath: string) => void;
 }
 
-export default function RundownLayers({ layers, onLayerClick, onFileClick }: RundownLayersProps) {
+export default function RundownLayers({ layers, onFileClick }: RundownLayersProps) {
+  const [expandedId, setExpandedId] = useState<string | null>(null);
   const sorted = [...layers].sort((a, b) => a.order - b.order);
 
+  const handleToggle = (id: string) => {
+    setExpandedId(current => current === id ? null : id);
+  };
+
   return (
-    <ol className="space-y-3">
+    <div className="space-y-4 font-sans text-slate-800">
       {sorted.map((layer, index) => {
-        const colors = LAYER_COLORS[index % LAYER_COLORS.length];
+        const isExpanded = expandedId === layer.id;
+
         return (
-          <li
+          <motion.div
+            layout
+            transition={{ duration: 1, ease: "easeInOut" }}
             key={layer.id}
-            className={`${colors.bg} border-l-4 ${colors.border} rounded-r-lg p-4 transition-colors ${
-              onLayerClick ? `${colors.hover} cursor-pointer` : ''
-            }`}
-            aria-label={`Layer ${index + 1} of ${sorted.length}: ${layer.label}`}
-            onClick={() => onLayerClick?.(layer.roles)}
-            role={onLayerClick ? 'button' : undefined}
-            tabIndex={onLayerClick ? 0 : undefined}
-            onKeyDown={onLayerClick ? (e) => {
+            onClick={() => handleToggle(layer.id)}
+            className={`
+              relative group cursor-pointer overflow-hidden rounded-xl border bg-white
+              ${isExpanded 
+                ? 'aspect-square border-indigo-200 shadow-xl ring-1 ring-indigo-500/10' 
+                : 'border-slate-200 shadow-sm hover:border-slate-300 hover:shadow-md'
+              }
+            `}
+            role="button"
+            aria-expanded={isExpanded}
+            tabIndex={0}
+            onKeyDown={(e) => {
               if (e.key === 'Enter' || e.key === ' ') {
                 e.preventDefault();
-                onLayerClick(layer.roles);
+                handleToggle(layer.id);
               }
-            } : undefined}
+            }}
           >
-            <div className="flex items-center gap-2 mb-1">
-              <span className={`text-sm font-semibold ${colors.text}`}>
-                {layer.label}
-              </span>
-              {onLayerClick && (
-                <span className="text-xs text-slate-400">
-                  Click to filter
-                </span>
-              )}
-            </div>
-            <p className="text-sm text-slate-600 mb-2">{layer.description}</p>
-
-            {layer.roles.length > 0 && (
-              <div className="flex flex-wrap gap-1.5 mb-2">
-                {layer.roles.map((role) => (
-                  <span
-                    key={role}
-                    className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium"
-                    style={{
-                      backgroundColor: `${roleColors[role as ArchitecturalRole] || '#6b7280'}20`,
-                      color: roleColors[role as ArchitecturalRole] || '#6b7280',
-                    }}
+            {/* layout="position" ensures the inner content stretches/moves smoothly 
+               as the parent container resizes.
+            */}
+            <motion.div 
+              layout="position"
+              className={`flex h-full flex-col ${isExpanded ? 'p-8 justify-between' : 'p-5'}`}
+            >
+              
+              {/* Header Section */}
+              <div className="flex w-full items-start justify-between gap-4">
+                
+                {/* ANIMATED HEADER CONTAINER 
+                   We switch flex alignment from 'start' to 'center' and let 'layout' handle the slide.
+                */}
+                <motion.div 
+                  layout
+                  className={`flex flex-col w-full ${isExpanded ? 'items-center text-center' : 'items-start text-left'}`}
+                >
+                  <motion.span 
+                    layout
+                    className="mb-0.5 font-mono text-[10px] uppercase tracking-wider text-slate-400"
                   >
-                    {role}
-                  </span>
-                ))}
-              </div>
-            )}
-
-            {layer.key_files.length > 0 && (
-              <div className="flex flex-wrap gap-1">
-                {layer.key_files.map((file) => (
-                  <button
-                    key={file}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onFileClick?.(file);
-                    }}
-                    className="font-mono text-xs text-indigo-600 hover:text-indigo-800 hover:underline cursor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-1 rounded"
+                    Layer {String(index + 1).padStart(2, '0')}
+                  </motion.span>
+                  
+                  <motion.h3 
+                    layout
+                    className={`font-semibold tracking-tight ${isExpanded ? 'text-2xl text-indigo-950' : 'text-base text-slate-900'}`}
                   >
-                    {file}
-                  </button>
-                ))}
+                    {layer.label}
+                  </motion.h3>
+                </motion.div>
+                
+                {/* Icon (Absolute positioned to not affect flex centering flow) */}
+                <div className="absolute right-5 top-5">
+                    <motion.div 
+                        animate={{ rotate: isExpanded ? 90 : 0 }}
+                        transition={{ duration: 1, ease: "easeInOut" }}
+                        className="text-slate-300 group-hover:text-slate-500"
+                    >
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <polyline points="9 18 15 12 9 6"></polyline>
+                        </svg>
+                    </motion.div>
+                </div>
               </div>
-            )}
-          </li>
+
+              {/* Description & Body Content */}
+              <motion.div layout="position" className="mt-2 flex-grow overflow-hidden">
+                 <motion.p 
+                   layout
+                   className={`text-slate-600 leading-relaxed ${isExpanded ? 'text-center text-base max-w-lg mx-auto' : 'text-sm line-clamp-2'}`}
+                >
+                  {layer.description}
+                </motion.p>
+                
+                {/* <AnimatePresence> */}
+                    {isExpanded && (
+                    <motion.div 
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: 0 }}
+                        transition={{ duration: 0.6, delay: 0.3 }} // Delayed slightly to appear after expansion
+                        className="mt-8 border-t border-slate-100 pt-6"
+                    >
+                         <div className="flex flex-col items-center justify-center space-y-3 text-slate-400">
+                             {/* Placeholder Visualization */}
+                            <div className="h-20 w-full max-w-[200px] rounded-md bg-slate-50 border border-slate-100 flex items-center justify-center">
+                               <div className="flex gap-1 items-end h-10">
+                                   <div className="w-2 bg-indigo-100 h-4 rounded-t-sm"></div>
+                                   <div className="w-2 bg-indigo-200 h-8 rounded-t-sm"></div>
+                                   <div className="w-2 bg-indigo-300 h-6 rounded-t-sm"></div>
+                                   <div className="w-2 bg-indigo-400 h-10 rounded-t-sm"></div>
+                               </div>
+                            </div>
+                            <p className="text-xs italic font-mono">Detailed metrics visualization...</p>
+                        </div>
+                    </motion.div>
+                    )}
+                {/* </AnimatePresence> */}
+              </motion.div>
+
+              {/* Footer / Metadata Area */}
+              <motion.div layout="position" className={`mt-4 flex flex-col gap-3 ${isExpanded ? 'items-center' : ''}`}>
+                
+                {/* Roles Tags */}
+                {layer.roles.length > 0 && (
+                  <motion.div layout className={`flex flex-wrap gap-2 ${isExpanded ? 'justify-center' : ''}`}>
+                    {layer.roles.map((role) => (
+                      <span
+                        key={role}
+                        className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium border transition-colors"
+                        style={{
+                          backgroundColor: `${roleColors[role as ArchitecturalRole] || '#64748b'}08`,
+                          borderColor: `${roleColors[role as ArchitecturalRole] || '#64748b'}30`,
+                          color: roleColors[role as ArchitecturalRole] || '#64748b',
+                        }}
+                      >
+                        {role}
+                      </span>
+                    ))}
+                  </motion.div>
+                )}
+
+                {/* File Links */}
+                {layer.key_files.length > 0 && (
+                  <motion.div layout className={`flex flex-wrap gap-x-3 gap-y-1 ${isExpanded ? 'justify-center' : ''}`}>
+                    {layer.key_files.map((file) => (
+                      <button
+                        key={file}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onFileClick?.(file);
+                        }}
+                        className="group/file inline-flex items-center gap-1 font-mono text-xs text-slate-500 transition-colors hover:text-indigo-600"
+                        title="Open file"
+                      >
+                        <svg className="h-3 w-3 opacity-50 group-hover/file:opacity-100" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        <span className="decoration-indigo-500/30 underline-offset-2 group-hover/file:underline">
+                          {file}
+                        </span>
+                      </button>
+                    ))}
+                  </motion.div>
+                )}
+              </motion.div>
+
+            </motion.div>
+            
+            {/* Active State Accent Bar (Bottom) */}
+            <motion.div 
+              layout
+              className="absolute bottom-0 left-0 h-1 w-full bg-indigo-500"
+              initial={{ scaleX: 0 }}
+              animate={{ scaleX: isExpanded ? 1 : 0 }}
+              transition={{ duration: 1, ease: "easeInOut" }}
+            />
+          </motion.div>
         );
       })}
-    </ol>
+    </div>
   );
 }

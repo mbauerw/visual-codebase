@@ -226,7 +226,7 @@ const TAB_ABOUT: Record<string, { title: string; text: string; items: string[] }
     items: [
       'Generated from AST parsing and AI analysis',
       'Covers architecture, key patterns, and dependencies',
-      'Click to expand the full narrative',
+      'Click a file to view in the source code panel below',
     ],
   },
   'architecture-layers': {
@@ -406,7 +406,6 @@ export default function Rundown({
         return (
           <RundownLayers
             layers={rundown.layers}
-            onLayerClick={onLayerClick}
             onFileClick={onFileClick}
           />
         );
