@@ -637,6 +637,7 @@ export default function VisualizationPage() {
             analysisId={graphData.metadata.analysis_id}
             existingRundown={graphData.metadata.rundown}
             fileCount={graphData.metadata.file_count}
+            graphNodes={graphData.nodes}
             onFileClick={handleRundownFileClick}
             onLayerClick={handleLayerClick}
             validFilePaths={validFilePaths}

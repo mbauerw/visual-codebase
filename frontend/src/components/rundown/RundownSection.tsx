@@ -1,5 +1,5 @@
 import { useRundown } from '../../hooks/useRundown';
-import type { CodebaseRundown } from '../../types';
+import type { CodebaseRundown, ReactFlowNode } from '../../types';
 import Rundown from './Rundown';
 
 const CREAM_BG = '#faf8f3';
@@ -12,6 +12,7 @@ interface RundownSectionProps {
   analysisId: string | null;
   existingRundown?: CodebaseRundown | null;
   fileCount?: number;
+  graphNodes?: ReactFlowNode[];
   onFileClick?: (filePath: string) => void;
   onLayerClick?: (roles: string[]) => void;
   validFilePaths?: string[];
@@ -143,6 +144,7 @@ export default function RundownSection({
   analysisId,
   existingRundown,
   fileCount = 0,
+  graphNodes,
   onFileClick,
   onLayerClick,
   validFilePaths = [],
@@ -161,6 +163,7 @@ export default function RundownSection({
       return (
         <Rundown
           rundown={rundown}
+          graphNodes={graphNodes}
           onFileClick={onFileClick}
           onLayerClick={onLayerClick}
           validFilePaths={validFilePaths}

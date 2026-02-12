@@ -1,17 +1,9 @@
 import { memo } from 'react';
 import { type NodeProps, type Node, Handle, Position } from '@xyflow/react';
-import {
-  Layers,
-  Cog,
-  Box,
-  Settings,
-  TestTube,
-  FileCode,
-  Folder,
-  type LucideIcon,
-} from 'lucide-react';
+import { Folder } from 'lucide-react';
 import { roleColors } from '../types';
 import type { ArchitecturalRole, ReactFlowNodeData } from '../types';
+import { roleIconComponents } from '../utils/roleIcons';
 
 export interface CategoryNodeData extends Record<string, unknown> {
   label: string;
@@ -33,67 +25,6 @@ export interface CategoryRoleData extends Record<string, unknown> {
 }
 
 export type CategoryNodeType = Node<CategoryNodeData, 'category'>;
-
-// Icon component for each role (rendered at call time, not module load)
-const roleIconComponents: Record<ArchitecturalRole, LucideIcon> = {
-  react_component: Layers,
-  utility: Cog,
-  api_service: Box,
-  model: Box,
-  config: Settings,
-  test: TestTube,
-  hook: Layers,
-  context: Layers,
-  store: Box,
-  middleware: Box,
-  controller: Box,
-  router: Box,
-  schema: Box,
-  entity: Box,
-  repository: Box,
-  service: Cog,
-  dto: Box,
-  exception: Box,
-  enum_type: Box,
-  interface: FileCode,
-  annotation: Box,
-  extension: Box,
-  record: Box,
-  delegate: Box,
-  go_handler: Box,
-  go_middleware: Box,
-  go_repository: Box,
-  go_service: Cog,
-  go_model: Box,
-  go_cmd: FileCode,
-  go_pkg: Box,
-  go_internal: Box,
-  go_transport: Box,
-  go_config: Settings,
-  go_util: Cog,
-  rust_lib: Box,
-  rust_bin: FileCode,
-  rust_mod: Box,
-  rust_trait: FileCode,
-  rust_impl: Box,
-  rust_handler: Box,
-  rust_error: Box,
-  rust_macro: Box,
-  rust_types: FileCode,
-  rust_tests: TestTube,
-  swift_view_controller: Layers,
-  swift_ui_view: Layers,
-  swift_app_delegate: Box,
-  swift_protocol: FileCode,
-  swift_extension: Box,
-  swift_coordinator: Box,
-  swift_view_model: Box,
-  swift_data_source: Box,
-  swift_network_service: Box,
-  swift_core_data: Box,
-  swift_observable: Box,
-  unknown: FileCode,
-};
 
 // Folder colors based on depth
 const folderColors = [

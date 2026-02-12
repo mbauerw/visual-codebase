@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { ArrowUpRight } from 'lucide-react';
-import type { CodebaseRundown } from '../../types';
+import type { CodebaseRundown, ReactFlowNode } from '../../types';
 import RundownNarrative from './RundownNarrative';
 import RundownLayers from './RundownLayers';
 import RundownFlowDiagram from './RundownFlowDiagram';
@@ -208,6 +208,7 @@ function Sidebar({
 // ── Props ─────────────────────────────────────────────────────────────
 interface RundownProps {
   rundown: CodebaseRundown;
+  graphNodes?: ReactFlowNode[];
   onFileClick?: (filePath: string) => void;
   onLayerClick?: (roles: string[]) => void;
   validFilePaths?: string[];
@@ -263,6 +264,7 @@ const TAB_ABOUT: Record<string, { title: string; text: string; items: string[] }
 // ── Component ─────────────────────────────────────────────────────────
 export default function Rundown({
   rundown,
+  graphNodes,
   onFileClick,
   onLayerClick,
   validFilePaths = [],
@@ -406,6 +408,7 @@ export default function Rundown({
         return (
           <RundownLayers
             layers={rundown.layers}
+            graphNodes={graphNodes}
             onFileClick={onFileClick}
           />
         );
