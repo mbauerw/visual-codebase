@@ -8,6 +8,7 @@ import {
   TestTube,
   FileCode,
   Folder,
+  type LucideIcon,
 } from 'lucide-react';
 import { roleColors } from '../types';
 import type { ArchitecturalRole, ReactFlowNodeData } from '../types';
@@ -31,74 +32,67 @@ export interface CategoryRoleData extends Record<string, unknown> {
   files?: ReactFlowNodeData[];
 }
 
-const iconSize = 20;
-
 export type CategoryNodeType = Node<CategoryNodeData, 'category'>;
 
-// Icons for each role
-const roleIcons: Record<ArchitecturalRole, React.ReactNode> = {
-  react_component: <Layers size={iconSize} />,
-  utility: <Cog size={iconSize} />,
-  api_service: <Box size={iconSize} />,
-  model: <Box size={iconSize} />,
-  config: <Settings size={iconSize} />,
-  test: <TestTube size={iconSize} />,
-  hook: <Layers size={iconSize} />,
-  context: <Layers size={iconSize} />,
-  store: <Box size={iconSize} />,
-  middleware: <Box size={iconSize} />,
-  controller: <Box size={iconSize} />,
-  router: <Box size={iconSize} />,
-  schema: <Box size={iconSize} />,
-  // Java/C# specific roles
-  entity: <Box size={iconSize} />,
-  repository: <Box size={iconSize} />,
-  service: <Cog size={iconSize} />,
-  dto: <Box size={iconSize} />,
-  exception: <Box size={iconSize} />,
-  enum_type: <Box size={iconSize} />,
-  interface: <FileCode size={iconSize} />,
-  annotation: <Box size={iconSize} />,
-  // C# specific roles
-  extension: <Box size={iconSize} />,
-  record: <Box size={iconSize} />,
-  delegate: <Box size={iconSize} />,
-  // Go specific roles
-  go_handler: <Box size={iconSize} />,
-  go_middleware: <Box size={iconSize} />,
-  go_repository: <Box size={iconSize} />,
-  go_service: <Cog size={iconSize} />,
-  go_model: <Box size={iconSize} />,
-  go_cmd: <FileCode size={iconSize} />,
-  go_pkg: <Box size={iconSize} />,
-  go_internal: <Box size={iconSize} />,
-  go_transport: <Box size={iconSize} />,
-  go_config: <Settings size={iconSize} />,
-  go_util: <Cog size={iconSize} />,
-  // Rust specific roles
-  rust_lib: <Box size={iconSize} />,
-  rust_bin: <FileCode size={iconSize} />,
-  rust_mod: <Box size={iconSize} />,
-  rust_trait: <FileCode size={iconSize} />,
-  rust_impl: <Box size={iconSize} />,
-  rust_handler: <Box size={iconSize} />,
-  rust_error: <Box size={iconSize} />,
-  rust_macro: <Box size={iconSize} />,
-  rust_types: <FileCode size={iconSize} />,
-  rust_tests: <TestTube size={iconSize} />,
-  // Swift/iOS specific roles
-  swift_view_controller: <Layers size={iconSize} />,
-  swift_ui_view: <Layers size={iconSize} />,
-  swift_app_delegate: <Box size={iconSize} />,
-  swift_protocol: <FileCode size={iconSize} />,
-  swift_extension: <Box size={iconSize} />,
-  swift_coordinator: <Box size={iconSize} />,
-  swift_view_model: <Box size={iconSize} />,
-  swift_data_source: <Box size={iconSize} />,
-  swift_network_service: <Box size={iconSize} />,
-  swift_core_data: <Box size={iconSize} />,
-  swift_observable: <Box size={iconSize} />,
-  unknown: <FileCode size={iconSize} />,
+// Icon component for each role (rendered at call time, not module load)
+const roleIconComponents: Record<ArchitecturalRole, LucideIcon> = {
+  react_component: Layers,
+  utility: Cog,
+  api_service: Box,
+  model: Box,
+  config: Settings,
+  test: TestTube,
+  hook: Layers,
+  context: Layers,
+  store: Box,
+  middleware: Box,
+  controller: Box,
+  router: Box,
+  schema: Box,
+  entity: Box,
+  repository: Box,
+  service: Cog,
+  dto: Box,
+  exception: Box,
+  enum_type: Box,
+  interface: FileCode,
+  annotation: Box,
+  extension: Box,
+  record: Box,
+  delegate: Box,
+  go_handler: Box,
+  go_middleware: Box,
+  go_repository: Box,
+  go_service: Cog,
+  go_model: Box,
+  go_cmd: FileCode,
+  go_pkg: Box,
+  go_internal: Box,
+  go_transport: Box,
+  go_config: Settings,
+  go_util: Cog,
+  rust_lib: Box,
+  rust_bin: FileCode,
+  rust_mod: Box,
+  rust_trait: FileCode,
+  rust_impl: Box,
+  rust_handler: Box,
+  rust_error: Box,
+  rust_macro: Box,
+  rust_types: FileCode,
+  rust_tests: TestTube,
+  swift_view_controller: Layers,
+  swift_ui_view: Layers,
+  swift_app_delegate: Box,
+  swift_protocol: FileCode,
+  swift_extension: Box,
+  swift_coordinator: Box,
+  swift_view_model: Box,
+  swift_data_source: Box,
+  swift_network_service: Box,
+  swift_core_data: Box,
+  swift_observable: Box,
+  unknown: FileCode,
 };
 
 // Folder colors based on depth
@@ -192,7 +186,7 @@ function CategoryNode({ data, selected }: NodeProps<CategoryNodeType>) {
     >
       {/* Header label */}
       <div
-        className="absolute -top-8 left-[60px] flex items-center gap-2 rounded-full px-3 py-1.5  transition-all duration-800 hover:scale-[1.1]"
+        className="absolute -top-8 left-[60px] flex items-center gap-5 rounded-full px-3 py-1.5  transition-all duration-800 hover:scale-[1.1]"
         style={{
           pointerEvents: 'auto',
           backgroundColor: '#0f172a',
@@ -200,11 +194,14 @@ function CategoryNode({ data, selected }: NodeProps<CategoryNodeType>) {
           boxShadow: `0 0 15px ${baseColor}30`,
         }}
       >
-        <span style={{ color: baseColor }} className=''>
-          {data.role && roleIcons[data.role]}
+        <span style={{ color: baseColor }}>
+          {data.role && (() => {
+            const Icon = roleIconComponents[data.role!];
+            return <Icon size={50} />;
+          })()}
         </span>
         <span
-          className="font-semibold text-7xl group-hover:"
+          className={`font-semibold ${data.label == 'API Service' ? 'text-[65px]' : 'text-7xl' }  group-hover: `}
           style={{ color: baseColor }}
         >
           {data.label}

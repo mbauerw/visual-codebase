@@ -61,14 +61,14 @@ function CategoryBackground({ sections, transform }: CategoryBackgroundProps) {
               
               {/* Header label */}
               <div
-                className="absolute left-1/2 -translate-x-1/2 -top-10 flex items-center gap-2 rounded-full px-6 py-2.5"
+                className="absolute left-1/2 -translate-x-1/2 -top-10 flex items-center gap-5 rounded-full px-6 py-2.5"
                 style={{
                   backgroundColor: '#0f172a',
                   border: `2px solid ${baseColor}`,
                   boxShadow: `0 0 20px ${baseColor}30`,
                 }}
               >
-                <Icon size={80} color={baseColor} />
+                <Icon size={70} color={baseColor} />
                 <span
                   className="font-semibold text-[80px]"
                   style={{ color: baseColor }}
@@ -76,7 +76,7 @@ function CategoryBackground({ sections, transform }: CategoryBackgroundProps) {
                   {section.label}
                 </span>
                 <span
-                  className="px-2 py-0.5 rounded-full ml-1 text-4xl"
+                  className="px-2 py-0.5 rounded-full ml-1 text-5xl"
                   style={{
                     backgroundColor: `${baseColor}25`,
                     color: baseColor,

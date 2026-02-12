@@ -673,12 +673,10 @@ async def generate_rundown(
 
     Runs asynchronously in the background. Poll GET endpoint for status.
     """
-    print(f"[Rundown POST] Endpoint hit for {analysis_id}")
     db_service = get_database_service()
 
     # Check current status first
     current = await db_service.get_rundown_status(analysis_id)
-    print(f"[Rundown POST] Current status: {current}")
     if current is None:
         raise HTTPException(status_code=404, detail="Analysis not found")
 
@@ -690,19 +688,13 @@ async def generate_rundown(
     if current["status"] == "generating":
         stale = await db_service.is_rundown_stale(analysis_id, max_age_seconds=120)
         if not stale:
-            print(f"[Rundown POST] Already generating (not stale), returning current")
             return current
-        print(f"[Rundown POST] Stale 'generating' status, restarting...")
 
     # Set status to 'generating'
     was_set = await db_service.set_rundown_status(analysis_id, "generating")
-    print(f"[Rundown POST] set_rundown_status returned {was_set}")
     if not was_set:
-        print(f"[Rundown POST] WARNING: update returned no rows — analysis_id may not exist")
         raise HTTPException(status_code=404, detail="Analysis not found")
 
-    # Launch background task via asyncio.create_task (not BackgroundTasks)
-    print(f"[Rundown POST] Launching asyncio.create_task for {analysis_id}")
     logger.info(f"Rundown: launching background task for {analysis_id}")
     asyncio.create_task(_run_rundown_generation(analysis_id))
 
@@ -731,29 +723,22 @@ async def get_rundown(
 
 async def _run_rundown_generation(analysis_id: str):
     """Background task to generate rundown from stored analysis data."""
-    print(f"[Rundown] Background task started for {analysis_id}")
     logger.info(f"Rundown: background task started for {analysis_id}")
 
     try:
         db_service = get_database_service()
 
         # Fetch stored nodes, edges, languages
-        print(f"[Rundown] Fetching analysis data from DB...")
         data = await db_service.get_analysis_nodes_and_edges(analysis_id)
         if not data:
-            msg = f"[Rundown] No analysis data found for {analysis_id}"
-            print(msg)
-            logger.error(msg)
+            logger.error(f"Rundown: no analysis data found for {analysis_id}")
             await db_service.set_rundown_status(analysis_id, "failed")
             return
 
         nodes, edges, language_distribution = data
-        msg = f"[Rundown] Fetched {len(nodes)} nodes, {len(edges)} edges for {analysis_id}"
-        print(msg)
-        logger.info(msg)
+        logger.info(f"Rundown: fetched {len(nodes)} nodes, {len(edges)} edges for {analysis_id}")
 
         # Generate rundown
-        print(f"[Rundown] Calling RundownGenerator...")
         from ..services.rundown_generator import get_rundown_generator
         rundown_generator = get_rundown_generator()
         rundown = await rundown_generator.generate_rundown(
@@ -763,28 +748,21 @@ async def _run_rundown_generation(analysis_id: str):
         )
 
         if rundown is None:
-            msg = f"[Rundown] Generator returned None for {analysis_id} (too few files or LLM failure)"
-            print(msg)
-            logger.warning(msg)
+            logger.warning(f"Rundown: generator returned None for {analysis_id} (too few files or LLM failure)")
             await db_service.set_rundown_status(analysis_id, "failed")
             return
 
         # Save result
-        print(f"[Rundown] Saving rundown to DB...")
         logger.info(f"Rundown: saving result for {analysis_id}")
         await db_service.save_rundown(analysis_id, rundown)
-        print(f"[Rundown] Completed for {analysis_id}")
         logger.info(f"Rundown: completed for {analysis_id}")
 
     except Exception as e:
-        msg = f"[Rundown] EXCEPTION for {analysis_id}: {type(e).__name__}: {e}"
-        print(msg)
-        logger.error(msg, exc_info=True)
+        logger.error(f"Rundown: exception for {analysis_id}: {type(e).__name__}: {e}", exc_info=True)
         try:
             db_service = get_database_service()
             await db_service.set_rundown_status(analysis_id, "failed")
         except Exception as inner_e:
-            print(f"[Rundown] Failed to set failed status: {inner_e}")
             logger.error(f"Rundown: failed to set failed status for {analysis_id}: {inner_e}")
 
 

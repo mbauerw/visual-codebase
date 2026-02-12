@@ -111,9 +111,9 @@ html {
   border-radius: 8px;
 }
 
-/* Role category nodes (containers for file nodes) */
+/* Role category nodes — above edges, below file nodes */
 .react-flow__node-category {
-  z-index: 0 !important;
+  z-index: 5 !important;
 }
 
 /* File nodes should be above category containers */
@@ -122,7 +122,7 @@ html {
 }
 
 .react-flow__node-category.selected {
-  z-index: 1 !important;
+  z-index: 6 !important;
 }
 
 .react-flow__node.selected {
