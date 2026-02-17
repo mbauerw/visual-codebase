@@ -277,6 +277,18 @@ export default function Rundown({
   const [activeFlowIndex, setActiveFlowIndex] = useState(0);
   const tabRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
   const tabBarRef = useRef<HTMLDivElement>(null);
+  const sectionRef = useRef<HTMLElement>(null);
+  const [isWide, setIsWide] = useState(true);
+
+  useEffect(() => {
+    const el = sectionRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(([entry]) => {
+      setIsWide(entry.contentRect.width >= 1024);
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   const [indicatorStyle, setIndicatorStyle] = useState<{
     left: number;
@@ -484,7 +496,8 @@ export default function Rundown({
 
   return (
     <section
-      className="w-full py-16 px-5 sm:px-10 lg:px-16"
+      ref={sectionRef}
+      className={`w-full py-16 px-5 sm:px-10 ${isWide ? 'px-16' : ''}`}
       style={{ backgroundColor: CREAM_BG }}
     >
       {/* ── Header ──────────────────────────────────────────── */}
@@ -514,7 +527,7 @@ export default function Rundown({
       </div>
 
       {/* ── Two-column content ──────────────────────────────── */}
-      <div className="max-w-[1400px] mx-auto flex flex-col lg:flex-row gap-10">
+      <div className={`max-w-[1400px] mx-auto flex ${isWide ? 'flex-row' : 'flex-col'} gap-10`}>
         {/* Left side: Tabs + Content card (~65%) */}
         <div className="flex-[1.85] min-w-0">
           {/* Tab bar container */}
@@ -646,15 +659,16 @@ export default function Rundown({
         </div>
 
         {/* Right side: Sidebar (~35%) */}
-        <div className="flex-[1] min-w-[280px] max-w-[420px] lg:pt-12">
+        <div className={`flex-[1] min-w-[280px] max-w-[420px] ${isWide ? 'pt-12' : ''}`}>
           {/* Mobile divider */}
-          <div
-            className="block lg:hidden"
-            style={{
-              borderTop: `1px solid ${BORDER_LIGHT}`,
-              marginBottom: 32,
-            }}
-          />
+          {!isWide && (
+            <div
+              style={{
+                borderTop: `1px solid ${BORDER_LIGHT}`,
+                marginBottom: 32,
+              }}
+            />
+          )}
           <Sidebar
             aboutTitle={aboutContent.title}
             aboutText={aboutContent.text}

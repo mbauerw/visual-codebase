@@ -128,13 +128,15 @@ export default function RundownLayers({ layers, graphNodes, onFileClick }: Rundo
               </motion.div>
 
               {/* Footer / Metadata Area */}
-              <motion.div layout="position" transition={{ duration: .7, ease: "easeInOut" }} className={`mt-4 flex flex-col gap-3 ${isExpanded ? 'items-center' : ''}`}>
+              <motion.div layout transition={{ duration: .7, ease: "easeInOut" }} className={`mt-4 flex flex-col gap-3 ${isExpanded ? 'items-center' : ''}`}>
 
                 {/* Roles Tags */}
                 {layer.roles.length > 0 && (
                   <motion.div layout transition={{ duration: .7, ease: "easeInOut" }} className={`flex flex-wrap gap-2 ${isExpanded ? 'justify-center' : ''}`}>
                     {layer.roles.map((role) => (
-                      <span
+                      <motion.span
+                        layout
+                        transition={{ duration: .7, ease: "easeInOut" }}
                         key={role}
                         className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium border transition-colors"
                         style={{
@@ -144,7 +146,7 @@ export default function RundownLayers({ layers, graphNodes, onFileClick }: Rundo
                         }}
                       >
                         {role}
-                      </span>
+                      </motion.span>
                     ))}
                   </motion.div>
                 )}
@@ -153,7 +155,9 @@ export default function RundownLayers({ layers, graphNodes, onFileClick }: Rundo
                 {layer.key_files.length > 0 && (
                   <motion.div layout transition={{ duration: .7, ease: "easeInOut" }} className={`flex flex-wrap gap-x-3 gap-y-1 ${isExpanded ? 'justify-center' : ''}`}>
                     {layer.key_files.map((file) => (
-                      <button
+                      <motion.button
+                        layout
+                        transition={{ duration: .7, ease: "easeInOut" }}
                         key={file}
                         onClick={(e) => {
                           e.stopPropagation();
@@ -166,7 +170,7 @@ export default function RundownLayers({ layers, graphNodes, onFileClick }: Rundo
                         <span className="decoration-indigo-500/30 underline-offset-2 group-hover/file:underline">
                           {file}
                         </span>
-                      </button>
+                      </motion.button>
                     ))}
                   </motion.div>
                 )}

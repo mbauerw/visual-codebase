@@ -93,7 +93,7 @@ function RundownGenerating() {
             </span>
           </div>
           <p style={{ color: TEXT_MUTED, fontSize: '0.9rem' }}>
-            This typically takes 5-15 seconds.
+            This typically takes 20-30 seconds.
           </p>
         </div>
       </div>

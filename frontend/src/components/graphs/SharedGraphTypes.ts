@@ -41,6 +41,8 @@ export interface BaseGraphProps {
   onLanguageFilterChange?: (language: Language | 'all') => void;
   /** Callback when role filter changes */
   onRoleFilterChange?: (role: ArchitecturalRole | 'all') => void;
+  /** Callback when search query changes */
+  onSearchChange?: (query: string) => void;
 }
 
 /**

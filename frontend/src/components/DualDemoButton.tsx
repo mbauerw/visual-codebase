@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface DualDemoButtonProps {
   onSelect: (analysisId: string) => void;
@@ -8,29 +9,43 @@ const DEMOS = [
   {
     id: '0e88d1ec-c6d9-4153-812f-ccf7ed35fb55',
     label: 'nanoChat',
-    summary: '',
+    summary: "Demo the remap of Andre Karpathy's nanoChat, an extremely lightweight experimental harness for training LLMs.",
   },
   {
     id: 'acc4fa1d-8bc1-4d2f-b4d8-88e57e7c280f',
     label: 'codebase-remap',
-    summary: '',
+    summary: 'Demo the remap of the codebase-remap application itself. See how codebases are processed, analyzed, and visualized.',
   },
 ] as const;
+
+const BUTTON_HEIGHT = 56;
+const CONTAINER_WIDTH = 380;
+const EXPANDED_HEIGHT = 260;
+const GAP = 12;
+const SPLIT_BUTTON_WIDTH = (CONTAINER_WIDTH - GAP) / 2;
+
+const ease = { duration: 0.7, ease: 'easeInOut' } as const;
 
 export default function DualDemoButton({ onSelect }: DualDemoButtonProps) {
   const [split, setSplit] = useState(false);
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
-  // Matches the original "Try Demo" button dimensions roughly
-  // px-8 py-4 text-lg rounded-full => approx 180x56
-  const BUTTON_HEIGHT = 56;
-  const CONTAINER_WIDTH = 380;
-  const EXPANDED_HEIGHT = 260;
-  const GAP = 12;
-  const SPLIT_BUTTON_WIDTH = (CONTAINER_WIDTH - GAP) / 2;
+  useEffect(() => {
+    if (!split) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setSplit(false);
+        setHoveredIndex(null);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [split]);
 
   return (
     <div
+      ref={containerRef}
       className="relative mx-auto"
       style={{
         width: CONTAINER_WIDTH,
@@ -54,7 +69,7 @@ export default function DualDemoButton({ onSelect }: DualDemoButtonProps) {
         Try Demo
       </button>
 
-      {/* Split buttons container -- absolutely positioned so it never affects layout */}
+      {/* Split buttons container */}
       <div
         className="absolute top-0 left-0"
         style={{
@@ -69,7 +84,6 @@ export default function DualDemoButton({ onSelect }: DualDemoButtonProps) {
       >
         {DEMOS.map((demo, index) => {
           const isHovered = hoveredIndex === index;
-          const currentHeight = isHovered ? EXPANDED_HEIGHT : BUTTON_HEIGHT;
 
           return (
             <div
@@ -80,45 +94,58 @@ export default function DualDemoButton({ onSelect }: DualDemoButtonProps) {
                 height: BUTTON_HEIGHT,
               }}
             >
-              <button
+              <motion.button
+                layout
+                transition={ease}
                 onClick={() => onSelect(demo.id)}
                 onMouseEnter={() => setHoveredIndex(index)}
                 onMouseLeave={() => setHoveredIndex(null)}
-                className="absolute top-0 left-0 bg-white text-gray-900 font-medium text-base border border-gray-200 cursor-pointer overflow-hidden"
+                className="absolute top-0 left-0 bg-white text-gray-900 font-medium text-base border border-gray-200 cursor-pointer overflow-hidden flex flex-col items-center"
                 style={{
                   width: SPLIT_BUTTON_WIDTH,
-                  height: currentHeight,
-                  borderRadius: isHovered ? 20 : 9999,
-                  transition:
-                    'height 300ms ease, border-radius 300ms ease, background-color 150ms ease, border-color 150ms ease, box-shadow 300ms ease',
                   zIndex: isHovered ? 20 : 1,
-                  boxShadow: isHovered
-                    ? '0 12px 32px rgba(0,0,0,0.10)'
-                    : '0 1px 3px rgba(0,0,0,0.04)',
                 }}
+                animate={{
+                  height: isHovered ? EXPANDED_HEIGHT : BUTTON_HEIGHT,
+                  borderRadius: isHovered ? 24 : 28,
+                  scale: isHovered ? 1.05 : 1,
+                  boxShadow: isHovered 
+                    ? '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)' 
+                    : '0 0px 0px 0px rgba(0, 0, 0, 0)'
+                }}
+                initial={{ borderRadius: 28, scale: 1 }}
               >
-                {/* Button label area -- always visible, vertically centered in the original button height */}
-                <div
-                  className="flex items-center justify-center"
+                {/* Button label container */}
+                <motion.div
+                  layout
+                  transition={ease}
+                  className="w-full flex items-center justify-center shrink-0"
                   style={{ height: BUTTON_HEIGHT }}
                 >
-                  <span className="truncate px-3">{demo.label}</span>
-                </div>
+                  <motion.span layout transition={ease} className="truncate px-3">
+                    {demo.label}
+                  </motion.span>
+                </motion.div>
 
                 {/* Expandable summary area */}
-                <div
-                  className="px-4 pb-4"
-                  style={{
-                    opacity: isHovered ? 1 : 0,
-                    transition: 'opacity 250ms ease 80ms',
-                  }}
-                >
-                  <div className="border-t border-gray-100 mb-3" />
-                  <p className="text-sm text-gray-500 leading-relaxed">
-                    {demo.summary}
-                  </p>
-                </div>
-              </button>
+                <AnimatePresence>
+                  {isHovered && (
+                    <motion.div
+                      layout
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: 10 }}
+                      transition={{ duration: 0.4 }}
+                      className="px-4 pb-4 w-full"
+                    >
+                      <div className="border-t border-gray-100 mb-3" />
+                      <p className="text-sm text-gray-500 leading-relaxed text-center px-2">
+                        {demo.summary}
+                      </p>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </motion.button>
             </div>
           );
         })}

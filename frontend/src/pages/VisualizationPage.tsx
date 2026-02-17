@@ -57,7 +57,7 @@ export default function VisualizationPage() {
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [selectionSource, setSelectionSource] = useState<'node' | 'tierlist' | null>(null);
   const [selectedCateogry, setSelectedCategory] = useState<CategoryRoleData | null>(null);
-  const [searchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
   const [languageFilter, setLanguageFilter] = useState<Language | 'all'>('all');
   const [roleFilter, setRoleFilter] = useState<ArchitecturalRole | 'all'>('all');
   const [layoutType, setLayoutType] = useState<SimplifiedLayoutType>('role');
@@ -742,6 +742,7 @@ export default function VisualizationPage() {
                     selectionSource={selectionSource}
                     onLanguageFilterChange={setLanguageFilter}
                     onRoleFilterChange={setRoleFilter}
+                    onSearchChange={setSearchQuery}
                   />
                 ) : (
                   <NestedLayoutGraph
@@ -756,6 +757,7 @@ export default function VisualizationPage() {
                     onRoleFilterChange={setRoleFilter}
                     selectedNodeId={selectedNodeId}
                     selectionSource={selectionSource}
+                    onSearchChange={setSearchQuery}
                   />
                 )}
               </div>

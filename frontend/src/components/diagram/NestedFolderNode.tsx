@@ -59,7 +59,7 @@ function NestedFolderNode({ data, selected }: NodeProps<NestedFolderNodeType>) {
 
       {/* Folder header label - positioned at top-left inside the container */}
       <div
-        className="absolute flex items-center gap-1.5 px-2.5 py-1 select-none"
+      className="absolute flex items-center gap-1.5 px-2.5 py-0  select-none"
         style={{
           top: 10,
           left: 14,
@@ -68,7 +68,7 @@ function NestedFolderNode({ data, selected }: NodeProps<NestedFolderNodeType>) {
         <Folder size={18} style={{ color: textColor }} />
 
         <span
-          className="font-semibold text-sm"
+          className="font-semibold text-lg"
           style={{ color: textColor }}
           title={data.path}
         >

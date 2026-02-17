@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import {
   ReactFlow,
   ReactFlowProvider,
+  SelectionMode,
   type NodeTypes,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
@@ -57,7 +58,10 @@ function RundownFlowDiagramInner({
         preventScrolling={true}
         nodesDraggable={false}
         nodesConnectable={false}
-        elementsSelectable={false}
+        elementsSelectable={true}
+        selectionOnDrag={true}
+        selectionMode={SelectionMode.Partial}
+        selectionKeyCode="Shift"
         proOptions={{ hideAttribution: true }}
         style={{ background: '#f8fafc'}}
       />

@@ -669,6 +669,7 @@ function RoleLayoutGraphInner({
   selectionSource,
   onLanguageFilterChange,
   onRoleFilterChange,
+  onSearchChange,
 }: RoleLayoutGraphProps) {
   const { fitView: reactFlowFitView, getViewport } = useReactFlow();
   const [nodes, setNodes, onNodesChange] = useNodesState<AllNodeTypes>([]);
@@ -1071,7 +1072,7 @@ function RoleLayoutGraphInner({
                 type="text"
                 placeholder="Search files..."
                 value={searchQuery}
-                readOnly
+                onChange={(e) => onSearchChange?.(e.target.value)}
                 className="w-full pl-8 pr-3 py-1.5 bg-slate-900 border border-slate-700 rounded text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-4 focus:ring-blue-500"
               />
             </div>

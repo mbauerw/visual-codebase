@@ -275,7 +275,7 @@ export default function UploadPage() {
             Visualize your codebase architecture with AI-powered dependency analysis.
             Understand file relationships at a glance.
           </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-xl mx-auto">
             <button
               onClick={() => scrollToSection('analyze')}
               className="bg-gray-900 hover:bg-gray-800 text-white px-8 py-4 rounded-full font-medium text-lg transition-all hover:scale-[1.02] shadow-lg shadow-gray-900/20"
@@ -289,9 +289,11 @@ export default function UploadPage() {
               See How It Works
             </button>
           </div>
-          <DualDemoButton
-            onSelect={(analysisId) => navigate(`/visualize?analysis=${analysisId}`)}
-          />
+          <div className='mt-4'>
+            <DualDemoButton
+              onSelect={(analysisId) => navigate(`/visualize?analysis=${analysisId}`)}
+            />
+          </div>
         </div>
 
         {/* Scroll indicator */}

@@ -70,6 +70,7 @@ function NestedLayoutGraphInner({
   selectionSource,
   onLanguageFilterChange,
   onRoleFilterChange,
+  onSearchChange,
 }: NestedLayoutGraphProps) {
   const { fitView: reactFlowFitView } = useReactFlow();
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
@@ -483,7 +484,7 @@ function NestedLayoutGraphInner({
                 type="text"
                 placeholder="Search files..."
                 value={searchQuery}
-                readOnly
+                onChange={(e) => onSearchChange?.(e.target.value)}
                 className="w-full pl-8 pr-3 py-1.5 bg-white border border-amber-300 rounded text-sm text-amber-900 placeholder-amber-400 focus:outline-none focus:ring-1 focus:ring-amber-500"
               />
             </div>
