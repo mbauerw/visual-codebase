@@ -356,7 +356,7 @@ async def get_file_content(
     For local analyses: Returns info about filesystem path (content not stored).
     """
     settings = get_settings()
-    if not current_user and analysis_id != settings.demo_analysis_id:
+    if not current_user and analysis_id not in settings.demo_analysis_ids:
         raise HTTPException(status_code=401, detail="Authentication required")
 
     db_service = get_database_service()
@@ -566,7 +566,7 @@ async def get_function_tier_list(
         per_page: Items per page, max 100 (default: 50)
     """
     settings = get_settings()
-    if not current_user and analysis_id != settings.demo_analysis_id:
+    if not current_user and analysis_id not in settings.demo_analysis_ids:
         raise HTTPException(status_code=401, detail="Authentication required")
 
     db_service = get_database_service()
@@ -604,7 +604,7 @@ async def get_function_stats(
     Returns total counts, tier distribution, and top functions.
     """
     settings = get_settings()
-    if not current_user and analysis_id != settings.demo_analysis_id:
+    if not current_user and analysis_id not in settings.demo_analysis_ids:
         raise HTTPException(status_code=401, detail="Authentication required")
 
     db_service = get_database_service()
@@ -635,7 +635,7 @@ async def get_function_detail(
     Returns the function details along with its callers and callees.
     """
     settings = get_settings()
-    if not current_user and analysis_id != settings.demo_analysis_id:
+    if not current_user and analysis_id not in settings.demo_analysis_ids:
         raise HTTPException(status_code=401, detail="Authentication required")
 
     db_service = get_database_service()

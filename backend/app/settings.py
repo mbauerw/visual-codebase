@@ -45,8 +45,11 @@ class Settings(BaseSettings):
     github_token: str = Field(..., description="GitHub API token")
     github_secret: str = Field(..., description="GitHub Secret")
 
-    # Demo analysis (publicly accessible without authentication)
-    demo_analysis_id: str = "6475bbb4-4362-495a-81de-346128526055"
+    # Demo analyses (publicly accessible without authentication)
+    demo_analysis_ids: list[str] = [
+        "0e88d1ec-c6d9-4153-812f-ccf7ed35fb55",  # nanoChat
+        "acc4fa1d-8bc1-4d2f-b4d8-88e57e7c280f",  # codebase-remap
+    ]
 
 
     class Config:
