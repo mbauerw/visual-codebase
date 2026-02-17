@@ -10,6 +10,7 @@ import AnalyzeSection, { type LocalAnalyzeRequest, type GitHubAnalyzeRequest } f
 import FeaturesSection from '../components/FeaturesSection';
 import HowItWorksSection from '../components/HowItWorksSection';
 import Footer from '../components/Footer';
+import DualDemoButton from '../components/DualDemoButton';
 
 
 
@@ -288,12 +289,9 @@ export default function UploadPage() {
               See How It Works
             </button>
           </div>
-          <button
-            onClick={() => navigate('/visualize?analysis=6475bbb4-4362-495a-81de-346128526055')}
-            className="mt-4 bg-white hover:bg-gray-50 text-gray-900 px-8 py-4 rounded-full font-medium text-lg border border-gray-200 transition-all hover:border-gray-300 hover:scale-[1.02]"
-          >
-            Try Demo
-          </button>
+          <DualDemoButton
+            onSelect={(analysisId) => navigate(`/visualize?analysis=${analysisId}`)}
+          />
         </div>
 
         {/* Scroll indicator */}
