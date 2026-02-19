@@ -1,121 +1,179 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '../../../test/test-utils';
 import RundownSection from '../RundownSection';
-import { mockRundown, mockEmptyRundown } from './fixtures';
+import { mockRundown } from './fixtures';
 
-// Mock the flow diagram since ReactFlow requires DOM measurements
-vi.mock('../RundownFlowDiagram', () => ({
-  default: ({ flow }: { flow: { name: string } }) => (
-    <div data-testid="flow-diagram-mock">{flow.name} diagram</div>
+// Mock useRundown hook
+const mockTriggerGeneration = vi.fn();
+const mockUseRundown = vi.fn();
+vi.mock('../../../hooks/useRundown', () => ({
+  useRundown: (...args: unknown[]) => mockUseRundown(...args),
+}));
+
+// Mock Rundown component to avoid rendering the full tabbed UI
+vi.mock('../Rundown', () => ({
+  default: ({
+    rundown,
+    onFileClick,
+    onLayerClick,
+  }: {
+    rundown: unknown;
+    onFileClick?: (f: string) => void;
+    onLayerClick?: (r: string[]) => void;
+  }) => (
+    <div data-testid="rundown-component">
+      <span>Rundown rendered</span>
+      {onFileClick && (
+        <button onClick={() => onFileClick('test.ts')}>file-click</button>
+      )}
+      {onLayerClick && (
+        <button onClick={() => onLayerClick(['role'])}>layer-click</button>
+      )}
+    </div>
   ),
 }));
 
+beforeEach(() => {
+  vi.clearAllMocks();
+});
+
 describe('RundownSection', () => {
-  it('should render all sub-sections when data is present', () => {
-    render(<RundownSection rundown={mockRundown} />);
+  it('should return null when fileCount is less than 5', () => {
+    mockUseRundown.mockReturnValue({
+      rundown: null,
+      status: 'not_started',
+      triggerGeneration: mockTriggerGeneration,
+    });
 
-    // Narrative
-    expect(screen.getByText('How This Codebase Works')).toBeInTheDocument();
-
-    // Layers
-    expect(screen.getByText('Architecture Layers')).toBeInTheDocument();
-    // "Presentation Layer" appears in both layers section and flow timeline
-    expect(screen.getAllByText('Presentation Layer').length).toBeGreaterThanOrEqual(1);
-
-    // Flows
-    expect(screen.getByText('Application Flows')).toBeInTheDocument();
-
-    // Cross-cutting
-    expect(screen.getByText('Cross-Cutting Concerns')).toBeInTheDocument();
+    const { container } = render(
+      <RundownSection analysisId="abc" fileCount={3} />
+    );
+    expect(container.innerHTML).toBe('');
   });
 
-  it('should hide sections when data is empty', () => {
-    render(<RundownSection rundown={mockEmptyRundown} />);
+  it('should render CTA when status is not_started', () => {
+    mockUseRundown.mockReturnValue({
+      rundown: null,
+      status: 'not_started',
+      triggerGeneration: mockTriggerGeneration,
+    });
 
-    expect(screen.queryByText('How This Codebase Works')).not.toBeInTheDocument();
-    expect(screen.queryByText('Architecture Layers')).not.toBeInTheDocument();
-    expect(screen.queryByText('Application Flows')).not.toBeInTheDocument();
-    expect(screen.queryByText('Cross-Cutting Concerns')).not.toBeInTheDocument();
+    render(<RundownSection analysisId="abc" fileCount={10} />);
+    expect(screen.getByText('The Rundown')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Generate Rundown' })).toBeInTheDocument();
   });
 
-  it('should show flow tab buttons when multiple flows exist', () => {
-    render(<RundownSection rundown={mockRundown} />);
+  it('should call triggerGeneration when Generate Rundown is clicked', () => {
+    mockUseRundown.mockReturnValue({
+      rundown: null,
+      status: 'not_started',
+      triggerGeneration: mockTriggerGeneration,
+    });
 
-    // mockRundown has 2 flows - check for tab roles
-    const tabs = screen.getAllByRole('tab');
-    expect(tabs).toHaveLength(2);
-    expect(tabs[0]).toHaveTextContent('User Authentication');
-    expect(tabs[1]).toHaveTextContent('Data Fetching');
+    render(<RundownSection analysisId="abc" fileCount={10} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Generate Rundown' }));
+    expect(mockTriggerGeneration).toHaveBeenCalled();
   });
 
-  it('should switch flows when tab is clicked', () => {
-    render(<RundownSection rundown={mockRundown} />);
+  it('should disable Generate Rundown button when analysisId is null', () => {
+    mockUseRundown.mockReturnValue({
+      rundown: null,
+      status: 'not_started',
+      triggerGeneration: mockTriggerGeneration,
+    });
 
-    // Initially shows first flow's content
-    expect(screen.getByText('Renders login form and captures credentials')).toBeInTheDocument();
-
-    // Click second flow tab
-    fireEvent.click(screen.getByRole('tab', { name: 'Data Fetching' }));
-
-    // Should show second flow's content
-    expect(screen.getByText('Triggers data fetch on component mount')).toBeInTheDocument();
+    render(<RundownSection analysisId={null} fileCount={10} />);
+    expect(screen.getByRole('button', { name: 'Generate Rundown' })).toBeDisabled();
   });
 
-  it('should not show tab buttons when only one flow', () => {
-    const singleFlowRundown = {
-      ...mockRundown,
-      flows: [mockRundown.flows[0]],
-    };
-    render(<RundownSection rundown={singleFlowRundown} />);
+  it('should render generating state with spinner', () => {
+    mockUseRundown.mockReturnValue({
+      rundown: null,
+      status: 'generating',
+      triggerGeneration: mockTriggerGeneration,
+    });
 
-    // Should not have tablist
-    expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
+    render(<RundownSection analysisId="abc" fileCount={10} />);
+    expect(screen.getByText('Generating your rundown...')).toBeInTheDocument();
   });
 
-  it('should pass onFileClick to sub-components', () => {
+  it('should render failed state with retry button', () => {
+    mockUseRundown.mockReturnValue({
+      rundown: null,
+      status: 'failed',
+      triggerGeneration: mockTriggerGeneration,
+    });
+
+    render(<RundownSection analysisId="abc" fileCount={10} />);
+    expect(screen.getByText(/Rundown generation failed/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+    expect(mockTriggerGeneration).toHaveBeenCalled();
+  });
+
+  it('should render Rundown component when status is completed', () => {
+    mockUseRundown.mockReturnValue({
+      rundown: mockRundown,
+      status: 'completed',
+      triggerGeneration: mockTriggerGeneration,
+    });
+
+    render(<RundownSection analysisId="abc" fileCount={10} />);
+    expect(screen.getByTestId('rundown-component')).toBeInTheDocument();
+  });
+
+  it('should return null when completed but rundown is null', () => {
+    mockUseRundown.mockReturnValue({
+      rundown: null,
+      status: 'completed',
+      triggerGeneration: mockTriggerGeneration,
+    });
+
+    const { container } = render(
+      <RundownSection analysisId="abc" fileCount={10} />
+    );
+    expect(container.innerHTML).toBe('');
+  });
+
+  it('should pass analysisId and existingRundown to useRundown', () => {
+    mockUseRundown.mockReturnValue({
+      rundown: mockRundown,
+      status: 'completed',
+      triggerGeneration: mockTriggerGeneration,
+    });
+
+    render(
+      <RundownSection
+        analysisId="abc"
+        existingRundown={mockRundown}
+        fileCount={10}
+      />
+    );
+    expect(mockUseRundown).toHaveBeenCalledWith('abc', mockRundown);
+  });
+
+  it('should pass onFileClick and onLayerClick to Rundown', () => {
     const onFileClick = vi.fn();
-    render(<RundownSection rundown={mockRundown} onFileClick={onFileClick} />);
-
-    // Click a file button in the cross-cutting section (these are always buttons)
-    const errorFile = screen.getByText('src/utils/errors.ts');
-    fireEvent.click(errorFile);
-    expect(onFileClick).toHaveBeenCalledWith('src/utils/errors.ts');
-  });
-
-  it('should have proper aria label', () => {
-    render(<RundownSection rundown={mockRundown} />);
-    expect(
-      screen.getByLabelText('The Rundown - Application Flow Analysis')
-    ).toBeInTheDocument();
-  });
-
-  it('should render both diagram (desktop) and timeline (mobile) views', () => {
-    render(<RundownSection rundown={mockRundown} />);
-
-    // Desktop diagram (mocked)
-    expect(screen.getByTestId('flow-diagram-mock')).toBeInTheDocument();
-
-    // Mobile timeline still present in DOM (CSS handles visibility)
-    expect(screen.getByText('Renders login form and captures credentials')).toBeInTheDocument();
-  });
-
-  it('should pass onLayerClick to layers component', () => {
     const onLayerClick = vi.fn();
-    render(<RundownSection rundown={mockRundown} onLayerClick={onLayerClick} />);
+    mockUseRundown.mockReturnValue({
+      rundown: mockRundown,
+      status: 'completed',
+      triggerGeneration: mockTriggerGeneration,
+    });
 
-    // Click on first layer card (use role=button to target layer li, not timeline label)
-    const layerButtons = screen.getAllByRole('button', { name: /Layer 1 of 3/ });
-    fireEvent.click(layerButtons[0]);
-    expect(onLayerClick).toHaveBeenCalledWith(['react_component', 'hook']);
-  });
+    render(
+      <RundownSection
+        analysisId="abc"
+        fileCount={10}
+        onFileClick={onFileClick}
+        onLayerClick={onLayerClick}
+      />
+    );
 
-  it('should pass onFileClick to layers key files', () => {
-    const onFileClick = vi.fn();
-    render(<RundownSection rundown={mockRundown} onFileClick={onFileClick} />);
+    fireEvent.click(screen.getByText('file-click'));
+    expect(onFileClick).toHaveBeenCalledWith('test.ts');
 
-    // Click a key file in the layers section
-    const appFiles = screen.getAllByText('src/App.tsx');
-    fireEvent.click(appFiles[0]);
-    expect(onFileClick).toHaveBeenCalledWith('src/App.tsx');
+    fireEvent.click(screen.getByText('layer-click'));
+    expect(onLayerClick).toHaveBeenCalledWith(['role']);
   });
 });

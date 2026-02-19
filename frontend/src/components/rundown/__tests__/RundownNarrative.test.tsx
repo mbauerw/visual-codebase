@@ -8,8 +8,4 @@ describe('RundownNarrative', () => {
     expect(screen.getByText('This is a test narrative about the codebase.')).toBeInTheDocument();
   });
 
-  it('should render the heading', () => {
-    render(<RundownNarrative narrative="Test narrative" />);
-    expect(screen.getByText('How This Codebase Works')).toBeInTheDocument();
-  });
 });

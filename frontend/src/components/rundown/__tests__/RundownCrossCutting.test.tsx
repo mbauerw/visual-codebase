@@ -36,8 +36,4 @@ describe('RundownCrossCutting', () => {
     expect(onFileClick).toHaveBeenCalledWith('src/utils/errors.ts');
   });
 
-  it('should render the heading', () => {
-    render(<RundownCrossCutting crossCutting={crossCutting} />);
-    expect(screen.getByText('Cross-Cutting Concerns')).toBeInTheDocument();
-  });
 });

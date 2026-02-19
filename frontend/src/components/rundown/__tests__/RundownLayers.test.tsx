@@ -31,23 +31,23 @@ describe('RundownLayers', () => {
     const reversedLayers = [...mockRundown.layers].reverse();
     render(<RundownLayers layers={reversedLayers} />);
 
-    const items = screen.getAllByRole('listitem');
-    expect(items[0]).toHaveTextContent('Presentation Layer');
-    expect(items[1]).toHaveTextContent('Business Logic');
-    expect(items[2]).toHaveTextContent('Data Access');
+    const headings = screen.getAllByRole('heading', { level: 3 });
+    expect(headings[0]).toHaveTextContent('Presentation Layer');
+    expect(headings[1]).toHaveTextContent('Business Logic');
+    expect(headings[2]).toHaveTextContent('Data Access');
   });
 
-  it('should render the heading', () => {
+  it('should toggle expansion when layer card is clicked', () => {
     render(<RundownLayers layers={mockRundown.layers} />);
-    expect(screen.getByText('Architecture Layers')).toBeInTheDocument();
-  });
 
-  it('should call onLayerClick with roles when layer is clicked', () => {
-    const onLayerClick = vi.fn();
-    render(<RundownLayers layers={mockRundown.layers} onLayerClick={onLayerClick} />);
+    const buttons = screen.getAllByRole('button').filter(el => el.hasAttribute('aria-expanded'));
+    expect(buttons[0]).toHaveAttribute('aria-expanded', 'false');
 
-    fireEvent.click(screen.getByText('Presentation Layer'));
-    expect(onLayerClick).toHaveBeenCalledWith(['react_component', 'hook']);
+    fireEvent.click(buttons[0]);
+    expect(buttons[0]).toHaveAttribute('aria-expanded', 'true');
+
+    fireEvent.click(buttons[0]);
+    expect(buttons[0]).toHaveAttribute('aria-expanded', 'false');
   });
 
   it('should call onFileClick when key file is clicked', () => {
@@ -58,32 +58,20 @@ describe('RundownLayers', () => {
     expect(onFileClick).toHaveBeenCalledWith('src/App.tsx');
   });
 
-  it('should not call onLayerClick when file is clicked (stopPropagation)', () => {
-    const onLayerClick = vi.fn();
+  it('should not toggle expansion when file is clicked (stopPropagation)', () => {
     const onFileClick = vi.fn();
     render(
       <RundownLayers
         layers={mockRundown.layers}
-        onLayerClick={onLayerClick}
         onFileClick={onFileClick}
       />
     );
 
+    const cards = screen.getAllByRole('button').filter(el => el.hasAttribute('aria-expanded'));
+    expect(cards[0]).toHaveAttribute('aria-expanded', 'false');
+
     fireEvent.click(screen.getByText('src/App.tsx'));
     expect(onFileClick).toHaveBeenCalledWith('src/App.tsx');
-    expect(onLayerClick).not.toHaveBeenCalled();
-  });
-
-  it('should show "Click to filter" hint when onLayerClick is provided', () => {
-    const onLayerClick = vi.fn();
-    render(<RundownLayers layers={mockRundown.layers} onLayerClick={onLayerClick} />);
-
-    expect(screen.getAllByText('Click to filter')).toHaveLength(3);
-  });
-
-  it('should not show "Click to filter" hint when onLayerClick is not provided', () => {
-    render(<RundownLayers layers={mockRundown.layers} />);
-
-    expect(screen.queryByText('Click to filter')).not.toBeInTheDocument();
+    expect(cards[0]).toHaveAttribute('aria-expanded', 'false');
   });
 });
