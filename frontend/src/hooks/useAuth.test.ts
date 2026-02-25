@@ -385,7 +385,7 @@ describe('useAuth', () => {
         provider: 'github',
         options: {
           redirectTo: 'http://localhost:3000/auth/callback',
-          scopes: 'repo read:user user:email',
+          scopes: 'public_repo read:user user:email',
         },
       });
     });

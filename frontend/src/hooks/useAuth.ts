@@ -27,18 +27,12 @@ export function useAuth() {
         console.error('Error getting session:', error)
       }
 
-      // Debug logging
-      console.log('Session:', session)
-      console.log('Provider token:', session?.provider_token)
-      console.log('Provider refresh token:', session?.provider_refresh_token)
-
       // Get GitHub token from session or localStorage fallback
       let githubToken = session?.provider_token || null
       if (!githubToken && session?.user) {
         // Fallback to localStorage if provider_token is not in session
         const storedToken = localStorage.getItem('github_provider_token')
         if (storedToken) {
-          console.log('Using stored GitHub token from localStorage')
           githubToken = storedToken
         }
       }
@@ -60,16 +54,11 @@ export function useAuth() {
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
-        console.log('Auth state change:', event)
-        console.log('Session:', session)
-        console.log('Provider token:', session?.provider_token)
-
         // Get GitHub token from session or localStorage fallback
         let githubToken = session?.provider_token || null
         if (!githubToken && session?.user) {
           const storedToken = localStorage.getItem('github_provider_token')
           if (storedToken) {
-            console.log('Using stored GitHub token from localStorage')
             githubToken = storedToken
           }
         }
@@ -138,7 +127,7 @@ export function useAuth() {
       provider: 'github',
       options: {
         redirectTo: `${window.location.origin}/auth/callback`,
-        scopes: 'repo read:user user:email',
+        scopes: 'public_repo read:user user:email',
       },
     })
     return { data, error }

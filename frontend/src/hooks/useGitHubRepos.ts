@@ -28,22 +28,13 @@ export function useGitHubRepos(options: UseGitHubReposOptions = {}) {
   return useQuery<GitHubRepoListResponse, Error>({
     queryKey: ['github-repos', page, perPage, sort, direction, type],
     queryFn: async () => {
-      console.log('Fetching GitHub repos...')
-      console.log('GitHub token available:', !!githubToken)
-      console.log('Supabase access token available:', !!session?.access_token)
-      console.log('User:', user?.email)
-
       if (!githubToken) {
-        console.error('No GitHub token available')
         throw new Error('GitHub token not available');
       }
 
       if (!session?.access_token) {
-        console.error('No Supabase access token available')
         throw new Error('Not authenticated with Supabase');
       }
-
-      console.log('Sending request with tokens')
 
       const response = await axios.get<GitHubRepoListResponse>(
         `${API_URL}/api/github/repos`,

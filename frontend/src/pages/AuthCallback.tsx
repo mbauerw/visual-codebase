@@ -34,10 +34,7 @@ export default function AuthCallback() {
         if (session) {
           setStatus('success');
 
-          // Debug: Log provider info
           const provider = session.user?.app_metadata?.provider;
-          console.log('OAuth callback - Provider:', provider);
-          console.log('OAuth callback - Provider token:', session.provider_token);
 
           // Store provider token in localStorage based on provider type
           if (session.provider_token) {
