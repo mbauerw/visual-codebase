@@ -44,9 +44,21 @@ logging.getLogger("urllib3").setLevel(logging.WARNING)
 
 logger = logging.getLogger(__name__)
 
+# GitHub token format validation pattern (ghp_, gho_, ghu_, ghs_, ghr_ prefixes)
+_GITHUB_TOKEN_PATTERN = re.compile(r'^(ghp_|gho_|ghu_|ghs_|ghr_|github_pat_)[A-Za-z0-9_]+$')
+
+def _validate_github_token(token: Optional[str]) -> Optional[str]:
+    """Validate that a GitHub token matches expected format. Returns token if valid, None otherwise."""
+    if token is None:
+        return None
+    token = token.strip()
+    if not token or not _GITHUB_TOKEN_PATTERN.match(token):
+        raise HTTPException(status_code=400, detail="Invalid GitHub token format")
+    return token
+
 router = APIRouter(prefix="/api", tags=["analysis"])
 
-# @router.post("/getdirectory") 
+# @router.post("/getdirectory")
 
 
 @router.post("/analyze", response_model=AnalyzeResponse)
@@ -65,6 +77,9 @@ async def start_analysis(
     """
     service = get_analysis_service()
     db_service = get_database_service()
+
+    # Validate GitHub token format if provided (prevents shell injection in askpass script)
+    x_github_token = _validate_github_token(x_github_token)
 
     # Determine the analysis path
     if request.github_repo:
@@ -248,7 +263,16 @@ async def get_analysis_status(
         return in_memory_status
 
     # Fall back to database for completed/historical analyses
-    if current_user:
+    settings = get_settings()
+    user_id = current_user.id if current_user else None
+
+    # For DB lookups, enforce ownership (demo analyses are exempt inside the DB method)
+    db_status = await db_service.get_analysis_status(analysis_id, user_id=user_id)
+    if db_status:
+        return db_status
+
+    # Allow unauthenticated access to demo analyses only
+    if not current_user and analysis_id in settings.demo_analysis_ids:
         db_status = await db_service.get_analysis_status(analysis_id)
         if db_status:
             return db_status
@@ -268,14 +292,20 @@ async def get_analysis_result(
     """
     service = get_analysis_service()
     db_service = get_database_service()
+    settings = get_settings()
+    user_id = current_user.id if current_user else None
 
-    # Try to get result from database first
-    result = await db_service.get_analysis_result(analysis_id)
+    # Try to get result from database first (with ownership check)
+    result = await db_service.get_analysis_result(analysis_id, user_id=user_id)
+
+    # Allow unauthenticated access to demo analyses only
+    if not result and not current_user and analysis_id in settings.demo_analysis_ids:
+        result = await db_service.get_analysis_result(analysis_id)
+
     if result:
         return result
 
-    # Fallback to in-memory result
-    # First check the status
+    # Fallback to in-memory result (only for active analyses the user started)
     status = service.get_status(analysis_id)
     if not status:
         raise HTTPException(status_code=404, detail="Analysis not found")
@@ -283,7 +313,7 @@ async def get_analysis_result(
     if status.status == AnalysisStatus.FAILED:
         raise HTTPException(
             status_code=500,
-            detail=f"Analysis failed: {status.error}",
+            detail="Analysis failed",
         )
 
     if status.status != AnalysisStatus.COMPLETED:
@@ -402,9 +432,10 @@ async def get_file_content(
                             "available": True,
                         }
                     except Exception as e:
+                        logger.error(f"Failed to read file: {str(e)}")
                         raise HTTPException(
                             status_code=500,
-                            detail=f"Failed to read file: {str(e)}"
+                            detail="Failed to read file"
                         )
             raise HTTPException(
                 status_code=404,
@@ -474,7 +505,7 @@ async def get_github_repositories(
         logger.error(f"Failed to fetch GitHub repositories: {str(e)}")
         raise HTTPException(
             status_code=500,
-            detail=f"Failed to fetch repositories: {str(e)}",
+            detail="Failed to fetch repositories",
         )
 
 
@@ -533,7 +564,7 @@ async def get_owner_repositories(
         logger.error(f"Failed to fetch repositories for {owner}: {str(e)}")
         raise HTTPException(
             status_code=500,
-            detail=f"Failed to fetch repositories: {str(e)}",
+            detail="Failed to fetch repositories",
         )
 
 
@@ -673,7 +704,18 @@ async def generate_rundown(
 
     Runs asynchronously in the background. Poll GET endpoint for status.
     """
+    settings = get_settings()
     db_service = get_database_service()
+
+    # Require authentication for non-demo analyses
+    if not current_user and analysis_id not in settings.demo_analysis_ids:
+        raise HTTPException(status_code=401, detail="Authentication required")
+
+    # Verify ownership via analysis result lookup (demo analyses are exempt)
+    user_id = current_user.id if current_user else None
+    ownership_check = await db_service.get_analysis_status(analysis_id, user_id=user_id)
+    if not ownership_check and analysis_id not in settings.demo_analysis_ids:
+        raise HTTPException(status_code=404, detail="Analysis not found")
 
     # Check current status first
     current = await db_service.get_rundown_status(analysis_id)
@@ -712,7 +754,19 @@ async def get_rundown(
     Returns status: 'not_started' | 'generating' | 'completed' | 'failed'
     When completed, includes the full rundown data.
     """
+    settings = get_settings()
     db_service = get_database_service()
+
+    # Require authentication for non-demo analyses
+    if not current_user and analysis_id not in settings.demo_analysis_ids:
+        raise HTTPException(status_code=401, detail="Authentication required")
+
+    # Verify ownership (demo analyses are exempt)
+    user_id = current_user.id if current_user else None
+    ownership_check = await db_service.get_analysis_status(analysis_id, user_id=user_id)
+    if not ownership_check and analysis_id not in settings.demo_analysis_ids:
+        raise HTTPException(status_code=404, detail="Analysis not found")
+
     result = await db_service.get_rundown_status(analysis_id)
 
     if result is None:
@@ -865,9 +919,13 @@ async def change_user_password(
             detail="This password was recently used. Please choose a different password."
         )
 
-    # Change the password
+    # Verify current password and change to new one
     profile_service = ProfileService()
-    result = await profile_service.change_password(current_user.id, request.new_password)
+    result = await profile_service.change_password(
+        current_user.id,
+        request.new_password,
+        current_password=request.current_password,
+    )
 
     if not result.get("success"):
         raise HTTPException(status_code=400, detail=result.get("message", "Failed to update password"))

@@ -205,14 +205,27 @@ class DatabaseService:
                     batch = content_data[i:i + batch_size]
                     self.supabase.table("analysis_file_contents").insert(batch).execute()
 
-    async def get_analysis_status(self, analysis_id: str) -> Optional[AnalysisStatusResponse]:
-        """Get analysis status from database."""
-        result = (
+    async def get_analysis_status(self, analysis_id: str, user_id: Optional[str] = None) -> Optional[AnalysisStatusResponse]:
+        """Get analysis status from database.
+
+        Args:
+            analysis_id: The analysis ID to look up.
+            user_id: If provided, enforces ownership check (unless demo analysis).
+        """
+        from ..settings import get_settings
+        settings = get_settings()
+
+        query = (
             self.supabase.table("analyses")
             .select("*")
             .eq("analysis_id", analysis_id)
-            .execute()
         )
+
+        # Enforce ownership unless it's a demo analysis
+        if user_id and analysis_id not in settings.demo_analysis_ids:
+            query = query.eq("user_id", user_id)
+
+        result = query.execute()
 
         if not result.data:
             return None
@@ -226,15 +239,28 @@ class DatabaseService:
             error=data.get("error_message"),
         )
 
-    async def get_analysis_result(self, analysis_id: str) -> Optional[ReactFlowGraph]:
-        """Get complete analysis result from database."""
+    async def get_analysis_result(self, analysis_id: str, user_id: Optional[str] = None) -> Optional[ReactFlowGraph]:
+        """Get complete analysis result from database.
+
+        Args:
+            analysis_id: The analysis ID to look up.
+            user_id: If provided, enforces ownership check (unless demo analysis).
+        """
+        from ..settings import get_settings
+        settings = get_settings()
+
         # Get analysis metadata
-        analysis_result = (
+        query = (
             self.supabase.table("analyses")
             .select("*")
             .eq("analysis_id", analysis_id)
-            .execute()
         )
+
+        # Enforce ownership unless it's a demo analysis
+        if user_id and analysis_id not in settings.demo_analysis_ids:
+            query = query.eq("user_id", user_id)
+
+        analysis_result = query.execute()
 
         if not analysis_result.data:
             return None

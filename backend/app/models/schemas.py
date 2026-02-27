@@ -300,7 +300,7 @@ class GitHubRepoInfo(BaseModel):
 class AnalyzeRequest(BaseModel):
     """Request to start a codebase analysis."""
 
-    directory_path: Optional[str] = Field(None, description="Path to the directory to analyze")
+    directory_path: Optional[str] = Field(None, max_length=500, description="Path to the directory to analyze")
     github_repo: Optional[GitHubRepoInfo] = Field(None, description="GitHub repository to analyze")
     include_node_modules: bool = Field(
         default=False, description="Whether to include node_modules"
@@ -315,6 +315,24 @@ class AnalyzeRequest(BaseModel):
             raise ValueError("Either directory_path or github_repo must be provided")
         if self.directory_path and self.github_repo:
             raise ValueError("Cannot provide both directory_path and github_repo")
+
+        # Validate directory_path to prevent filesystem traversal
+        if self.directory_path:
+            import os
+            # Reject path traversal sequences
+            if ".." in self.directory_path:
+                raise ValueError("Directory path must not contain '..'")
+            # Resolve to absolute path and block sensitive system directories
+            resolved = os.path.realpath(self.directory_path)
+            blocked_prefixes = (
+                "/etc", "/private/etc",
+                "/var", "/private/var",
+                "/proc", "/sys", "/dev", "/boot", "/root",
+                "/private/tmp",
+            )
+            for prefix in blocked_prefixes:
+                if resolved.startswith(prefix):
+                    raise ValueError(f"Access to system directories is not allowed")
 
 
 # Core data schemas

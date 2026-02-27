@@ -24,8 +24,8 @@ async def get_current_user(authorization: Optional[str] = Header(None)):
         
         return user_response.user
         
-    except Exception as e:
-        raise HTTPException(status_code=401, detail=f"Authentication error: {str(e)}")
+    except Exception:
+        raise HTTPException(status_code=401, detail="Authentication failed")
 
 
 async def get_optional_user(authorization: Optional[str] = Header(None)):

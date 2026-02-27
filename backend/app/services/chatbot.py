@@ -42,9 +42,10 @@ logger = logging.getLogger(__name__)
 class ConversationState:
     """Manages state for a single conversation."""
 
-    def __init__(self, analysis_id: str, conversation_id: str):
+    def __init__(self, analysis_id: str, conversation_id: str, user_id: Optional[str] = None):
         self.analysis_id = analysis_id
         self.conversation_id = conversation_id
+        self.user_id = user_id
         self.messages: list[dict] = []  # Claude API message format
         self.created_at = datetime.utcnow()
         self.last_active = datetime.utcnow()
@@ -121,7 +122,7 @@ class ConversationManager:
         self._ttl_minutes = ttl_minutes
 
     def get_or_create(
-        self, analysis_id: str, conversation_id: Optional[str] = None
+        self, analysis_id: str, conversation_id: Optional[str] = None, user_id: Optional[str] = None
     ) -> ConversationState:
         """Get existing conversation or create a new one."""
         # Clean up old conversations periodically
@@ -129,23 +130,32 @@ class ConversationManager:
 
         if conversation_id and conversation_id in self._conversations:
             conv = self._conversations[conversation_id]
-            # Verify it's for the right analysis
-            if conv.analysis_id == analysis_id:
+            # Verify it's for the right analysis and user
+            if conv.analysis_id == analysis_id and (not user_id or conv.user_id == user_id):
                 return conv
+            elif user_id and conv.user_id != user_id:
+                # Conversation exists but belongs to another user — don't return it
+                pass
 
         # Create new conversation
         new_id = conversation_id or str(uuid.uuid4())
-        conv = ConversationState(analysis_id, new_id)
+        conv = ConversationState(analysis_id, new_id, user_id=user_id)
         self._conversations[new_id] = conv
         return conv
 
-    def get(self, conversation_id: str) -> Optional[ConversationState]:
-        """Get a conversation by ID."""
-        return self._conversations.get(conversation_id)
+    def get(self, conversation_id: str, user_id: Optional[str] = None) -> Optional[ConversationState]:
+        """Get a conversation by ID, optionally verifying ownership."""
+        conv = self._conversations.get(conversation_id)
+        if conv and user_id and conv.user_id != user_id:
+            return None  # Not owned by this user
+        return conv
 
-    def delete(self, conversation_id: str) -> bool:
-        """Delete a conversation."""
-        if conversation_id in self._conversations:
+    def delete(self, conversation_id: str, user_id: Optional[str] = None) -> bool:
+        """Delete a conversation, optionally verifying ownership."""
+        conv = self._conversations.get(conversation_id)
+        if conv:
+            if user_id and conv.user_id != user_id:
+                return False  # Not owned by this user
             del self._conversations[conversation_id]
             return True
         return False
@@ -337,6 +347,7 @@ class ChatbotService:
         conversation_id: Optional[str] = None,
         tier_list: Optional[list] = None,
         context_mode: str = "codebase",
+        user_id: Optional[str] = None,
     ) -> ChatResponse:
         """Process a chat message and return a response.
 
@@ -353,8 +364,8 @@ class ChatbotService:
         Returns:
             ChatResponse with the assistant's response
         """
-        # Get or create conversation
-        conversation = self.conversation_manager.get_or_create(analysis_id, conversation_id)
+        # Get or create conversation (with user ownership)
+        conversation = self.conversation_manager.get_or_create(analysis_id, conversation_id, user_id=user_id)
 
         # Determine context and tools based on mode
         is_general = context_mode == "general"
@@ -540,6 +551,7 @@ class ChatbotService:
         conversation_id: Optional[str] = None,
         tier_list: Optional[list] = None,
         context_mode: str = "codebase",
+        user_id: Optional[str] = None,
     ) -> AsyncGenerator[StreamEvent, None]:
         """Process a chat message and stream the response.
 
@@ -559,8 +571,8 @@ class ChatbotService:
         Yields:
             StreamEvent objects for each chunk of the response
         """
-        # Get or create conversation
-        conversation = self.conversation_manager.get_or_create(analysis_id, conversation_id)
+        # Get or create conversation (with user ownership)
+        conversation = self.conversation_manager.get_or_create(analysis_id, conversation_id, user_id=user_id)
 
         # Determine context and tools based on mode
         is_general = context_mode == "general"
@@ -904,17 +916,17 @@ class ChatbotService:
         return questions[:6]  # Return max 6 questions
 
     def get_conversation_history(
-        self, conversation_id: str
+        self, conversation_id: str, user_id: Optional[str] = None
     ) -> Optional[list[ChatMessage]]:
         """Get the chat history for a conversation."""
-        conversation = self.conversation_manager.get(conversation_id)
+        conversation = self.conversation_manager.get(conversation_id, user_id=user_id)
         if conversation:
             return conversation.get_chat_history()
         return None
 
-    def delete_conversation(self, conversation_id: str) -> bool:
+    def delete_conversation(self, conversation_id: str, user_id: Optional[str] = None) -> bool:
         """Delete a conversation and its history."""
-        return self.conversation_manager.delete(conversation_id)
+        return self.conversation_manager.delete(conversation_id, user_id=user_id)
 
 
 # Singleton instance

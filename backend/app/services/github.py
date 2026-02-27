@@ -134,7 +134,14 @@ class GitHubService:
                 env=env
             )
 
-            stdout, stderr = await process.communicate()
+            try:
+                stdout, stderr = await asyncio.wait_for(
+                    process.communicate(), timeout=120  # 2-minute timeout
+                )
+            except asyncio.TimeoutError:
+                process.kill()
+                await process.wait()
+                raise RuntimeError("Repository clone timed out — repository may be too large")
 
             if process.returncode != 0:
                 error_msg = stderr.decode() if stderr else "Unknown error"
@@ -197,8 +204,10 @@ class GitHubService:
             # Write the script content
             # The script echoes the token as the password
             # Git calls this script with prompts like "Password for 'https://github.com':"
+            # SECURITY: Use shlex.quote() to prevent shell injection via crafted tokens
+            import shlex
             script_content = f"""#!/bin/sh
-echo "{token}"
+echo {shlex.quote(token)}
 """
             os.write(fd, script_content.encode())
         finally:

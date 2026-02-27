@@ -1,5 +1,6 @@
 """Main FastAPI application for Codebase Remap."""
-from fastapi import FastAPI, HTTPException
+import re
+from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 import httpx
 import os
@@ -7,6 +8,7 @@ from dotenv import load_dotenv
 
 from .api.routes import router
 from .api.chat import router as chat_router
+from .auth import get_current_user
 from .settings import get_settings
 
 load_dotenv()
@@ -56,11 +58,28 @@ async def root():
         "health": "/api/health",
     }
 
+# Validation pattern for GitHub owner/repo names
+_GITHUB_NAME_PATTERN = re.compile(r'^[a-zA-Z0-9\-_.]+$')
+
 @app.get("/api/github/repo-content/{owner}/{repo}/{path:path}")
-async def get_github_repo_content(owner: str, repo: str, path: str = ""):
+async def get_github_repo_content(
+    owner: str,
+    repo: str,
+    path: str = "",
+    current_user=Depends(get_current_user),
+):
     """
     Fetches file or folder content from GitHub.
+    Requires authentication to prevent abuse of server's GitHub token.
     """
+    # Validate owner and repo to prevent path injection
+    if not _GITHUB_NAME_PATTERN.match(owner) or not _GITHUB_NAME_PATTERN.match(repo):
+        raise HTTPException(status_code=400, detail="Invalid owner or repo name")
+
+    # Reject path traversal attempts
+    if ".." in path:
+        raise HTTPException(status_code=400, detail="Invalid path")
+
     github_url = f"https://api.github.com/repos/{owner}/{repo}/contents/{path}"
 
     async with httpx.AsyncClient() as client:
@@ -68,9 +87,9 @@ async def get_github_repo_content(owner: str, repo: str, path: str = ""):
 
     if response.status_code != 200:
         raise HTTPException(
-            status_code=response.status_code, 
-            detail=response.json().get("message", "GitHub API error")
+            status_code=response.status_code,
+            detail="GitHub API error"
         )
-        
+
     return response.json()
 

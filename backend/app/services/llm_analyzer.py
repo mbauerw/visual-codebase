@@ -2,6 +2,7 @@
 import asyncio
 import json
 import os
+import re
 from typing import Callable, Optional
 import logging
 
@@ -18,14 +19,23 @@ from ..models.schemas import (
     ParsedFile,
 )
 
-logging.basicConfig(
-    level=logging.DEBUG,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    filename='app.log',  # Write to this file
-    filemode='a'  # 'a' = append, 'w' = overwrite
-)
-
 logger = logging.getLogger(__name__)
+
+
+def _sanitize_for_prompt(text: str, max_length: int = 200) -> str:
+    """Sanitize user-derived text before embedding in LLM prompts.
+
+    Strips control characters, truncates long strings, and removes
+    patterns commonly used in prompt injection attacks.
+    """
+    if not text:
+        return text
+    # Remove control characters (except newlines and tabs)
+    text = re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]', '', text)
+    # Truncate to max length
+    if len(text) > max_length:
+        text = text[:max_length] + "..."
+    return text
 
 class LLMAnalyzer:
     """Service for analyzing codebase files using Claude."""
@@ -40,22 +50,24 @@ class LLMAnalyzer:
         """Build a summary of files for the LLM prompt."""
         summaries = []
         for f in files:
+            # Sanitize all user-derived strings before embedding in prompt
             # Format imports (limit to 10)
-            imports_str = ", ".join([imp.module for imp in f.imports[:10]])
+            imports_str = ", ".join([_sanitize_for_prompt(imp.module, 100) for imp in f.imports[:10]])
             if len(f.imports) > 10:
                 imports_str += f"... (+{len(f.imports) - 10} more)"
 
             # Format functions (limit to 15)
-            functions_str = ", ".join(f.functions[:15])
+            functions_str = ", ".join([_sanitize_for_prompt(fn, 100) for fn in f.functions[:15]])
             if len(f.functions) > 15:
                 functions_str += f"... (+{len(f.functions) - 15} more)"
 
             # Format classes (limit to 10)
-            classes_str = ", ".join(f.classes[:10])
+            classes_str = ", ".join([_sanitize_for_prompt(cls, 100) for cls in f.classes[:10]])
             if len(f.classes) > 10:
                 classes_str += f"... (+{len(f.classes) - 10} more)"
 
-            summary = f"- {f.relative_path} ({f.language.value}, {f.line_count} lines)\n"
+            sanitized_path = _sanitize_for_prompt(f.relative_path, 300)
+            summary = f"- {sanitized_path} ({f.language.value}, {f.line_count} lines)\n"
             summary += f"  Imports: {imports_str or 'none'}\n"
             summary += f"  Functions: {functions_str or 'none'}\n"
             summary += f"  Classes: {classes_str or 'none'}"

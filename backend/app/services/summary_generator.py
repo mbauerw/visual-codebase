@@ -1,6 +1,7 @@
 """Codebase summary generation service."""
 import json
 import os
+import re
 from typing import Optional
 
 import anthropic
@@ -214,9 +215,11 @@ class SummaryGenerator:
         sections = [f"# Project: {directory_name}\n"]
 
         # README section (truncated to ~4000 chars for token efficiency)
+        # Sanitize README content: strip control chars to reduce prompt injection risk
         if readme_content:
-            truncated = readme_content[:4000]
-            if len(readme_content) > 4000:
+            sanitized_readme = re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]', '', readme_content)
+            truncated = sanitized_readme[:4000]
+            if len(sanitized_readme) > 4000:
                 truncated += "\n... (truncated)"
             sections.append(f"## README Content:\n{truncated}\n")
         else:

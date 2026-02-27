@@ -1,8 +1,11 @@
 """Profile management service."""
+import logging
 import re
 import secrets
 from datetime import datetime
 from typing import Optional, Dict, Any, List
+
+logger = logging.getLogger(__name__)
 
 import bcrypt
 
@@ -134,26 +137,65 @@ class ProfileService:
                 "message": "Email updated. Please verify your new email address."
             }
         except Exception as e:
+            logger.error(f"Email update failed for user {user_id}: {e}")
             return {
                 "success": False,
-                "message": str(e)
+                "message": "Failed to update email. Please try again."
             }
+
+    async def verify_current_password(self, user_id: str, current_password: str) -> bool:
+        """Verify the user's current password before allowing a change.
+
+        Args:
+            user_id: The user's UUID
+            current_password: The password to verify
+
+        Returns:
+            True if the password matches, False otherwise
+        """
+        try:
+            # Get user's email to attempt sign-in verification
+            user = self.supabase.auth.admin.get_user_by_id(user_id)
+            if not user or not user.user or not user.user.email:
+                return False
+
+            # Attempt sign-in with current password to verify it
+            from ..config.supabase import get_supabase_client
+            client = get_supabase_client()
+            result = client.auth.sign_in_with_password({
+                "email": user.user.email,
+                "password": current_password,
+            })
+            return result.user is not None
+        except Exception:
+            return False
 
     async def change_password(
         self,
         user_id: str,
         new_password: str,
+        current_password: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Change user password.
 
         Args:
             user_id: The user's UUID
             new_password: New password (should be pre-validated)
+            current_password: Current password for verification
 
         Returns:
             Result dict with success status
         """
         try:
+            # Verify current password if provided
+            if current_password:
+                is_valid = await self.verify_current_password(user_id, current_password)
+                if not is_valid:
+                    return {
+                        "success": False,
+                        "message": "Current password is incorrect."
+                    }
+
             # Check password history
             is_safe = await self._check_password_history(user_id, new_password)
             if not is_safe:
@@ -176,9 +218,10 @@ class ProfileService:
                 "message": "Password updated successfully."
             }
         except Exception as e:
+            logger.error(f"Password change failed for user {user_id}: {e}")
             return {
                 "success": False,
-                "message": str(e)
+                "message": "Failed to update password. Please try again."
             }
 
 

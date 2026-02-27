@@ -65,7 +65,7 @@ async def send_chat_message(
     chatbot_service = get_chatbot_service()
 
     # Verify user has access to this analysis
-    graph = await db_service.get_analysis_result(analysis_id)
+    graph = await db_service.get_analysis_result(analysis_id, user_id=current_user.id)
     if not graph:
         raise HTTPException(
             status_code=404,
@@ -102,7 +102,7 @@ async def send_chat_message(
     except Exception as e:
         logger.warning(f"Could not load tier list for chatbot: {e}")
 
-    # Process the chat message
+    # Process the chat message (with user ownership tracking)
     response = await chatbot_service.chat(
         analysis_id=analysis_id,
         message=request.message,
@@ -112,6 +112,7 @@ async def send_chat_message(
         conversation_id=request.conversation_id,
         tier_list=tier_list,
         context_mode=request.context_mode.value,
+        user_id=current_user.id,
     )
 
     return response
@@ -137,15 +138,15 @@ async def get_chat_history(
     chatbot_service = get_chatbot_service()
 
     # Verify user has access to this analysis
-    graph = await db_service.get_analysis_result(analysis_id)
+    graph = await db_service.get_analysis_result(analysis_id, user_id=current_user.id)
     if not graph:
         raise HTTPException(
             status_code=404,
             detail="Analysis not found or not owned by user"
         )
 
-    # Get conversation history
-    history = chatbot_service.get_conversation_history(conversation_id)
+    # Get conversation history (with ownership check)
+    history = chatbot_service.get_conversation_history(conversation_id, user_id=current_user.id)
     if history is None:
         raise HTTPException(
             status_code=404,
@@ -179,15 +180,15 @@ async def delete_chat_history(
     chatbot_service = get_chatbot_service()
 
     # Verify user has access to this analysis
-    graph = await db_service.get_analysis_result(analysis_id)
+    graph = await db_service.get_analysis_result(analysis_id, user_id=current_user.id)
     if not graph:
         raise HTTPException(
             status_code=404,
             detail="Analysis not found or not owned by user"
         )
 
-    # Delete the conversation
-    success = chatbot_service.delete_conversation(conversation_id)
+    # Delete the conversation (with ownership check)
+    success = chatbot_service.delete_conversation(conversation_id, user_id=current_user.id)
     if not success:
         raise HTTPException(
             status_code=404,
@@ -220,7 +221,7 @@ async def stream_chat_message(
     chatbot_service = get_chatbot_service()
 
     # Verify user has access to this analysis
-    graph = await db_service.get_analysis_result(analysis_id)
+    graph = await db_service.get_analysis_result(analysis_id, user_id=current_user.id)
     if not graph:
         raise HTTPException(
             status_code=404,
@@ -267,6 +268,7 @@ async def stream_chat_message(
             conversation_id=request.conversation_id,
             tier_list=tier_list,
             context_mode=request.context_mode.value,
+            user_id=current_user.id,
         ):
             # Format as SSE
             data = json.dumps(event.model_dump())
@@ -304,7 +306,7 @@ async def get_suggested_questions(
     chatbot_service = get_chatbot_service()
 
     # Verify user has access to this analysis
-    graph = await db_service.get_analysis_result(analysis_id)
+    graph = await db_service.get_analysis_result(analysis_id, user_id=current_user.id)
     if not graph:
         raise HTTPException(
             status_code=404,

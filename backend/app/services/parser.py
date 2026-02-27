@@ -131,6 +131,10 @@ class FileParser:
             include_content: If True, include raw file content in result (for storage)
         """
         try:
+            # Skip symlinks to prevent reading sensitive files via malicious repos
+            if os.path.islink(file_path):
+                return None
+
             # Read file content
             with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
                 content = f.read()
@@ -2965,6 +2969,8 @@ class FileParser:
         base_module = module_name.split(".")[0]
         return base_module in apple_frameworks
 
+    MAX_FILE_COUNT = 5000  # Safety limit to prevent DoS via massive repos
+
     def walk_directory(
         self,
         directory: str,
@@ -2984,11 +2990,12 @@ class FileParser:
                 dirs.clear()
                 continue
 
-            # Skip common non-source directories
+            # Skip symlinked directories and common non-source directories
             dirs[:] = [
                 d
                 for d in dirs
-                if d
+                if not os.path.islink(os.path.join(root, d))
+                and d
                 not in (
                     ".git",
                     ".svn",
@@ -3036,9 +3043,16 @@ class FileParser:
                 dirs.remove("node_modules")
 
             for filename in filenames:
+                if len(files) >= self.MAX_FILE_COUNT:
+                    print(f"Warning: File count limit ({self.MAX_FILE_COUNT}) reached, skipping remaining files")
+                    return files
+                full_path = os.path.join(root, filename)
+                # Skip symlinks to prevent reading sensitive files via malicious repos
+                if os.path.islink(full_path):
+                    continue
                 ext = Path(filename).suffix.lower()
                 if ext in self.settings.supported_extensions:
-                    files.append(os.path.join(root, filename))
+                    files.append(full_path)
 
         return files
 
