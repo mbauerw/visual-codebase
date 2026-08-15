@@ -4,7 +4,7 @@ import axios, { AxiosError } from 'axios';
 import { useAuth } from './useAuth';
 import type { GitHubOwnerRepoListResponse } from '../types';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8100';
 
 export interface OwnerRepoError {
   type: 'not_found' | 'rate_limited' | 'invalid_username' | 'network' | 'unknown';

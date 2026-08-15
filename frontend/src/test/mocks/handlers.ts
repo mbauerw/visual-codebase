@@ -7,7 +7,7 @@ import type {
 } from '../../types';
 import type { TierListResponse, FunctionStats } from '../../types/tierList';
 
-const API_URL = 'http://localhost:8000/api';
+const API_URL = 'http://localhost:8100/api';
 
 // Sample data for tests
 export const mockAnalysisId = 'test-analysis-123';
@@ -306,7 +306,7 @@ export const handlers = [
   http.get(`${API_URL}/github/repos`, () => {
     return HttpResponse.json(mockGitHubRepos);
   }),
-  http.get('http://localhost:8000/api/github/repos', () => {
+  http.get('http://localhost:8100/api/github/repos', () => {
     return HttpResponse.json(mockGitHubRepos);
   }),
 

@@ -19,7 +19,7 @@ vi.mock('./useAuth', () => ({
   useAuth: vi.fn(() => mockAuthState),
 }));
 
-const API_URL = 'http://localhost:8000/api';
+const API_URL = 'http://localhost:8100/api';
 
 // Create a wrapper with QueryClientProvider
 const createWrapper = () => {

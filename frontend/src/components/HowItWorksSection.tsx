@@ -44,7 +44,7 @@ export default function HowItWorksSection() {
     }
   }, [isInView, animationStarted]);
 
-  // Phase 1: Rotate steps every 6 seconds until one full iteration
+  // Phase 1: Rotate steps every 4 seconds until one full iteration
   useEffect(() => {
     if (!animationStarted || iterationComplete) return;
 
@@ -58,7 +58,7 @@ export default function HowItWorksSection() {
         }
         return nextStep;
       });
-    }, 6000);
+    }, 4000);
 
     return () => clearInterval(interval);
   }, [animationStarted, iterationComplete]);
