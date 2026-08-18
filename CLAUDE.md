@@ -23,7 +23,7 @@ cp .env.example .env  # Add ANTHROPIC_API_KEY, SUPABASE_URL, SUPABASE_KEY
 # Run development server
 cd backend
 source venv/bin/activate
-uvicorn app.main:app --reload --port 8000
+uvicorn app.main:app --reload --port 8100
 
 # Run tests (if available)
 pytest

@@ -92,10 +92,10 @@ ANTHROPIC_API_KEY=your_api_key_here
 ```bash
 cd backend
 source venv/bin/activate  # On Windows: venv\Scripts\activate
-uvicorn app.main:app --reload --port 8000
+uvicorn app.main:app --reload --port 8100
 ```
 
-The API will be available at http://localhost:8000
+The API will be available at http://localhost:8100
 
 ### Start the frontend
 
@@ -131,15 +131,15 @@ The frontend will be available at http://localhost:5173
 
 ```bash
 # Start an analysis
-curl -X POST http://localhost:8000/api/analyze \
+curl -X POST http://localhost:8100/api/analyze \
   -H "Content-Type: application/json" \
   -d '{"directory_path": "/path/to/project"}'
 
 # Check status
-curl http://localhost:8000/api/analysis/{analysis_id}/status
+curl http://localhost:8100/api/analysis/{analysis_id}/status
 
 # Get results
-curl http://localhost:8000/api/analysis/{analysis_id}
+curl http://localhost:8100/api/analysis/{analysis_id}
 ```
 
 ## Architecture

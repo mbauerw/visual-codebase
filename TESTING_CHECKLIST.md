@@ -10,13 +10,13 @@ Run these first to catch obvious issues:
 
 ```bash
 # Backend health check
-curl http://localhost:8000/api/health
+curl http://localhost:8100/api/health
 
 # Frontend builds without errors
 cd frontend && npm run build
 
 # Backend starts without errors
-cd backend && uvicorn app.main:app --reload --port 8000
+cd backend && uvicorn app.main:app --reload --port 8100
 ```
 
 ---
@@ -173,7 +173,7 @@ cd backend && uvicorn app.main:app --reload --port 8000
 
 ```bash
 # 1. Start backend
-cd backend && uvicorn app.main:app --port 8000
+cd backend && uvicorn app.main:app --port 8100
 
 # 2. Start frontend
 cd frontend && npm run dev
