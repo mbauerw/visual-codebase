@@ -92,6 +92,7 @@ export function useCanvasGestures(
         }
         delete container.dataset.panning;
         container.style.cursor = savedCursor;
+        store.setInteracting(false);
       }
       phase = 'idle';
       pointerId = -1;
@@ -128,6 +129,9 @@ export function useCanvasGestures(
         container.dataset.panning = 'true';
         savedCursor = container.style.cursor;
         container.style.cursor = 'grabbing';
+        // Promote the world layer for the duration of the pan only. Zoom must
+        // NOT promote: scale changes on a promoted giant layer corrupt raster tiles.
+        store.setInteracting(true);
       }
       store.set({ x: startViewport.x + dx, y: startViewport.y + dy, zoom: startViewport.zoom });
     };

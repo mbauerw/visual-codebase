@@ -318,7 +318,10 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
         <div
           ref={worldRef}
           data-graph-world=""
-          style={{ position: 'absolute', left: 0, top: 0, width: 0, height: 0, transformOrigin: '0 0', willChange: 'transform' }}
+          // No static will-change here: the world can span tens of thousands of
+          // px, and keeping it permanently promoted corrupts GPU raster tiles on
+          // zoom. The viewport store promotes it only during an active pan.
+          style={{ position: 'absolute', left: 0, top: 0, width: 0, height: 0, transformOrigin: '0 0' }}
         >
           <NodeLayer layer="background" />
           <NodeLayer layer="containers" />

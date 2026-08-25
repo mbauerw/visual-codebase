@@ -49,6 +49,31 @@ describe('createViewportStore', () => {
     expect(el.style.transform).toBe('translate(3px, 4px) scale(0.5)');
   });
 
+  it('setInteracting() promotes the world only while active', () => {
+    const { store } = setup();
+    const el = document.createElement('div');
+    store.attachWorld(el);
+    expect(el.style.willChange).toBe('');
+    store.setInteracting(true);
+    expect(el.style.willChange).toBe('transform');
+    store.setInteracting(false);
+    expect(el.style.willChange).toBe('');
+  });
+
+  it('attachWorld() applies the current interacting state', () => {
+    const { store } = setup();
+    store.setInteracting(true);
+    const el = document.createElement('div');
+    store.attachWorld(el);
+    expect(el.style.willChange).toBe('transform');
+    // Re-attach after the gesture ended: promotion is cleared.
+    store.setInteracting(false);
+    const el2 = document.createElement('div');
+    el2.style.willChange = 'transform';
+    store.attachWorld(el2);
+    expect(el2.style.willChange).toBe('');
+  });
+
   it('coalesces multiple set() calls into one commit + one notification', () => {
     const { store, frames } = setup();
     const listener = vi.fn();

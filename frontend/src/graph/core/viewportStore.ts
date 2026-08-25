@@ -29,6 +29,13 @@ export interface ViewportStore {
   setLimits(limits: ZoomLimits): void;
   /** Applies the current transform to the element immediately. */
   attachWorld(el: HTMLElement | null): void;
+  /**
+   * Gesture-scoped layer promotion: `will-change: transform` on the world only
+   * while a pan is active. The world can span tens of thousands of px — keeping
+   * it permanently promoted makes the GPU hold/re-raster a giant layer and
+   * corrupts tiles on zoom (ghost nodes, misplaced page layers).
+   */
+  setInteracting(active: boolean): void;
   /** Tween via `set()`; cancels any running animation; `durationMs <= 0` → `set()` directly. */
   animateTo(v: Viewport, durationMs: number): Promise<void>;
   cancelAnimation(): void;
@@ -89,10 +96,15 @@ export function createViewportStore(init: ViewportStoreInit = {}): ViewportStore
   let rafId: number | null = null;
   let animation: TweenHandle | null = null;
   let destroyed = false;
+  let interacting = false;
   const listeners = new Set<() => void>();
 
   const applyTransform = (): void => {
     if (world) world.style.transform = viewportTransform(pending);
+  };
+
+  const applyWillChange = (): void => {
+    if (world) world.style.willChange = interacting ? 'transform' : '';
   };
 
   const notify = (): void => {
@@ -168,6 +180,13 @@ export function createViewportStore(init: ViewportStoreInit = {}): ViewportStore
     attachWorld(el) {
       world = el;
       applyTransform();
+      applyWillChange();
+    },
+
+    setInteracting(active) {
+      if (interacting === active) return;
+      interacting = active;
+      applyWillChange();
     },
 
     animateTo(v, durationMs) {

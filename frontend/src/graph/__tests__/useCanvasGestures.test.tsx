@@ -148,6 +148,33 @@ describe('useCanvasGestures — pan', () => {
     expect(store.peek()).toEqual({ x: 50, y: 0, zoom: 1 });
   });
 
+  it('promotes the world layer only while a pan is active — never for wheel zoom', () => {
+    const { canvas, store } = setup();
+    const world = document.createElement('div');
+    store.attachWorld(world);
+
+    fireEvent.pointerDown(canvas, { pointerId: 1, button: 0, clientX: 100, clientY: 100 });
+    expect(world.style.willChange).toBe(''); // pending, not yet panning
+    fireEvent.pointerMove(canvas, { pointerId: 1, clientX: 110, clientY: 95 });
+    expect(world.style.willChange).toBe('transform'); // panning
+    fireEvent.pointerUp(canvas, { pointerId: 1, button: 0, clientX: 110, clientY: 95 });
+    expect(world.style.willChange).toBe(''); // demoted on pan end
+
+    fireEvent.wheel(canvas, { clientX: 100, clientY: 100, deltaY: -100, deltaMode: 0 });
+    expect(world.style.willChange).toBe(''); // zoom must not promote
+  });
+
+  it('pointercancel demotes the world layer', () => {
+    const { canvas, store } = setup();
+    const world = document.createElement('div');
+    store.attachWorld(world);
+    fireEvent.pointerDown(canvas, { pointerId: 1, button: 0, clientX: 0, clientY: 0 });
+    fireEvent.pointerMove(canvas, { pointerId: 1, clientX: 50, clientY: 0 });
+    expect(world.style.willChange).toBe('transform');
+    fireEvent.pointerCancel(canvas, { pointerId: 1 });
+    expect(world.style.willChange).toBe('');
+  });
+
   it('does nothing when enabled === false', () => {
     const onBackgroundClick = vi.fn();
     const { canvas, store } = setup({ enabled: false, onBackgroundClick });
