@@ -1,6 +1,6 @@
 import { X, FileCode, Folder, Hash, Code, Layers, ChevronsLeftRight, File } from 'lucide-react';
 import { roleColors, roleLabels, languageColors } from '../types';
-import { CategoryRoleData } from './CategoryNode';
+import type { CategoryRoleData } from './graphs/SharedGraphTypes';
 import type { ArchitecturalRole } from '../types';
 
 interface CategoryDetailPanelProps {

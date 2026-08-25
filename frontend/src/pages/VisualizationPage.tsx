@@ -1,7 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import type { Edge } from '@xyflow/react';
-import '@xyflow/react/dist/style.css';
 import {
   ArrowLeft,
   FileCode,
@@ -12,10 +10,9 @@ import {
   ChevronsLeftRight,
   MessageSquare,
   Layers,
-  ChevronDown
 } from 'lucide-react';
 
-import { type CategoryRoleData } from '../components/CategoryNode';
+import type { CategoryRoleData } from '../components/graphs/SharedGraphTypes';
 import EdgeDetailPopover from '../components/EdgeDetailPopover';
 import NodeDetailPanel from '../components/NodeDetailPanel';
 import CategoryRolePanel from '../components/CateogoryDetailPanel';
@@ -26,6 +23,7 @@ import type { FunctionTierItem } from '../types/tierList';
 import { BarChart3, FileText } from 'lucide-react';
 import type {
   ReactFlowGraph,
+  ReactFlowEdge,
   ReactFlowNodeData,
   Language,
   ArchitecturalRole,
@@ -70,7 +68,7 @@ export default function VisualizationPage() {
   const [loading, setLoading] = useState(true);
 
   // Edge popover state
-  const [selectedEdge, setSelectedEdge] = useState<Edge | null>(null);
+  const [selectedEdge, setSelectedEdge] = useState<ReactFlowEdge | null>(null);
   const [edgePopoverPosition, setEdgePopoverPosition] = useState<{ x: number; y: number } | null>(null);
 
   // Highlighted lines state for source code panel (used when selecting functions from tier list)
@@ -300,7 +298,7 @@ export default function VisualizationPage() {
   }, []);
 
   // Handle edge click from graph components
-  const handleEdgeClick = useCallback((edge: Edge, position: { x: number; y: number }) => {
+  const handleEdgeClick = useCallback((edge: ReactFlowEdge, position: { x: number; y: number }) => {
     setSelectedEdge(edge);
     setEdgePopoverPosition(position);
     // Clear node selection when clicking edge

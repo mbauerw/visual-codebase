@@ -1,30 +1,121 @@
 /**
- * Layout algorithm for the Nested Containment Diagram visualization.
+ * Layout algorithm for the Nested Containment (folder) visualization.
  *
- * Uses a three-phase approach:
- * 1. Tree Construction - Transform flat file nodes into hierarchical tree
- * 2. Bottom-Up Sizing - Calculate container dimensions from children
- * 3. Top-Down Positioning - Assign positions respecting parent containment
+ * Pure: `ReactFlowNode[]` in → absolute boxes out. No React Flow.
  *
- * This layout prioritizes vertical stacking for a balanced appearance.
+ * Three phases:
+ * 1. Tree Construction — transform flat file nodes into a folder/file tree
+ * 2. Bottom-Up Sizing  — container dimensions from children (folders in a
+ *    2-column grid above files in a 3-column grid)
+ * 3. Top-Down Positioning — parent-relative positions respecting containment
+ *
+ * `computeNestedLayout` then flattens the tree into `NestedFolderBox` /
+ * `NestedFileBox` lists with ABSOLUTE coordinates (parent offsets are
+ * accumulated while walking the tree). Top-level folders are laid out side by
+ * side separated by `topLevelGap`, exactly as before. `toNestedScene` turns
+ * the result into a `GraphScene` for the engine:
+ *
+ *   folders → kind 'folder' (containers layer, interactive, data: NestedFolderNodeData)
+ *   files   → kind 'file'   (nodes layer, parentId = folder id, data = the ORIGINAL ReactFlowNodeData)
  */
 
-import type { Node } from '@xyflow/react';
-import type { ReactFlowNode, ReactFlowEdge, Category } from '../../types';
-import type {
-  NestedLayoutConfig,
-  NestedFileNodeData,
-  NestedFolderNodeData,
-  NestedDiagramNode,
-  NestedDiagramEdge,
-} from './types';
-import { DEFAULT_NESTED_LAYOUT_CONFIG } from './types';
+import type { ReactFlowNode, ReactFlowNodeData, Category } from '../../types';
+import type { GraphEdge, GraphNode, GraphScene } from '../core/types';
+import { createScene } from '../core/sceneUtils';
+import type { NestedFolderNodeData } from '../theme/nestedTheme';
+
+// =============================================================================
+// Configuration
+// =============================================================================
+
+export interface NestedLayoutConfig {
+  /** Padding inside folder containers (around children) */
+  containerPadding: number;
+  /** Height reserved for folder header/label */
+  headerHeight: number;
+  /** Horizontal gap between sibling items */
+  itemGapX: number;
+  /** Vertical gap between rows of children */
+  itemGapY: number;
+  /** Maximum items per row in grid layout */
+  maxItemsPerRow: number;
+  /** Base width for file nodes (the renderer slot) */
+  fileNodeWidth: number;
+  /** Base height for file nodes (the renderer slot) */
+  fileNodeHeight: number;
+  /** Minimum container width */
+  minContainerWidth: number;
+  /** Minimum container height */
+  minContainerHeight: number;
+  /** Gap between top-level folder groups */
+  topLevelGap: number;
+}
+
+export const DEFAULT_NESTED_LAYOUT_CONFIG: NestedLayoutConfig = {
+  containerPadding: 24,
+  headerHeight: 45,
+  itemGapX: 30,
+  itemGapY: 20,
+  maxItemsPerRow: 3, // Fewer columns for a more vertical layout
+  fileNodeWidth: 150,
+  fileNodeHeight: 60,
+  minContainerWidth: 200,
+  minContainerHeight: 120,
+  topLevelGap: 60,
+};
+
+// =============================================================================
+// Result types (absolute coordinates)
+// =============================================================================
+
+export interface NestedFolderBox {
+  /** `folder-<path>` */
+  id: string;
+  /** Folder name (last path segment) */
+  label: string;
+  /** Folder path relative to the repository root */
+  path: string;
+  /** Absolute world coordinates */
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  /** Tree depth: 1 = top-level folder (matches the previous RF node data, drives the amber ramp) */
+  depth: number;
+  /** Parent folder id, undefined for top-level folders */
+  parentId?: string;
+  /** Number of files contained (direct + indirect) */
+  fileCount: number;
+  /** Category derived from contained files */
+  category: Category;
+}
+
+export interface NestedFileBox {
+  /** The API node id (never remapped) */
+  id: string;
+  /** Absolute world coordinates */
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  /** Nesting depth (= number of path segments) */
+  depth: number;
+  /** Containing folder id, undefined for files at the repository root */
+  parentId?: string;
+  /** The original API node */
+  node: ReactFlowNode;
+}
+
+export interface NestedLayoutResult {
+  folders: NestedFolderBox[];
+  files: NestedFileBox[];
+}
 
 // =============================================================================
 // Internal Tree Structure
 // =============================================================================
 
-interface TreeNode {
+export interface TreeNode {
   id: string;
   name: string;
   path: string;
@@ -34,20 +125,16 @@ interface TreeNode {
   originalNode?: ReactFlowNode;
   width: number;
   height: number;
+  /** Parent-relative position (absolute for top-level children of the root) */
   x: number;
   y: number;
-}
-
-export interface NestedLayoutResult {
-  nodes: NestedDiagramNode[];
-  edges: NestedDiagramEdge[];
 }
 
 // =============================================================================
 // Phase 1: Build Tree
 // =============================================================================
 
-function buildTree(nodes: ReactFlowNode[]): TreeNode {
+export function buildTree(nodes: ReactFlowNode[]): TreeNode {
   const root: TreeNode = {
     id: 'root',
     name: 'root',
@@ -156,13 +243,11 @@ function calculateFolderGridBounds(
     return { width: 0, height: 0, cols: 0, rows: 0 };
   }
 
-  // Determine grid layout - aim for more vertical arrangement
   // Use 2 columns max for folders to create vertical stacking
   const maxFolderCols = 2;
   const cols = Math.min(folders.length, maxFolderCols);
   const rows = Math.ceil(folders.length / maxFolderCols);
 
-  // Calculate row heights (each row takes the max height of its folders)
   const rowHeights: number[] = [];
   const rowWidths: number[] = [];
 
@@ -186,7 +271,7 @@ function calculateFolderGridBounds(
   return { width: maxWidth, height: totalHeight, cols, rows };
 }
 
-function calculateDimensions(
+export function calculateDimensions(
   node: TreeNode,
   config: NestedLayoutConfig
 ): void {
@@ -212,8 +297,7 @@ function calculateDimensions(
   const fileGridBounds = calculateFileGridBounds(files, config);
   const folderGridBounds = calculateFolderGridBounds(folders, config);
 
-  // Stack files on top, folders below (or vice versa)
-  // Put folders first (top), then files below for hierarchical feel
+  // Folders first (top), then files below for a hierarchical feel
   const contentWidth = Math.max(fileGridBounds.width, folderGridBounds.width);
   const gapBetweenSections = (folders.length > 0 && files.length > 0) ? config.itemGapY * 1.5 : 0;
   const contentHeight = folderGridBounds.height + gapBetweenSections + fileGridBounds.height;
@@ -229,10 +313,10 @@ function calculateDimensions(
 }
 
 // =============================================================================
-// Phase 3: Assign Positions (Top-Down)
+// Phase 3: Assign Positions (Top-Down, parent-relative)
 // =============================================================================
 
-function assignPositions(
+export function assignPositions(
   node: TreeNode,
   startX: number,
   startY: number,
@@ -261,7 +345,6 @@ function assignPositions(
       const endIdx = Math.min(startIdx + maxFolderCols, folders.length);
       const rowFolders = folders.slice(startIdx, endIdx);
 
-      // Calculate row width for centering
       const rowWidth = rowFolders.reduce((sum, f) => sum + f.width, 0) +
         (rowFolders.length - 1) * config.itemGapX;
 
@@ -305,17 +388,17 @@ function assignPositions(
 }
 
 // =============================================================================
-// Tree to ReactFlow Conversion
+// Tree helpers
 // =============================================================================
 
-function countFiles(node: TreeNode): number {
+export function countFiles(node: TreeNode): number {
   if (node.type === 'file') {
     return 1;
   }
   return node.children.reduce((sum, child) => sum + countFiles(child), 0);
 }
 
-function getDominantCategory(node: TreeNode): Category {
+export function getDominantCategory(node: TreeNode): Category {
   if (node.type === 'file') {
     return node.originalNode?.data.category || 'unknown';
   }
@@ -351,127 +434,29 @@ function getDominantCategory(node: TreeNode): Category {
   return maxCategory;
 }
 
-function getParentPath(path: string): string {
-  const parts = path.split('/').filter(Boolean);
-  if (parts.length <= 1) {
-    return '';
-  }
-  return parts.slice(0, -1).join('/');
-}
-
-function treeToReactFlowNodes(root: TreeNode): NestedDiagramNode[] {
-  const nodes: NestedDiagramNode[] = [];
-
-  function traverse(node: TreeNode, parentId: string | undefined): void {
-    if (node.id === 'root') {
-      for (const child of node.children) {
-        traverse(child, undefined);
-      }
-      return;
-    }
-
-    if (node.type === 'folder') {
-      const folderNode: Node<NestedFolderNodeData, 'nestedFolder'> = {
-        id: node.id,
-        type: 'nestedFolder',
-        position: { x: node.x, y: node.y },
-        data: {
-          label: node.name,
-          path: node.path,
-          parentPath: getParentPath(node.path),
-          width: node.width,
-          height: node.height,
-          fileCount: countFiles(node),
-          depth: node.depth,
-          isExpanded: true,
-          category: getDominantCategory(node),
-        },
-        style: {
-          width: node.width,
-          height: node.height,
-        },
-        ...(parentId && { parentId, extent: 'parent' as const }),
-      };
-      nodes.push(folderNode);
-
-      for (const child of node.children) {
-        traverse(child, node.id);
-      }
-    } else if (node.type === 'file' && node.originalNode) {
-      const original = node.originalNode;
-      const fileNode: Node<NestedFileNodeData, 'nestedFile'> = {
-        id: node.id,
-        type: 'nestedFile',
-        position: { x: node.x, y: node.y },
-        data: {
-          label: node.name,
-          path: original.data.path,
-          folder: original.data.folder,
-          language: original.data.language,
-          role: original.data.role,
-          description: original.data.description,
-          category: original.data.category,
-          imports: original.data.imports,
-          sizeBytes: original.data.size_bytes,
-          lineCount: original.data.line_count,
-          depth: node.depth,
-        },
-        ...(parentId && { parentId, extent: 'parent' as const }),
-      };
-      nodes.push(fileNode);
-    }
-  }
-
-  traverse(root, undefined);
-  return nodes;
-}
-
-function sortNodesForReactFlow(nodes: NestedDiagramNode[]): NestedDiagramNode[] {
-  const childrenMap = new Map<string, NestedDiagramNode[]>();
-  const rootNodes: NestedDiagramNode[] = [];
-
-  for (const node of nodes) {
-    const parentId = (node as Node).parentId;
-    if (parentId) {
-      const siblings = childrenMap.get(parentId) || [];
-      siblings.push(node);
-      childrenMap.set(parentId, siblings);
-    } else {
-      rootNodes.push(node);
-    }
-  }
-
-  const sorted: NestedDiagramNode[] = [];
-  const queue = [...rootNodes];
-
-  while (queue.length > 0) {
-    const node = queue.shift()!;
-    sorted.push(node);
-
-    const children = childrenMap.get(node.id) || [];
-    queue.push(...children);
-  }
-
-  return sorted;
-}
-
 // =============================================================================
-// Main Export Functions
+// Main export: tree → absolute boxes
 // =============================================================================
 
-export function buildNestedNodes(
-  nodes: ReactFlowNode[],
-  edges: ReactFlowEdge[],
+/**
+ * Lay out `fileNodes` as nested folder boxes. Returned coordinates are
+ * ABSOLUTE (parent offsets accumulated); order is parents-first, depth-first,
+ * so a folder always precedes its contents.
+ */
+export function computeNestedLayout(
+  fileNodes: ReactFlowNode[],
   config: Partial<NestedLayoutConfig> = {}
 ): NestedLayoutResult {
-  const finalConfig = { ...DEFAULT_NESTED_LAYOUT_CONFIG, ...config };
+  const finalConfig: NestedLayoutConfig = { ...DEFAULT_NESTED_LAYOUT_CONFIG, ...config };
+  const folders: NestedFolderBox[] = [];
+  const files: NestedFileBox[] = [];
 
-  if (nodes.length === 0) {
-    return { nodes: [], edges: [] };
+  if (fileNodes.length === 0) {
+    return { folders, files };
   }
 
   // Phase 1: Build tree
-  const tree = buildTree(nodes);
+  const tree = buildTree(fileNodes);
 
   // Phase 2: Calculate dimensions (bottom-up)
   calculateDimensions(tree, finalConfig);
@@ -483,42 +468,96 @@ export function buildNestedNodes(
     currentX += child.width + finalConfig.topLevelGap;
   }
 
-  // Convert to ReactFlow format
-  const reactFlowNodes = treeToReactFlowNodes(tree);
-  const sortedNodes = sortNodesForReactFlow(reactFlowNodes);
-  const nestedEdges = edges as unknown as NestedDiagramEdge[];
+  // Flatten, accumulating parent offsets → absolute coordinates
+  function walk(node: TreeNode, offsetX: number, offsetY: number, parentId: string | undefined): void {
+    const absX = offsetX + node.x;
+    const absY = offsetY + node.y;
 
-  return {
-    nodes: sortedNodes,
-    edges: nestedEdges,
-  };
+    if (node.type === 'folder') {
+      folders.push({
+        id: node.id,
+        label: node.name,
+        path: node.path,
+        x: absX,
+        y: absY,
+        width: node.width,
+        height: node.height,
+        depth: node.depth,
+        parentId,
+        fileCount: countFiles(node),
+        category: getDominantCategory(node),
+      });
+      for (const child of node.children) {
+        walk(child, absX, absY, node.id);
+      }
+    } else if (node.originalNode) {
+      files.push({
+        id: node.id,
+        x: absX,
+        y: absY,
+        width: node.width,
+        height: node.height,
+        depth: node.depth,
+        parentId,
+        node: node.originalNode,
+      });
+    }
+  }
+
+  for (const child of tree.children) {
+    walk(child, 0, 0, undefined);
+  }
+
+  return { folders, files };
 }
 
-export function calculateContainerBounds(
-  children: Array<{ x: number; y: number; width: number; height: number }>,
-  padding: number = 20
-): { width: number; height: number } {
-  if (children.length === 0) {
-    return { width: padding * 2, height: padding * 2 };
+// =============================================================================
+// Scene adapter
+// =============================================================================
+
+/**
+ * NestedLayoutResult → GraphScene. File nodes carry the ORIGINAL API node data
+ * (no camelCase round-trip), so `onNodeSelect(node.id, node.data)` is trivial.
+ * Edges are passed through; `createScene` drops any whose endpoint is missing.
+ */
+export function toNestedScene(layout: NestedLayoutResult, edges: readonly GraphEdge[]): GraphScene {
+  const nodes: GraphNode[] = [];
+
+  for (const f of layout.folders) {
+    const data: NestedFolderNodeData = {
+      label: f.label,
+      path: f.path,
+      depth: f.depth,
+      fileCount: f.fileCount,
+      category: f.category,
+    };
+    nodes.push({
+      id: f.id,
+      kind: 'folder',
+      x: f.x,
+      y: f.y,
+      width: f.width,
+      height: f.height,
+      depth: f.depth,
+      parentId: f.parentId,
+      interactive: true,
+      data,
+    });
   }
 
-  let maxX = 0;
-  let maxY = 0;
-
-  for (const child of children) {
-    const rightEdge = child.x + child.width;
-    const bottomEdge = child.y + child.height;
-
-    if (rightEdge > maxX) {
-      maxX = rightEdge;
-    }
-    if (bottomEdge > maxY) {
-      maxY = bottomEdge;
-    }
+  for (const f of layout.files) {
+    nodes.push({
+      id: f.id,
+      kind: 'file',
+      x: f.x,
+      y: f.y,
+      width: f.width,
+      height: f.height,
+      depth: f.depth,
+      parentId: f.parentId,
+      data: f.node.data as ReactFlowNodeData,
+    });
   }
 
-  return {
-    width: maxX + padding,
-    height: maxY + padding,
-  };
+  return createScene(nodes, [...edges]);
 }

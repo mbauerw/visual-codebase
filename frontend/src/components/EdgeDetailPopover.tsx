@@ -1,10 +1,9 @@
 import { useEffect, useRef, useCallback, useState } from 'react';
 import { X, Package, ArrowRight, Copy, Check, GripHorizontal } from 'lucide-react';
-import type { Edge } from '@xyflow/react';
-import type { ReactFlowEdgeData, ReactFlowNode } from '../types';
+import type { ReactFlowEdge, ReactFlowEdgeData, ReactFlowNode } from '../types';
 
 interface EdgeDetailPopoverProps {
-  edge: Edge | null;
+  edge: ReactFlowEdge | null;
   position: { x: number; y: number } | null;
   onClose: () => void;
   nodes: ReactFlowNode[];
