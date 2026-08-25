@@ -373,7 +373,8 @@ class RundownGenerator:
                     system=system_prompt,
                     messages=[{"role": "user", "content": user_prompt}],
                 )
-                return message.content[0].text
+                # Models with thinking enabled return thinking blocks before text
+                return "".join(b.text for b in message.content if b.type == "text")
             except anthropic.APIError as e:
                 last_error = e
                 if attempt < MAX_RETRIES:
