@@ -9,9 +9,12 @@
  * - Filtering, layout and scene building are pure and memoised
  * - Selection is controlled: `selectedNodeId` / `selectionSource` come from
  *   the page, the clicked edge id is local; the canvas derives highlights
- * - Click dispatch by `node.kind`: file → onNodeSelect, category pill →
- *   onCategorySelect, edge → onEdgeClick with the ORIGINAL API edge,
- *   background → onPaneClick
+ * - Click dispatch by `node.kind`: file → onNodeSelect, category (anywhere on
+ *   the box or its pill) → onCategorySelect, edge → onEdgeClick with the
+ *   ORIGINAL API edge, background → onPaneClick
+ * - Categories are draggable (grab anywhere that isn't a file node; files move
+ *   with their category). Files/sections are not. Offsets reset on filter/search
+ *   changes; hold space to pan from anywhere
  * - External selections (tier list / file tree / rundown — anything the graph
  *   did not emit itself) pan the camera to the node via `focusNode`
  * - Chrome (filter panel, zoom controls, minimap) lives in the canvas overlay
@@ -194,6 +197,7 @@ export default function RoleLayoutGraph({
         renderers={roleRenderers}
         selection={selection}
         nodeThemeOverride={nodeThemeOverride}
+        nodesDraggable
         onNodeClick={handleNodeClick}
         onEdgeClick={handleEdgeClick}
         onBackgroundClick={handleBackgroundClick}

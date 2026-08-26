@@ -2,7 +2,9 @@
  * Adapter: RoleLayoutResult (pure boxes) → GraphScene for the engine.
  *
  *   sections   → kind 'section'  (background layer, decorative)
- *   categories → kind 'category' (containers layer, interactive:false — only the header pill is clickable)
+ *   categories → kind 'category' (containers layer, interactive — the whole box
+ *                clicks/drags; file nodes sit in a layer above, so a press on a
+ *                file never reaches the category)
  *   files      → kind 'file'     (nodes layer, parentId = category, scale = scaleTier)
  */
 
@@ -37,6 +39,7 @@ export function toRoleScene(
         height: s.height,
         depth: 0,
         interactive: false,
+        draggable: false,
         data,
       });
     }
@@ -57,7 +60,6 @@ export function toRoleScene(
       width: c.width,
       height: c.height,
       depth: 0,
-      interactive: false,
       data,
     });
   }
@@ -73,6 +75,7 @@ export function toRoleScene(
       scale: f.scaleTier,
       parentId: f.categoryId,
       depth: 1,
+      draggable: false,
       data: f.data as ReactFlowNodeData,
     });
   }

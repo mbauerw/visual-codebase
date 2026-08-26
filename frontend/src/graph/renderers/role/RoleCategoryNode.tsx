@@ -2,9 +2,11 @@
  * RoleCategoryNode — role container box for the role layout (port of the
  * `level === 'role'` branch of components/CategoryNode.tsx).
  *
- * The scene marks category nodes `interactive: false`, so the wrapper is
- * `pointer-events: none`; only the header pill re-enables pointer events so a
- * click on it bubbles to the wrapper and fires `onNodeClick(node)`.
+ * The wrapper is interactive: a click anywhere on the box (or the header pill)
+ * fires `onNodeClick(node)`, and with the canvas's `nodesDraggable` the box is
+ * the drag surface for moving the category. This root div keeps
+ * `pointer-events: none` so the wrapper itself is the event target; the pill
+ * re-enables pointer events for its hover scale + pointer cursor.
  *
  * LOD: `far` drops the role icon from the header pill (label + count only —
  * the icon is a 50px SVG that is pure noise at that size); mid/near are identical.

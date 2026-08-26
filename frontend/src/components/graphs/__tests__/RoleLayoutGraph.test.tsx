@@ -175,6 +175,78 @@ describe('RoleLayoutGraph (graph engine)', () => {
 });
 
 // ---------------------------------------------------------------------------
+// Category dragging: grab anywhere on the category box that isn't a file node
+// ---------------------------------------------------------------------------
+
+describe('RoleLayoutGraph category dragging', () => {
+  const nodeTranslate = (el: HTMLElement) => {
+    const m = /translate\((-?[\d.e-]+)px, (-?[\d.e-]+)px\)/.exec(el.style.transform);
+    if (!m) throw new Error(`unexpected transform: ${el.style.transform}`);
+    return { x: parseFloat(m[1]), y: parseFloat(m[2]) };
+  };
+
+  it('categories are draggable, files and sections are not', () => {
+    renderGraph();
+    const category = document.querySelector('[data-node-kind="category"]') as HTMLElement;
+    expect(category).toHaveAttribute('data-node-draggable');
+    fileNodeIds.forEach((id) => {
+      expect(screen.getByTestId(`graph-node-${id}`)).not.toHaveAttribute('data-node-draggable');
+    });
+    const section = document.querySelector('[data-node-kind="section"]') as HTMLElement;
+    expect(section).not.toHaveAttribute('data-node-draggable');
+  });
+
+  it('dragging the category box moves the category and its files; the drag-end click does not open the panel', () => {
+    const { props } = renderGraph();
+    const category = document.querySelector('[data-node-kind="category"]') as HTMLElement;
+    const file = screen.getByTestId('graph-node-node1');
+    const categoryStart = nodeTranslate(category);
+    const fileStart = nodeTranslate(file);
+
+    fireEvent.pointerDown(category, { pointerId: 1, button: 0, clientX: 100, clientY: 100 });
+    // within the 4px threshold: nothing moves yet
+    fireEvent.pointerMove(category, { pointerId: 1, clientX: 102, clientY: 101 });
+    expect(nodeTranslate(category)).toEqual(categoryStart);
+    // beyond the threshold: category + descendant files follow (zoom 1 → world delta = client delta)
+    fireEvent.pointerMove(category, { pointerId: 1, clientX: 130, clientY: 120 });
+    expect(category).toHaveAttribute('data-dragging');
+    expect(nodeTranslate(category)).toEqual({ x: categoryStart.x + 30, y: categoryStart.y + 20 });
+    expect(nodeTranslate(file)).toEqual({ x: fileStart.x + 30, y: fileStart.y + 20 });
+
+    fireEvent.pointerUp(category, { pointerId: 1, button: 0, clientX: 130, clientY: 120 });
+    expect(category).not.toHaveAttribute('data-dragging');
+    // the click the browser fires after the drag is swallowed …
+    fireEvent.click(category);
+    expect(props.onCategorySelect).not.toHaveBeenCalled();
+    // … but only that one
+    fireEvent.click(category);
+    expect(props.onCategorySelect).toHaveBeenCalledTimes(1);
+  });
+
+  it('a plain click anywhere on the category box (not just the pill) opens the category panel', () => {
+    const { props } = renderGraph();
+    const category = document.querySelector('[data-node-kind="category"]') as HTMLElement;
+    fireEvent.pointerDown(category, { pointerId: 1, button: 0, clientX: 50, clientY: 50 });
+    fireEvent.pointerUp(category, { pointerId: 1, button: 0, clientX: 50, clientY: 50 });
+    fireEvent.click(category);
+    expect(props.onCategorySelect).toHaveBeenCalledTimes(1);
+    expect(props.onPaneClick).not.toHaveBeenCalled();
+  });
+
+  it('a pointer drag starting on a file pans the canvas instead of moving the file', () => {
+    renderGraph();
+    const file = screen.getByTestId('graph-node-node1');
+    const canvas = screen.getByTestId('graph-canvas');
+    const start = nodeTranslate(file);
+    fireEvent.pointerDown(file, { pointerId: 1, button: 0, clientX: 0, clientY: 0 });
+    fireEvent.pointerMove(file, { pointerId: 1, clientX: 40, clientY: 30 });
+    expect(nodeTranslate(file)).toEqual(start);
+    expect(canvas.dataset.panning).toBe('true');
+    fireEvent.pointerUp(file, { pointerId: 1, button: 0, clientX: 40, clientY: 30 });
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Phase 3: camera follows EXTERNAL selections (tier list / file tree / rundown)
 // ---------------------------------------------------------------------------
 
