@@ -91,9 +91,18 @@ export function resolveNodeTheme(
   };
 }
 
-/** `{ ...theme.edges.base, ...theme.edges.byHighlight[highlight] }` (undefined override values ignored). */
-export function resolveEdgeStyle(theme: GraphTheme, highlight: EdgeHighlight): ResolvedEdgeStyle {
+/**
+ * `{ ...theme.edges.base, ...override, ...theme.edges.byHighlight[highlight] }`
+ * (undefined values ignored). `override` is an edge's own `styleOverride`; the
+ * highlight state still wins for the keys it defines.
+ */
+export function resolveEdgeStyle(
+  theme: GraphTheme,
+  highlight: EdgeHighlight,
+  override?: Partial<EdgeThemeTokens>,
+): ResolvedEdgeStyle {
   const merged: EdgeThemeTokens = { ...theme.edges.base };
+  assignDefined(merged, override);
   assignDefined(merged, theme.edges.byHighlight[highlight]);
   return merged;
 }

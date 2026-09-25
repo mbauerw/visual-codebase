@@ -79,35 +79,36 @@ function EdgeLayerInner() {
     [onEdgeClick],
   );
 
-  // Edges whose endpoints both exist, with their highlight state.
+  // Edges whose endpoints both exist, with their highlight state and resolved
+  // style (shared per highlight unless the edge carries a `styleOverride`).
   const items = useMemo(() => {
-    const out: Array<{ edge: GraphEdge; highlight: EdgeHighlight }> = [];
+    const out: Array<{ edge: GraphEdge; highlight: EdgeHighlight; style: ResolvedEdgeStyle }> = [];
     for (const edge of scene.edges) {
       if (!nodeIndex.has(edge.source) || !nodeIndex.has(edge.target)) continue;
-      out.push({ edge, highlight: highlights.edges.get(edge.id) ?? 'none' });
+      const highlight = highlights.edges.get(edge.id) ?? 'none';
+      const style = edge.styleOverride ? resolveEdgeStyle(theme, highlight, edge.styleOverride) : styles[highlight];
+      out.push({ edge, highlight, style });
     }
     return out;
-  }, [scene.edges, nodeIndex, highlights]);
+  }, [scene.edges, nodeIndex, highlights, styles, theme]);
 
   const markers = useMemo(() => {
-    const used = new Set<EdgeHighlight>();
-    for (const it of items) used.add(it.highlight);
     const entries: MarkerEntry[] = [];
-    for (const h of used) entries.push({ color: styles[h].stroke, size: styles[h].markerSize });
-    return entries;
-  }, [items, styles]);
+    for (const it of items) entries.push({ color: it.style.stroke, size: it.style.markerSize });
+    return entries; // MarkerDefs dedupes
+  }, [items]);
 
   return (
     <svg data-graph-edges className="graph-layer-edges" style={LAYER_STYLE}>
       <MarkerDefs entries={markers} />
-      {items.map(({ edge, highlight }) => (
+      {items.map(({ edge, highlight, style }) => (
         <EdgeLayerItem
           key={edge.id}
           edge={edge}
           source={nodeIndex.get(edge.source)!}
           target={nodeIndex.get(edge.target)!}
           highlight={highlight}
-          style={styles[highlight]}
+          style={style}
           anchors={anchors}
           onClick={handleClick}
         />

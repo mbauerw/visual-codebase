@@ -68,6 +68,12 @@ export interface GraphCanvasProps extends GraphCanvasCallbacks {
   nodeThemeOverride?: NodeThemeOverrideFn;
   /** Fit the scene whenever its identity changes (default true). First fit is instant, later fits animate 200ms. */
   fitViewOnSceneChange?: boolean | FitViewOptions;
+  /**
+   * When given, auto-fit keys on this value instead of the `scene` identity —
+   * e.g. pass the *filtered graph* so scenes rebuilt for UI state (expanding a
+   * category) keep the camera where the user left it.
+   */
+  fitViewKey?: unknown;
   zoomOnDoubleClick?: boolean;
   className?: string;
   style?: CSSProperties;
@@ -98,20 +104,31 @@ const DEFAULT_ANIM_MS = 150;
  * Inner component so hooks that read the store through context
  * (useContainerSizeValue) can run below the provider.
  */
-function AutoFit({ scene, option }: { scene: GraphScene; option: boolean | FitViewOptions }) {
+const UNFIT = Symbol('unfit');
+
+function AutoFit({
+  scene,
+  option,
+  fitKey,
+}: {
+  scene: GraphScene;
+  option: boolean | FitViewOptions;
+  fitKey: unknown;
+}) {
   const size = useContainerSizeValue();
-  const lastFitScene = useRef<GraphScene | null>(null);
+  const lastFitToken = useRef<unknown>(UNFIT);
   const actions = useGraphActions();
+  const token = fitKey === undefined ? scene : fitKey;
 
   useLayoutEffect(() => {
     if (option === false) return;
     if (size.width === 0 || size.height === 0) return;
-    if (lastFitScene.current === scene) return;
-    const isFirst = lastFitScene.current === null;
-    lastFitScene.current = scene;
+    if (lastFitToken.current === token) return;
+    const isFirst = lastFitToken.current === UNFIT;
+    lastFitToken.current = token;
     const opts: FitViewOptions = typeof option === 'object' ? option : {};
     actions.fitView({ padding: opts.padding, duration: isFirst ? 0 : (opts.duration ?? 200), nodeIds: opts.nodeIds });
-  }, [scene, size, option, actions]);
+  }, [token, size, option, actions]);
 
   return null;
 }
@@ -143,6 +160,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     selection = EMPTY_SELECTION,
     nodeThemeOverride,
     fitViewOnSceneChange = true,
+    fitViewKey,
     zoomOnDoubleClick = true,
     className = '',
     style,
@@ -332,7 +350,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
         <div data-graph-overlay="" className="absolute inset-0 pointer-events-none">
           {children}
         </div>
-        <AutoFit scene={scene} option={fitViewOnSceneChange} />
+        <AutoFit scene={scene} option={fitViewOnSceneChange} fitKey={fitViewKey} />
         {debugMeasure && <DebugMeasure containerRef={containerRef} scene={scene} />}
       </div>
     </GraphProvider>

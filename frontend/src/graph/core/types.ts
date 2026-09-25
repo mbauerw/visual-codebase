@@ -12,7 +12,7 @@
 
 import type { CSSProperties, ComponentType, MouseEvent as ReactMouseEvent } from 'react';
 import type { ReactFlowEdgeData } from '../../types';
-import type { NodeThemeTokens, ResolvedNodeTheme } from '../theme/types';
+import type { EdgeThemeTokens, NodeThemeTokens, ResolvedNodeTheme } from '../theme/types';
 
 // ---------------------------------------------------------------------------
 // Geometry
@@ -117,6 +117,13 @@ export interface GraphEdge<TData = ReactFlowEdgeData> {
   /** Consumer / importing file. */
   target: string;
   data?: TData;
+  /**
+   * Per-edge style tokens layered between `theme.edges.base` and the highlight
+   * state (`resolveEdgeStyle`) — e.g. a thicker stroke for a bundle of edges.
+   */
+  styleOverride?: Partial<EdgeThemeTokens>;
+  /** Free-form, engine-ignored metadata (theme packs use it for bundle counts). */
+  meta?: Record<string, unknown>;
 }
 
 export interface GraphScene {

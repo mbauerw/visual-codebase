@@ -18,6 +18,10 @@
  * - External selections (tier list / file tree / rundown — anything the graph
  *   did not emit itself) pan the camera to the node via `focusNode`
  * - Chrome (filter panel, zoom controls, minimap) lives in the canvas overlay
+ * - The LOOK comes from a theme pack (`graph/themes`): theme tokens, node
+ *   renderers and the scene builder. Collapsible packs hide a category's files
+ *   until it is clicked; that click toggles the category instead of opening
+ *   the category panel
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -26,14 +30,11 @@ import type { ReactFlowEdge, ReactFlowNodeData } from '../../types';
 import { GraphCanvas } from '../../graph/core/GraphCanvas';
 import type { GraphCanvasHandle, GraphEdge, GraphNode, Point, SelectionState } from '../../graph/core/types';
 import { GraphControls, GraphMiniMap, GraphPanel } from '../../graph/chrome';
-import { roleTheme, type RoleCategoryNodeData } from '../../graph/theme/roleTheme';
-import { roleRenderers } from '../../graph/renderers/role';
+import type { RoleCategoryNodeData } from '../../graph/theme/roleTheme';
 import { filterGraph } from '../../graph/layouts/filterGraph';
-import { computeRoleLayout } from '../../graph/layouts/roleLayout';
-import { toRoleScene } from '../../graph/layouts/roleScene';
+import { activeRoleThemePack, useThemeSceneState } from '../../graph/themes';
 import GraphFilterPanel from './GraphFilterPanel';
 import type { RoleLayoutGraphProps } from './SharedGraphTypes';
-import { GRAPH_BACKGROUNDS } from './SharedGraphTypes';
 
 /**
  * Below this zoom a focused node would still be a sliver, so an external
@@ -77,8 +78,10 @@ export default function RoleLayoutGraph({
   onSearchChange,
   nodeThemeOverride,
 }: RoleLayoutGraphProps) {
+  const pack = activeRoleThemePack;
   const canvasRef = useRef<GraphCanvasHandle>(null);
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
+  const { state: themeState, actions: themeActions } = useThemeSceneState();
   /** Last file id this graph emitted via onNodeSelect (consumed by the focus effect). */
   const lastEmittedNodeIdRef = useRef<string | null>(null);
 
@@ -88,10 +91,10 @@ export default function RoleLayoutGraph({
     [graphData, searchQuery, languageFilter, roleFilter]
   );
 
-  const scene = useMemo(() => {
-    const layout = computeRoleLayout(filtered.nodes, filtered.edges);
-    return toRoleScene(layout, filtered.edges);
-  }, [filtered]);
+  const scene = useMemo(
+    () => pack.buildScene({ nodes: filtered.nodes, edges: filtered.edges, state: themeState }),
+    [pack, filtered, themeState]
+  );
 
   // Original API edges by id (onEdgeClick hands the API edge back to the page)
   const edgesById = useMemo(() => {
@@ -141,6 +144,10 @@ export default function RoleLayoutGraph({
         return;
       }
       if (node.kind === 'category') {
+        if (pack.collapsible) {
+          themeActions.toggle(node.id);
+          return;
+        }
         const catData = node.data as RoleCategoryNodeData;
         const roleFiles = graphData.nodes
           .filter((n) => n.data.role === catData.role)
@@ -156,7 +163,7 @@ export default function RoleLayoutGraph({
       }
       // folder / section: nothing to do in this layout
     },
-    [graphData, onNodeSelect, onCategorySelect]
+    [graphData, onNodeSelect, onCategorySelect, pack, themeActions]
   );
 
   const handleEdgeClick = useCallback(
@@ -188,24 +195,27 @@ export default function RoleLayoutGraph({
     <div
       data-testid="role-layout-graph"
       className="w-full h-full relative"
-      style={{ background: GRAPH_BACKGROUNDS.role }}
+      style={{ background: pack.theme.background }}
     >
       <GraphCanvas
         ref={canvasRef}
         scene={scene}
-        theme={roleTheme}
-        renderers={roleRenderers}
+        theme={pack.theme}
+        renderers={pack.renderers}
         selection={selection}
         nodeThemeOverride={nodeThemeOverride}
-        nodesDraggable
+        nodesDraggable={pack.canvas?.nodesDraggable ?? true}
+        // Refit on filter changes only — a scene rebuilt for a category toggle keeps the camera.
+        fitViewKey={filtered}
+        fitViewOnSceneChange={{ padding: pack.canvas?.fitPadding }}
         onNodeClick={handleNodeClick}
         onEdgeClick={handleEdgeClick}
         onBackgroundClick={handleBackgroundClick}
-        className="w-full h-full"
+        className={`w-full h-full ${pack.canvasClassName ?? ''}`}
       >
         <GraphPanel position="top-left" className="m-4">
           <GraphFilterPanel
-            palette="dark"
+            palette={pack.filterPalette ?? 'dark'}
             searchQuery={searchQuery}
             onSearchChange={onSearchChange}
             languageFilter={languageFilter}
@@ -220,6 +230,7 @@ export default function RoleLayoutGraph({
         </GraphPanel>
         <GraphControls />
         <GraphMiniMap />
+        {pack.Overlay && <pack.Overlay scene={scene} state={themeState} actions={themeActions} />}
       </GraphCanvas>
     </div>
   );
