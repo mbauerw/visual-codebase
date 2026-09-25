@@ -23,6 +23,7 @@ import { computeRoleLayout } from '../../../graph/layouts/roleLayout';
 import { toRoleScene } from '../../../graph/layouts/roleScene';
 import { getViewportForCenter } from '../../../graph/core/viewportMath';
 import type { Viewport } from '../../../graph/core/types';
+import { classicPack } from '../../../graph/themes/classic';
 
 function renderGraph(overrides: Partial<RoleLayoutGraphProps> = {}) {
   const props: RoleLayoutGraphProps = {
@@ -39,6 +40,9 @@ function renderGraph(overrides: Partial<RoleLayoutGraphProps> = {}) {
     onSearchChange: vi.fn(),
     onLanguageFilterChange: vi.fn(),
     onRoleFilterChange: vi.fn(),
+    // These tests describe the classic look's DOM and click contract; the
+    // active pack on a theme branch may differ (collapsible, other renderers).
+    themePack: classicPack,
     ...overrides,
   };
   const utils = render(<RoleLayoutGraph {...props} />);

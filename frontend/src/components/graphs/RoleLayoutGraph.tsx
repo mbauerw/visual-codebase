@@ -77,8 +77,9 @@ export default function RoleLayoutGraph({
   onRoleFilterChange,
   onSearchChange,
   nodeThemeOverride,
+  themePack,
 }: RoleLayoutGraphProps) {
-  const pack = activeRoleThemePack;
+  const pack = themePack ?? activeRoleThemePack;
   const canvasRef = useRef<GraphCanvasHandle>(null);
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
   const { state: themeState, actions: themeActions } = useThemeSceneState();

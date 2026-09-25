@@ -12,6 +12,7 @@ import type {
   ArchitecturalRole,
 } from '../../types';
 import type { NodeThemeOverrideFn } from '../../graph/theme/types';
+import type { RoleThemePack } from '../../graph/themes/types';
 
 /**
  * Payload emitted when a role/category container is selected (role layout).
@@ -71,6 +72,8 @@ export interface BaseGraphProps {
 export interface RoleLayoutGraphProps extends BaseGraphProps {
   /** Callback when a category node is selected */
   onCategorySelect: (categoryData: CategoryRoleData) => void;
+  /** Look to render with (theme + renderers + scene builder). Defaults to `activeRoleThemePack`. */
+  themePack?: RoleThemePack;
 }
 
 /**
