@@ -1,0 +1,50 @@
+/* Honeycomb theme — engine-level rules scoped to the canvas root. */
+
+/* Combs re-flow when one blooms. */
+.theme-honeycomb .graph-node {
+  transition:
+    transform 360ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    width 360ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    height 360ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+/* Cells pop in one after another, outward from the centre. */
+@keyframes hc-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.2);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.theme-honeycomb .hc-cell {
+  animation: hc-pop 340ms cubic-bezier(0.2, 0.9, 0.3, 1.25) both;
+  animation-delay: calc(var(--bloom-index, 0) * 22ms);
+}
+
+/* Import-name tags only on the selected cell's lines. */
+.theme-honeycomb .graph-layer-edge-labels [data-highlight='none'],
+.theme-honeycomb .graph-layer-edge-labels [data-highlight='dimmed'] {
+  display: none;
+}
+
+.theme-honeycomb .graph-layer-edge-labels [data-testid='edge-label-pill'] {
+  background: #fff6d6;
+  border: 2px solid #2b1d0e;
+  color: #2b1d0e;
+  border-radius: 999px;
+  font-family: 'Rubik', system-ui, sans-serif;
+  font-weight: 600;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .theme-honeycomb .graph-node {
+    transition: none;
+  }
+  .theme-honeycomb .hc-cell {
+    animation: none;
+  }
+}
