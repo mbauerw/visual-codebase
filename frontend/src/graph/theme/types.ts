@@ -20,7 +20,8 @@ import type {
   ZoomLimits,
 } from '../core/types';
 
-export type AnchorSide = 'top' | 'bottom' | 'left' | 'right';
+/** `center` anchors at the slot centre (meant for `edges.path: 'straight'`). */
+export type AnchorSide = 'top' | 'bottom' | 'left' | 'right' | 'center';
 
 export interface NodeThemeTokens {
   /** Extra classes applied to the node wrapper. */
@@ -71,6 +72,10 @@ export interface GraphTheme {
   edges: {
     base: EdgeThemeTokens;
     byHighlight: Partial<Record<EdgeHighlight, Partial<EdgeThemeTokens>>>;
+    /** Path shape: orthogonal smooth-step (default) or a straight segment. */
+    path?: 'smoothstep' | 'straight';
+    /** Straight paths only: world px trimmed off both ends so lines stop short of the node. */
+    inset?: number;
   };
   /** Which side of the source/target slot an edge attaches to. */
   anchors: { source: AnchorSide; target: AnchorSide };

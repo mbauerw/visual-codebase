@@ -34,6 +34,8 @@ interface EdgeLabelItemProps {
   target: GraphNode;
   highlight: EdgeHighlight;
   anchors: { source: AnchorSide; target: AnchorSide };
+  pathType?: 'smoothstep' | 'straight';
+  inset?: number;
   onClick: (edge: GraphEdge, e: ReactMouseEvent) => void;
 }
 
@@ -43,12 +45,14 @@ const EdgeLabelItem = memo(function EdgeLabelItem({
   target,
   highlight,
   anchors,
+  pathType,
+  inset,
   onClick,
 }: EdgeLabelItemProps) {
   // Follow dragged endpoints (subscribes to the two ids only).
   const s = useOffsetNode(source);
   const t = useOffsetNode(target);
-  const { labelX, labelY } = computeEdgeGeometry(s, t, anchors);
+  const { labelX, labelY } = computeEdgeGeometry(s, t, anchors, { path: pathType, inset });
   const handleClick = useCallback((e: ReactMouseEvent<HTMLDivElement>) => onClick(edge, e), [edge, onClick]);
   return (
     <div
@@ -100,6 +104,8 @@ function EdgeLabelLayerInner() {
         target={target}
         highlight={highlights.edges.get(edge.id) ?? 'none'}
         anchors={anchors}
+        pathType={theme.edges.path}
+        inset={theme.edges.inset}
         onClick={handleClick}
       />,
     );

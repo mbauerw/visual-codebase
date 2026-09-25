@@ -7,7 +7,7 @@
 import { memo, useCallback, useMemo, type MouseEvent as ReactMouseEvent } from 'react';
 import type { EdgeHighlight, GraphEdge, GraphNode } from '../core/types';
 import type { AnchorSide, ResolvedEdgeStyle } from '../theme/types';
-import { computeEdgeGeometry } from './geometry';
+import { computeEdgeGeometry, type EdgePathType } from './geometry';
 import { markerId } from './markers';
 
 export interface EdgeItemProps {
@@ -17,6 +17,10 @@ export interface EdgeItemProps {
   highlight: EdgeHighlight;
   style: ResolvedEdgeStyle;
   anchors: { source: AnchorSide; target: AnchorSide };
+  /** theme.edges.path (default smoothstep). */
+  pathType?: EdgePathType;
+  /** theme.edges.inset (straight paths). */
+  inset?: number;
   onClick?: (edge: GraphEdge, e: ReactMouseEvent) => void;
   onHoverChange?: (edge: GraphEdge | null) => void;
 }
@@ -31,19 +35,21 @@ export const EdgeItem = memo(function EdgeItem({
   highlight,
   style,
   anchors,
+  pathType,
+  inset,
   onClick,
   onHoverChange,
 }: EdgeItemProps) {
   const { source: sourceSide, target: targetSide } = anchors;
   const path = useMemo(
-    () => computeEdgeGeometry(source, target, { source: sourceSide, target: targetSide }).path,
+    () => computeEdgeGeometry(source, target, { source: sourceSide, target: targetSide }, { path: pathType, inset }).path,
     // Depend on the numeric inputs only so a new node object with the same
     // geometry does not recompute the path.
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [
       source.x, source.y, source.width, source.height, source.scale,
       target.x, target.y, target.width, target.height, target.scale,
-      sourceSide, targetSide,
+      sourceSide, targetSide, pathType, inset,
     ],
   );
 

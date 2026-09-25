@@ -39,6 +39,8 @@ interface EdgeLayerItemProps {
   highlight: EdgeHighlight;
   style: ResolvedEdgeStyle;
   anchors: { source: AnchorSide; target: AnchorSide };
+  pathType?: 'smoothstep' | 'straight';
+  inset?: number;
   onClick: (edge: GraphEdge, e: ReactMouseEvent) => void;
 }
 
@@ -47,10 +49,22 @@ interface EdgeLayerItemProps {
  * touching a dragged node re-render; EdgeItem itself stays a pure function of
  * its (offset-adjusted) endpoint nodes.
  */
-const EdgeLayerItem = memo(function EdgeLayerItem({ edge, source, target, highlight, style, anchors, onClick }: EdgeLayerItemProps) {
+const EdgeLayerItem = memo(function EdgeLayerItem({ edge, source, target, highlight, style, anchors, pathType, inset, onClick }: EdgeLayerItemProps) {
   const s = useOffsetNode(source);
   const t = useOffsetNode(target);
-  return <EdgeItem edge={edge} source={s} target={t} highlight={highlight} style={style} anchors={anchors} onClick={onClick} />;
+  return (
+    <EdgeItem
+      edge={edge}
+      source={s}
+      target={t}
+      highlight={highlight}
+      style={style}
+      anchors={anchors}
+      pathType={pathType}
+      inset={inset}
+      onClick={onClick}
+    />
+  );
 });
 
 /** Resolve the style of every highlight state once per theme. */
@@ -110,6 +124,8 @@ function EdgeLayerInner() {
           highlight={highlight}
           style={style}
           anchors={anchors}
+          pathType={theme.edges.path}
+          inset={theme.edges.inset}
           onClick={handleClick}
         />
       ))}

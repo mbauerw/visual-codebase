@@ -32,6 +32,8 @@ export function getAnchor(node: GraphNode, side: AnchorSide): Point {
       return { x: cx - halfW, y: cy };
     case 'right':
       return { x: cx + halfW, y: cy };
+    case 'center':
+      return { x: cx, y: cy };
   }
 }
 

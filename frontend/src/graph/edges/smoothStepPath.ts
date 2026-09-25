@@ -33,6 +33,7 @@ export interface SmoothStepParams {
 type Axis = 'x' | 'y';
 
 const handleDirections: Record<AnchorSide, Point> = {
+  center: { x: 0, y: -1 }, // treated like 'top' when a straight path was not requested
   left: { x: -1, y: 0 },
   right: { x: 1, y: 0 },
   top: { x: 0, y: -1 },
