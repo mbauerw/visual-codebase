@@ -235,7 +235,8 @@ class LLMAnalyzer:
                 messages=[{"role": "user", "content": prompt}],
             )
 
-            response_text = message.content[0].text
+            # Models with thinking enabled return thinking blocks before text
+            response_text = "".join(b.text for b in message.content if b.type == "text")
             return self._parse_llm_response(response_text)
 
         except Exception as e:

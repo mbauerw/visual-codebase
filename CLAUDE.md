@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Codebase Remap is an AI-powered codebase visualization tool that analyzes repositories and generates interactive dependency graphs. It uses AST parsing (Tree-sitter) and Claude AI to understand code structure and architectural roles, then visualizes file-level dependencies using React Flow.
+Codebase Remap is an AI-powered codebase visualization tool that analyzes repositories and generates interactive dependency graphs. It uses AST parsing (Tree-sitter) and Claude AI to understand code structure and architectural roles, then visualizes file-level dependencies with an in-house graph engine (`frontend/src/graph/`, DOM nodes + SVG edges; see its README).
 
 **Stack**: FastAPI (Python) backend + React (TypeScript) frontend + Supabase (PostgreSQL + Auth)
 
@@ -58,7 +58,7 @@ The core analysis flow is orchestrated by `AnalysisService` (backend/app/service
 
 1. **Parsing** (`FileParser` in parser.py): Uses Tree-sitter to extract imports/exports from JS/TS/Python/Java/C# files
 2. **LLM Analysis** (`LLMAnalyzer` in llm_analyzer.py): Claude Sonnet 4.5 categorizes files by architectural role (react_component, utility, api_service, etc.)
-3. **Graph Building** (`GraphBuilder` in graph_builder.py): Resolves dependencies and creates React Flow graph structure
+3. **Graph Building** (`GraphBuilder` in graph_builder.py): Resolves dependencies and creates the graph payload (`ReactFlowGraph`-shaped JSON — the name is historical; positions in it are ignored, the frontend lays out)
 4. **Persistence** (`DatabaseService` in database.py): Stores results in Supabase (if authenticated)
 
 ### Key Services
@@ -74,7 +74,7 @@ The core analysis flow is orchestrated by `AnalysisService` (backend/app/service
 
 - **Pages** (frontend/src/pages/):
   - `UploadPage.tsx`: Entry point with local/GitHub input modes
-  - `VisualizationPage.tsx`: Interactive React Flow graph with search/filter
+  - `VisualizationPage.tsx`: Interactive dependency graph (Role / Folder layouts) with search/filter, panels, chat
   - `UserDashboard.tsx`: User's analysis history (requires auth)
   - `AuthCallback.tsx`: GitHub OAuth callback handler
 
@@ -85,7 +85,7 @@ The core analysis flow is orchestrated by `AnalysisService` (backend/app/service
 
 - **Components** (frontend/src/components/):
   - `GitHubRepoSelector.tsx`: Browse and search repositories with pagination
-  - `CustomNode.tsx`: React Flow node component with file metadata
+  - `graphs/RoleLayoutGraph.tsx`, `graphs/NestedLayoutGraph.tsx`: thin wrappers that filter → layout → scene → `<GraphCanvas>` (contract in `graphs/SharedGraphTypes.ts`)
   - `NodeDetailPanel.tsx`: Side panel showing detailed file information
 
 ### Data Flow
@@ -156,7 +156,7 @@ Cascading deletes: analyses → nodes/edges when analysis is deleted.
 
 - POST `/api/analyze` - Start analysis (local directory or GitHub repo)
 - GET `/api/analysis/{id}/status` - Check progress
-- GET `/api/analysis/{id}` - Get results (React Flow graph)
+- GET `/api/analysis/{id}` - Get results (graph JSON: nodes/edges/metadata)
 - GET `/api/user/analyses` - Get user's past analyses (auth required)
 - DELETE `/api/analysis/{id}` - Delete analysis (auth required)
 - GET `/api/github/repos` - List user's GitHub repos (auth required)
@@ -236,9 +236,9 @@ Vite env vars are in .env.local (if needed), but Supabase config is hardcoded in
 8. **Add skip directories**: Update `skip_dirs` in parser.py for language-specific build directories (e.g., target, bin, obj)
 
 ### Modifying Graph Layout
-- Layout algorithm is in `GraphBuilder.build_graph()` using dagre
-- Node positioning: `dagre.layout()` computes coordinates
-- Customize spacing by adjusting dagre graph config (rankdir, nodesep, ranksep)
+- Layouts are pure frontend functions: `frontend/src/graph/layouts/roleLayout.ts` (role containers on a circle, grid/pyramid by `scaleTier`) and `frontend/src/graph/layouts/nestedLayout.ts` (folder containment). Adapters `roleScene.ts` / `toNestedScene` turn them into a `GraphScene`.
+- Spacing constants: `ROLE_LAYOUT_CONFIG` / `DEFAULT_NESTED_LAYOUT_CONFIG` (slot sizes are a contract — renderers fill the slot).
+- Rendering/interaction (pan/zoom, LOD, highlights, themes, chrome) lives in `frontend/src/graph/` — read `frontend/src/graph/README.md` before changing it. Dev harness: `/graph-dev` (dev builds only, lazy-loaded in `App.tsx`).
 
 ### Changing LLM Analysis Prompt
 - Prompt is in `LLMAnalyzer.analyze_files()` method

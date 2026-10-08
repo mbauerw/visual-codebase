@@ -8,7 +8,11 @@
  */
 
 import { useMemo } from 'react';
-import type { Edge } from '@xyflow/react';
+/** Minimal structural edge type — any object with source/target ids (ReactFlowEdge, GraphEdge, RF Edge). */
+export interface EdgeLike {
+  source: string;
+  target: string;
+}
 import type { ArchitecturalRole, ScaleTier } from '../types';
 
 interface NodeWithRole {
@@ -23,7 +27,7 @@ interface NodeWithRole {
  */
 function calculateDependencyCounts<T extends NodeWithRole>(
   nodes: T[],
-  edges: Edge[]
+  edges: ReadonlyArray<EdgeLike>
 ): Map<string, number> {
   const counts = new Map<string, number>();
 
@@ -126,7 +130,7 @@ function assignScaleTier(
  */
 export function calculateNodeScales<T extends NodeWithRole>(
   nodes: T[],
-  edges: Edge[]
+  edges: ReadonlyArray<EdgeLike>
 ): Map<string, ScaleTier> {
   const nodeScales = new Map<string, ScaleTier>();
 
@@ -165,7 +169,7 @@ export function calculateNodeScales<T extends NodeWithRole>(
  */
 export function useNodeScaling<T extends NodeWithRole>(
   nodes: T[],
-  edges: Edge[]
+  edges: ReadonlyArray<EdgeLike>
 ): Map<string, ScaleTier> {
   return useMemo(() => calculateNodeScales(nodes, edges), [nodes, edges]);
 }

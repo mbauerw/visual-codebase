@@ -1,7 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import type { Edge } from '@xyflow/react';
-import '@xyflow/react/dist/style.css';
 import {
   ArrowLeft,
   FileCode,
@@ -12,10 +10,9 @@ import {
   ChevronsLeftRight,
   MessageSquare,
   Layers,
-  ChevronDown
 } from 'lucide-react';
 
-import { type CategoryRoleData } from '../components/CategoryNode';
+import type { CategoryRoleData } from '../components/graphs/SharedGraphTypes';
 import EdgeDetailPopover from '../components/EdgeDetailPopover';
 import NodeDetailPanel from '../components/NodeDetailPanel';
 import CategoryRolePanel from '../components/CateogoryDetailPanel';
@@ -26,6 +23,7 @@ import type { FunctionTierItem } from '../types/tierList';
 import { BarChart3, FileText } from 'lucide-react';
 import type {
   ReactFlowGraph,
+  ReactFlowEdge,
   ReactFlowNodeData,
   Language,
   ArchitecturalRole,
@@ -70,7 +68,7 @@ export default function VisualizationPage() {
   const [loading, setLoading] = useState(true);
 
   // Edge popover state
-  const [selectedEdge, setSelectedEdge] = useState<Edge | null>(null);
+  const [selectedEdge, setSelectedEdge] = useState<ReactFlowEdge | null>(null);
   const [edgePopoverPosition, setEdgePopoverPosition] = useState<{ x: number; y: number } | null>(null);
 
   // Highlighted lines state for source code panel (used when selecting functions from tier list)
@@ -300,7 +298,7 @@ export default function VisualizationPage() {
   }, []);
 
   // Handle edge click from graph components
-  const handleEdgeClick = useCallback((edge: Edge, position: { x: number; y: number }) => {
+  const handleEdgeClick = useCallback((edge: ReactFlowEdge, position: { x: number; y: number }) => {
     setSelectedEdge(edge);
     setEdgePopoverPosition(position);
     // Clear node selection when clicking edge
@@ -587,7 +585,7 @@ export default function VisualizationPage() {
         {/* Main content */}
         <div
           id="left-content"
-          className={`min-h-full overflow-y-auto pb-4 flex flex-col space-y-[10px] ${mainSectionGap} items-center flex-1 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-transparent hover:[&::-webkit-scrollbar-thumb]:bg-slate-300 [&::-webkit-scrollbar-thumb]:rounded-full [scrollbar-width:thin] [scrollbar-color:transparent_transparent] hover:[scrollbar-color:rgb(203,213,225)_transparent]`}
+          className={`min-h-full overflow-y-auto flex flex-col space-y-[10px] ${mainSectionGap} items-center flex-1 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-transparent hover:[&::-webkit-scrollbar-thumb]:bg-slate-300 [&::-webkit-scrollbar-thumb]:rounded-full [scrollbar-width:thin] [scrollbar-color:transparent_transparent] hover:[scrollbar-color:rgb(203,213,225)_transparent]`}
           style={{ width: expanded ? `calc(100% - ${panelWidth}px)` : '100%' }}
         >
 
@@ -691,13 +689,13 @@ export default function VisualizationPage() {
           </div>
 
           {/* Graph Visualization Container */}
-          <div ref={visualizationRef} className='w-full px-8 pb-12 justify-center flex flex-col gap-10 items-center'>
+          <div ref={visualizationRef} className='w-full px-[10px] pb-[10px] justify-center flex flex-col gap-10 items-center'>
             <div className='flex w-full items-center justify-center relative h-12'>
               <h2 className='text-3xl text-red-500 text-center '>VISUALIZATION</h2>
             </div>
 
             {/* Graph container with manila folder tabs */}
-            <div className='max-w-[1200px] w-full'>
+            <div className='w-full'>
               {/* Manila folder tabs - attached to top of container */}
               <div className="flex items-end pl-4">
                 <button

@@ -259,12 +259,13 @@ class SummaryGenerator:
         # Use await for async client to avoid blocking the event loop
         message = await self.client.messages.create(
             model=self.settings.llm_model,
-            max_tokens=1024,
+            max_tokens=8192,
             system=SUMMARY_SYSTEM_PROMPT,
             messages=[{"role": "user", "content": prompt}],
         )
 
-        response_text = message.content[0].text
+        # Models with thinking enabled return thinking blocks before text
+        response_text = "".join(b.text for b in message.content if b.type == "text")
         return self._parse_response(response_text)
 
     def _parse_response(self, response: str) -> CodebaseSummary:
