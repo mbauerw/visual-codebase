@@ -62,6 +62,11 @@ export interface BaseGraphProps {
    * `{ className: 'opacity-40' }`. Memoise it — a new function re-renders every node.
    */
   nodeThemeOverride?: NodeThemeOverrideFn;
+  /**
+   * Extra left margin (px) for the top-left filter panel, so a page-level
+   * overlay in that corner (the feature rail) does not cover it.
+   */
+  chromeInsetLeft?: number;
 }
 
 /**

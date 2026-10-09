@@ -41,6 +41,7 @@ export default function NestedLayoutGraph({
   onLanguageFilterChange,
   onRoleFilterChange,
   onSearchChange,
+  chromeInsetLeft,
 }: NestedLayoutGraphProps) {
   const canvasRef = useRef<GraphCanvasHandle>(null);
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
@@ -146,7 +147,7 @@ export default function NestedLayoutGraph({
         onBackgroundClick={handleBackgroundClick}
         className="w-full h-full"
       >
-        <GraphPanel position="top-left" className="m-4">
+        <GraphPanel position="top-left" className="m-4" style={chromeInsetLeft ? { marginLeft: 16 + chromeInsetLeft } : undefined}>
           <GraphFilterPanel
             palette="amber"
             searchQuery={searchQuery}
