@@ -50,6 +50,13 @@ npm run lint
 
 Supabase migrations are in `supabase/migrations/`. Apply them through the Supabase dashboard or CLI.
 
+## Git Workflow
+
+- `main` is the only long-lived branch and the base for all pull requests. There is no `dev` branch.
+- Never commit directly to `main`; every change goes through a PR from a short-lived branch named `<area>/<change>` (e.g. `layout/feature-menu`).
+- Branch from an up-to-date `main`. Before merging, rebase onto `origin/main` and push with `--force-with-lease` (never plain `--force`).
+- After a PR merges: `git switch main && git pull`, then delete the feature branch.
+
 ## Architecture Overview
 
 ### Analysis Pipeline
