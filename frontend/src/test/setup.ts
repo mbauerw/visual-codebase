@@ -58,3 +58,55 @@ vi.stubGlobal('import', {
     },
   },
 });
+
+// ---------------------------------------------------------------------------
+// DOM APIs missing from jsdom that the in-house graph engine (src/graph) needs.
+// ---------------------------------------------------------------------------
+
+// ResizeObserver (used by GraphCanvas container sizing, Rundown, TabTable)
+if (typeof globalThis.ResizeObserver === 'undefined') {
+  class ResizeObserverMock {
+    observe = vi.fn();
+    unobserve = vi.fn();
+    disconnect = vi.fn();
+  }
+  vi.stubGlobal('ResizeObserver', ResizeObserverMock);
+}
+
+// PointerEvent (jsdom 24 only ships Mouse/Wheel/Touch events)
+if (typeof globalThis.PointerEvent === 'undefined') {
+  class PointerEventPolyfill extends MouseEvent {
+    pointerId: number;
+    pointerType: string;
+    isPrimary: boolean;
+    width: number;
+    height: number;
+    pressure: number;
+    constructor(type: string, init: PointerEventInit = {}) {
+      super(type, init);
+      this.pointerId = init.pointerId ?? 1;
+      this.pointerType = init.pointerType ?? 'mouse';
+      this.isPrimary = init.isPrimary ?? true;
+      this.width = init.width ?? 1;
+      this.height = init.height ?? 1;
+      this.pressure = init.pressure ?? 0;
+    }
+  }
+  vi.stubGlobal('PointerEvent', PointerEventPolyfill);
+}
+
+// Pointer capture (jsdom throws "not implemented")
+if (!Element.prototype.setPointerCapture) {
+  Element.prototype.setPointerCapture = vi.fn();
+}
+if (!Element.prototype.releasePointerCapture) {
+  Element.prototype.releasePointerCapture = vi.fn();
+}
+if (!Element.prototype.hasPointerCapture) {
+  Element.prototype.hasPointerCapture = vi.fn(() => false);
+}
+
+// scrollIntoView (used by AnalysisFileTree / chat; jsdom lacks it)
+if (!Element.prototype.scrollIntoView) {
+  Element.prototype.scrollIntoView = vi.fn();
+}

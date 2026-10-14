@@ -148,20 +148,45 @@ test.describe('Analysis Pipeline', () => {
 
 test.describe('Analysis Results Integration', () => {
   test('should display node information when node is clicked', async ({ page }) => {
-    // This test would work with a real analysis
-    await page.goto('/visualization/test-id');
+    // Seed a small analysis via sessionStorage (same path UploadPage uses) so the
+    // visualization renders without a backend, then click a graph file node.
+    await page.goto('/');
+    await page.evaluate(() => {
+      const node = (id: string, label: string, path: string, role: string) => ({
+        id,
+        type: 'custom',
+        position: { x: 0, y: 0 },
+        data: {
+          label,
+          path,
+          folder: 'src',
+          language: 'typescript',
+          role,
+          description: `${label} description`,
+          category: 'frontend',
+          imports: [],
+          size_bytes: 100,
+          line_count: 10,
+        },
+      });
+      const graph = {
+        nodes: [node('n1', 'index.ts', 'src/index.ts', 'react_component'), node('n2', 'App.tsx', 'src/App.tsx', 'react_component')],
+        edges: [{ id: 'e1', source: 'n2', target: 'n1', type: 'import', animated: false, data: { import_type: 'import', imported_names: ['App'], module_path: './App' } }],
+        metadata: { analysis_id: 'e2e', file_count: 2, edge_count: 1, analysis_time_seconds: 0, started_at: new Date(0).toISOString(), languages: {}, errors: [] },
+      };
+      sessionStorage.setItem('analysisResult', JSON.stringify(graph));
+    });
+    await page.goto('/visualize');
     await page.waitForLoadState('networkidle');
 
-    // Look for any clickable node elements
-    const nodes = page.locator('[data-testid*="node"], .react-flow__node');
+    const nodes = page.locator('[data-testid^="graph-node-"][data-node-kind="file"]');
+    await expect(nodes.first()).toBeVisible();
+    expect(await nodes.count()).toBeGreaterThan(0);
 
-    if (await nodes.count() > 0) {
-      await nodes.first().click();
+    await nodes.first().click({ force: true });
 
-      // Should show some detail panel or modal
-      await page.waitForTimeout(500);
-      await expect(page.locator('body')).toBeVisible();
-    }
+    // The right panel shows the selected file's details
+    await expect(page.getByText('File Details')).toBeVisible();
   });
 
   test('should support keyboard navigation', async ({ page }) => {

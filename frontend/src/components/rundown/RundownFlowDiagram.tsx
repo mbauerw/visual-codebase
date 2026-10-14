@@ -1,24 +1,26 @@
+/**
+ * RundownFlowDiagram — read-only flow diagram (entry points → architecture
+ * layers) rendered on the in-house graph engine.
+ *
+ *   calculateRundownLayout → GraphScene → <GraphCanvas theme={rundownTheme} renderers={rundownRenderers}>
+ *
+ * Pan (drag) and wheel zoom only: no selection, no chrome, no callbacks; the
+ * scene is re-fitted (padding 0.3) whenever the flow/layers/entry points change.
+ * The container is `h-[540px]`, matching the tab panel height in Rundown.tsx.
+ */
+
 import { useMemo } from 'react';
-import {
-  ReactFlow,
-  ReactFlowProvider,
-  SelectionMode,
-  type NodeTypes,
-} from '@xyflow/react';
-import '@xyflow/react/dist/style.css';
 import type {
   RundownFlow,
   RundownLayer,
   RundownEntryPoint,
 } from '../../types';
+import { GraphCanvas } from '../../graph/core/GraphCanvas';
+import { rundownTheme } from '../../graph/theme/rundownTheme';
+import { rundownRenderers } from '../../graph/renderers/rundown';
 import { calculateRundownLayout } from './layoutUtils';
-import LayerNode from './nodes/LayerNode';
-import EntryPointNode from './nodes/EntryPointNode';
 
-const nodeTypes: NodeTypes = {
-  layer: LayerNode,
-  entryPoint: EntryPointNode,
-};
+const FIT_VIEW_OPTIONS = { padding: 0.3 } as const;
 
 interface RundownFlowDiagramProps {
   flow: RundownFlow;
@@ -27,12 +29,12 @@ interface RundownFlowDiagramProps {
   onFileClick?: (filePath: string) => void;
 }
 
-function RundownFlowDiagramInner({
+export default function RundownFlowDiagram({
   flow,
   layers,
   entryPoints,
 }: RundownFlowDiagramProps) {
-  const { nodes, edges } = useMemo(
+  const scene = useMemo(
     () => calculateRundownLayout(flow, layers, entryPoints),
     [flow, layers, entryPoints]
   );
@@ -42,37 +44,14 @@ function RundownFlowDiagramInner({
       className="h-[540px] w-full rounded-xl border border-slate-200 overflow-hidden bg-slate-50"
       aria-hidden="true"
     >
-      <ReactFlow
-        nodes={nodes}
-        edges={edges}
-        nodeTypes={nodeTypes}
-        fitView
-        fitViewOptions={{ padding: 0.3 }}
-        minZoom={0.5}
-        maxZoom={1.5}
-        panOnDrag={true}
-        panOnScroll={false}
-        zoomOnScroll={true}
-        zoomOnPinch={false}
+      <GraphCanvas
+        scene={scene}
+        theme={rundownTheme}
+        renderers={rundownRenderers}
+        fitViewOnSceneChange={FIT_VIEW_OPTIONS}
         zoomOnDoubleClick={false}
-        preventScrolling={true}
-        nodesDraggable={false}
-        nodesConnectable={false}
-        elementsSelectable={true}
-        selectionOnDrag={true}
-        selectionMode={SelectionMode.Partial}
-        selectionKeyCode="Shift"
-        proOptions={{ hideAttribution: true }}
-        style={{ background: '#f8fafc'}}
+        className="rundown-flow-canvas w-full h-full"
       />
     </div>
-  );
-}
-
-export default function RundownFlowDiagram(props: RundownFlowDiagramProps) {
-  return (
-    <ReactFlowProvider>
-      <RundownFlowDiagramInner {...props} />
-    </ReactFlowProvider>
   );
 }

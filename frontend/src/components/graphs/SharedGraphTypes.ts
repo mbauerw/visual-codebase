@@ -4,14 +4,27 @@
  * used by RoleLayoutGraph and NestedLayoutGraph.
  */
 
-import type { Edge } from '@xyflow/react';
 import type {
   ReactFlowGraph,
+  ReactFlowEdge,
   ReactFlowNodeData,
   Language,
   ArchitecturalRole,
 } from '../../types';
-import type { CategoryRoleData } from '../CategoryNode';
+import type { NodeThemeOverrideFn } from '../../graph/theme/types';
+import type { RoleThemePack } from '../../graph/themes/types';
+
+/**
+ * Payload emitted when a role/category container is selected (role layout).
+ * Consumed by CategoryRolePanel (CateogoryDetailPanel.tsx).
+ */
+export interface CategoryRoleData {
+  label: string;
+  role: ArchitecturalRole;
+  nodeCount: number;
+  description: string;
+  files?: ReactFlowNodeData[];
+}
 
 /**
  * Base props shared by all graph layout components.
@@ -30,7 +43,7 @@ export interface BaseGraphProps {
   /** Callback when a category node is selected (role layout only) */
   onCategorySelect?: (categoryData: CategoryRoleData) => void;
   /** Callback when an edge is clicked */
-  onEdgeClick?: (edge: Edge, position: { x: number; y: number }) => void;
+  onEdgeClick?: (edge: ReactFlowEdge, position: { x: number; y: number }) => void;
   /** Callback when clicking on the pane (deselects) */
   onPaneClick: () => void;
   /** Currently selected node ID for highlighting */
@@ -43,6 +56,12 @@ export interface BaseGraphProps {
   onRoleFilterChange?: (role: ArchitecturalRole | 'all') => void;
   /** Callback when search query changes */
   onSearchChange?: (query: string) => void;
+  /**
+   * Optional per-node theme override (graph engine). Layered between the
+   * layout theme and any `node.themeOverride`; e.g. dim non-matching files with
+   * `{ className: 'opacity-40' }`. Memoise it — a new function re-renders every node.
+   */
+  nodeThemeOverride?: NodeThemeOverrideFn;
 }
 
 /**
@@ -53,6 +72,8 @@ export interface BaseGraphProps {
 export interface RoleLayoutGraphProps extends BaseGraphProps {
   /** Callback when a category node is selected */
   onCategorySelect: (categoryData: CategoryRoleData) => void;
+  /** Look to render with (theme + renderers + scene builder). Defaults to `activeRoleThemePack`. */
+  themePack?: RoleThemePack;
 }
 
 /**

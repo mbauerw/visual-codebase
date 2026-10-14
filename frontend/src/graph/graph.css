@@ -1,0 +1,47 @@
+/* Graph engine runtime styles (imported by GraphCanvas.tsx). */
+
+[data-graph-canvas] {
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: none;
+  overscroll-behavior: contain;
+}
+
+/* While panning, nodes/labels stop receiving pointer events so hover
+   animations and accidental clicks don't fire under the moving cursor. */
+[data-graph-canvas][data-panning] .graph-layer-nodes,
+[data-graph-canvas][data-panning] .graph-layer-containers,
+[data-graph-canvas][data-panning] .graph-layer-edge-labels {
+  pointer-events: none;
+}
+
+[data-graph-canvas][data-panning] {
+  cursor: grabbing;
+}
+
+[data-graph-canvas] .graph-node {
+  box-sizing: border-box;
+}
+
+/* Node dragging (GraphCanvas nodesDraggable): draggable wrappers advertise with
+   a grab cursor (elements inside may override, e.g. a pointer-cursor pill);
+   while dragging, the wrapper and the whole canvas show a grabbing cursor and
+   other nodes/labels stop receiving pointer events so hover effects don't fire
+   under the dragged node. The dragged wrapper has pointer capture, so it keeps
+   receiving its own events. */
+[data-graph-canvas] .graph-node[data-node-draggable] {
+  cursor: grab;
+}
+
+[data-graph-canvas][data-dragging] {
+  cursor: grabbing;
+}
+
+[data-graph-canvas][data-dragging] .graph-layer-edge-labels,
+[data-graph-canvas][data-dragging] .graph-node:not([data-dragging]) {
+  pointer-events: none;
+}
+
+[data-graph-canvas] .graph-node[data-dragging] {
+  cursor: grabbing;
+}

@@ -91,14 +91,19 @@ function Sidebar({
   aboutTitle,
   aboutText,
   methodologyItems,
+  horizontal = false,
 }: {
   aboutTitle: string;
   aboutText: string;
   methodologyItems: string[];
+  horizontal?: boolean;
 }) {
   return (
-    <aside className="flex flex-col" style={{ minWidth: 0 }}>
-      <div style={{ marginBottom: 32 }}>
+    <aside
+      className={horizontal ? 'flex flex-row gap-8' : 'flex flex-col'}
+      style={{ minWidth: 0 }}
+    >
+      <div style={horizontal ? { flex: 1, minWidth: 0 } : { marginBottom: 32 }}>
         <h4
           style={{
             fontSize: '1.35rem',
@@ -125,7 +130,7 @@ function Sidebar({
         </p>
       </div>
 
-      <div>
+      <div style={horizontal ? { flex: 1, minWidth: 0 } : undefined}>
         <div
           style={{
             display: 'flex',
@@ -659,7 +664,7 @@ export default function Rundown({
         </div>
 
         {/* Right side: Sidebar (~35%) */}
-        <div className={`flex-[1] min-w-[280px] max-w-[420px] ${isWide ? 'pt-12' : ''}`}>
+        <div className={isWide ? 'flex-[1] min-w-[280px] max-w-[420px] pt-12' : 'w-full'}>
           {/* Mobile divider */}
           {!isWide && (
             <div
@@ -673,6 +678,7 @@ export default function Rundown({
             aboutTitle={aboutContent.title}
             aboutText={aboutContent.text}
             methodologyItems={aboutContent.items}
+            horizontal={!isWide}
           />
         </div>
       </div>

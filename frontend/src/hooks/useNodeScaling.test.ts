@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { renderHook } from '@testing-library/react';
 import { calculateNodeScales, useNodeScaling } from './useNodeScaling';
-import type { ArchitecturalRole, ScaleTier } from '../types';
-import type { Edge } from '@xyflow/react';
+import type { ArchitecturalRole } from '../types';
+import type { EdgeLike as Edge } from './useNodeScaling';
 
 // Helper to create test nodes
 interface TestNode {
@@ -14,7 +14,7 @@ function createNode(id: string, role: ArchitecturalRole): TestNode {
   return { id, data: { role } };
 }
 
-function createEdge(source: string, target: string): Edge {
+function createEdge(source: string, target: string): Edge & { id: string } {
   return {
     id: `${source}-${target}`,
     source,
@@ -414,7 +414,7 @@ describe('useNodeScaling hook', () => {
       { initialProps: { n: nodes, e: edges1 } }
     );
 
-    const tier1Before = result.current.get('n1');
+    expect(result.current.get('n1')).toBeDefined();
 
     // Add an edge
     rerender({ n: nodes, e: edges2 });
