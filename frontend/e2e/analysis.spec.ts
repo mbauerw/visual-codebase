@@ -176,7 +176,8 @@ test.describe('Analysis Results Integration', () => {
       };
       sessionStorage.setItem('analysisResult', JSON.stringify(graph));
     });
-    await page.goto('/visualize');
+    // The page shows one feature at a time (Project Overview by default); ask for the graph.
+    await page.goto('/visualize?view=visualization');
     await page.waitForLoadState('networkidle');
 
     const nodes = page.locator('[data-testid^="graph-node-"][data-node-kind="file"]');

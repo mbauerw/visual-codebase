@@ -41,14 +41,18 @@ import { RundownSection } from '../components/rundown';
 import type { SelectionContext } from '../types/chat';
 import { DraggableModal } from '../components/DraggableModal';
 import { RoleLayoutGraph, NestedLayoutGraph } from '../components/graphs';
+import FeatureSwitcher, { DEFAULT_FEATURE, isFeatureKey, type FeatureKey } from '../components/FeatureSwitcher';
 
 // Simplified LayoutType for two layouts only
 type SimplifiedLayoutType = 'role' | 'nested';
 
 // Main visualization page component
+/** Cream of the Rundown's own sections, so the band fills the feature space when the content is short. */
+const RUNDOWN_BACKGROUND = '#faf8f3';
+
 export default function VisualizationPage() {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { user, signOut } = useAuth();
   const [graphData, setGraphData] = useState<ReactFlowGraph | null>(null);
   const [selectedNode, setSelectedNode] = useState<ReactFlowNodeData | null>(null);
@@ -59,7 +63,13 @@ export default function VisualizationPage() {
   const [languageFilter, setLanguageFilter] = useState<Language | 'all'>('all');
   const [roleFilter, setRoleFilter] = useState<ArchitecturalRole | 'all'>('all');
   const [layoutType, setLayoutType] = useState<SimplifiedLayoutType>('role');
-  const [expanded, setExpanded] = useState<boolean>(true);
+  // Which of the four features fills the page. Project Overview by default; `?view=` keeps it linkable.
+  const [feature, setFeatureState] = useState<FeatureKey>(() => {
+    const v = searchParams.get('view');
+    return isFeatureKey(v) ? v : DEFAULT_FEATURE;
+  });
+  const featureScrollRef = useRef<HTMLDivElement>(null);
+  const [expanded, setExpanded] = useState<boolean>(false);
   const [dashboardOpen, setDashboardOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [authModalOpen, setAuthModalOpen] = useState(false);
@@ -85,7 +95,6 @@ export default function VisualizationPage() {
   const [panelWidth, setPanelWidth] = useState(400);
   const [isResizing, setIsResizing] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
-  const visualizationRef = useRef<HTMLDivElement>(null);
 
   // Graph Constants
   const MIN_PANEL_WIDTH = 50; // Minimum when resizing (before auto-collapse)
@@ -95,6 +104,27 @@ export default function VisualizationPage() {
   const getMaxPanelWidth = useCallback(() => {
     return Math.floor(window.innerWidth / 2);
   }, []);
+
+  const setFeature = useCallback(
+    (key: FeatureKey) => {
+      setFeatureState(key);
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          if (key === DEFAULT_FEATURE) next.delete('view');
+          else next.set('view', key);
+          return next;
+        },
+        { replace: true }
+      );
+    },
+    [setSearchParams]
+  );
+
+  // A newly chosen feature starts at the top of its space.
+  useEffect(() => {
+    featureScrollRef.current?.scrollTo({ top: 0 });
+  }, [feature]);
 
   const handleResizeMouseDown = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
@@ -182,9 +212,10 @@ export default function VisualizationPage() {
     setAuthModalOpen(true);
   };
 
-  // Load data from URL query parameter or session storage
+  // Load data from URL query parameter or session storage. Keyed on the analysis
+  // id string rather than the searchParams object so changing `?view=` never reloads.
   useEffect(() => {
-    const analysisId = searchParams.get('analysis');
+    const analysisId = analysisIdFromUrl;
 
     const loadData = async () => {
       setLoading(true);
@@ -218,7 +249,7 @@ export default function VisualizationPage() {
     };
 
     loadData();
-  }, [navigate, searchParams]);
+  }, [navigate, analysisIdFromUrl]);
 
   // Auto-open source panel with main file when graphData loads or project changes
   useEffect(() => {
@@ -347,8 +378,11 @@ export default function VisualizationPage() {
         startLine: func.start_line,
         endLine: func.end_line,
       });
+
+      // The graph can show the file itself; any other feature can't, so open the source.
+      if (feature !== 'visualization') setFeature('files');
     }
-  }, [graphData]);
+  }, [graphData, feature, setFeature]);
 
   // Handle file selection from AnalysisFileTree
   const handleFileTreeSelect = useCallback((nodeId: string, nodeData: ReactFlowNodeData) => {
@@ -375,21 +409,28 @@ export default function VisualizationPage() {
     setHighlightedLines(null);
   }, []);
 
-  // Handle file click from rundown section
+  // Double-clicking a file (graph node or tree row) also opens the right panel on its Files tab
+  const handleFileDoubleClick = useCallback(() => {
+    setRightPanelTab('details');
+    setExpanded(true);
+  }, []);
+
+  // Handle file click from rundown section — open it in Files + Source Code
   const handleRundownFileClick = useCallback((filePath: string) => {
     const targetNode = graphData?.nodes.find(node => node.data.path === filePath);
     if (targetNode) {
       handleFileTreeSelect(targetNode.id, targetNode.data);
+      setFeature('files');
     }
-  }, [graphData, handleFileTreeSelect]);
+  }, [graphData, handleFileTreeSelect, setFeature]);
 
-  // Handle layer click from rundown section — scroll to visualization and apply role filter
+  // Handle layer click from rundown section — switch to the visualization with that role filtered
   const handleLayerClick = useCallback((roles: string[]) => {
     if (roles.length > 0) {
       setRoleFilter(roles[0] as ArchitecturalRole);
     }
-    visualizationRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }, []);
+    setFeature('visualization');
+  }, [setFeature]);
 
   // Build list of valid file paths for narrative keyword highlighting
   const validFilePaths = useMemo(
@@ -445,9 +486,6 @@ export default function VisualizationPage() {
     );
   }
 
-  const mainSectionGap = 'gap-[100px]';
-
-
   return (
     <div className="min-h-screen max-h-screen w-screen bg-gray-100 flex flex-col overflow-hidden ">
       {/* <div className="min-h-screen h-[100%] w-[100%] min-w-screen absolute top-0 left-0 blur-lg z-10 " /> */}
@@ -468,17 +506,21 @@ export default function VisualizationPage() {
             {getAnalysisDisplayName(graphData.metadata)}
           </h1>
         </div>
-        <button
-          onClick={() => user ? setChatModalOpen(prev => !prev) : handleOpenAuthModal(0)}
-          className={`flex items-center gap-2 px-3 py-1.5 rounded transition-colors ${chatModalOpen
-              ? 'bg-blue-600 text-white'
-              : 'bg-slate-700 text-slate-400 hover:text-white hover:bg-slate-600'
-            }`}
-          title={user ? 'AI Assistant' : 'Sign in to use AI Assistant'}
-        >
-          <MessageSquare size={16} />
-          <span className="text-sm font-medium">AI Assistant</span>
-        </button>
+        {/* Middle: feature switcher and AI Assistant, evenly spaced in whatever width is free */}
+        <div className="flex-1 min-w-0 flex items-center justify-evenly px-4">
+          <FeatureSwitcher active={feature} onChange={setFeature} />
+          <button
+            onClick={() => user ? setChatModalOpen(prev => !prev) : handleOpenAuthModal(0)}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded transition-colors ${chatModalOpen
+                ? 'bg-blue-600 text-white'
+                : 'bg-slate-700 text-slate-400 hover:text-white hover:bg-slate-600'
+              }`}
+            title={user ? 'AI Assistant' : 'Sign in to use AI Assistant'}
+          >
+            <MessageSquare size={16} />
+            <span className="text-sm font-medium">AI Assistant</span>
+          </button>
+        </div>
 
         {/* Desktop Stats and Auth */}
         <div className="hidden md:flex items-center gap-4">
@@ -582,186 +624,201 @@ export default function VisualizationPage() {
         ref={containerRef}
         className="flex mt-14 h-[calc(100vh-3.5rem)] relative overflow-hidden"
       >
-        {/* Main content */}
+        {/* Feature area: one feature at a time, picked from the switcher in the top bar */}
         <div
           id="left-content"
-          className={`min-h-full overflow-y-auto flex flex-col space-y-[10px] ${mainSectionGap} items-center flex-1 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-transparent hover:[&::-webkit-scrollbar-thumb]:bg-slate-300 [&::-webkit-scrollbar-thumb]:rounded-full [scrollbar-width:thin] [scrollbar-color:transparent_transparent] hover:[scrollbar-color:rgb(203,213,225)_transparent]`}
+          className="relative h-full flex-1 min-w-0"
           style={{ width: expanded ? `calc(100% - ${panelWidth}px)` : '100%' }}
         >
+          <div
+            ref={featureScrollRef}
+            className="h-full overflow-y-auto [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-transparent hover:[&::-webkit-scrollbar-thumb]:bg-slate-300 [&::-webkit-scrollbar-thumb]:rounded-full [scrollbar-width:thin] [scrollbar-color:transparent_transparent] hover:[scrollbar-color:rgb(203,213,225)_transparent]"
+          >
+            {/* Project Overview — grows with its content */}
+            {feature === 'overview' && (
+              <section data-testid="feature-overview" className="min-h-full flex flex-col items-center pt-12 px-8 pb-16">
+                <div className="max-w-[1000px] w-full">
+                  <div className="rounded-2xl p-8">
+                    <div className="flex flex-col gap-6">
+                      {/* Header */}
+                      <div className='text-center'>
+                        <h2 className='text-2xl text-red-500 font-semibold mb-4'>PROJECT OVERVIEW</h2>
+                        <h1 className='text-7xl font-bold text-slate-900 mb-3 tracking-tight'>
+                          {getAnalysisDisplayName(graphData.metadata)}
+                        </h1>
+                      </div>
 
-          {/* Overview Section */}
-          <div className='max-w-[1000px] w-full pt-12 px-8 '>
-            <div className='rounded-2xl p-8 '>
-              <div className='flex flex-col gap-6'>
-                {/* Header */}
-                <div className='text-center'>
-                  <h2 className='text-2xl text-red-500 font-semibold mb-4'>PROJECT OVERVIEW</h2>
-                  <h1 className='text-7xl font-bold text-slate-900 mb-3 tracking-tight'>
-                    {getAnalysisDisplayName(graphData.metadata)}
-                  </h1>
+                      {/* Summary or Fallback */}
+                      {graphData.metadata.summary ? (
+                        <SummaryDisplay summary={graphData.metadata.summary} />
+                      ) : (
+                        <>
+                          <p className='text-slate-600 text-lg leading-relaxed text-center'>
+                            A comprehensive visualization of your codebase architecture. Explore {graphData.metadata.file_count} files
+                            with {graphData.metadata.edge_count} dependencies across your project structure.
+                          </p>
+                          <div className='flex flex-wrap justify-center gap-3'>
+                            <div className='flex items-center gap-2 bg-indigo-50 px-4 py-2 rounded-full border border-indigo-200'>
+                              <FileCode size={16} className='text-indigo-600' />
+                              <span className='text-indigo-900 text-sm font-medium'>{graphData.metadata.file_count} Files</span>
+                            </div>
+                            <div className='flex items-center gap-2 bg-emerald-50 px-4 py-2 rounded-full border border-emerald-200'>
+                              <GitBranch size={16} className='text-emerald-600' />
+                              <span className='text-emerald-900 text-sm font-medium'>{graphData.metadata.edge_count} Dependencies</span>
+                            </div>
+                            <div className='flex items-center gap-2 bg-amber-50 px-4 py-2 rounded-full border border-amber-200'>
+                              <Clock size={16} className='text-amber-600' />
+                              <span className='text-amber-900 text-sm font-medium'>Analyzed in {graphData.metadata.analysis_time_seconds.toFixed(1)}s</span>
+                            </div>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </section>
+            )}
+
+            {/* The Rundown — its own cream band fills whatever the content doesn't */}
+            {feature === 'rundown' && (
+              <section
+                data-testid="feature-rundown"
+                className="min-h-full flex flex-col"
+                style={{ backgroundColor: RUNDOWN_BACKGROUND }}
+              >
+                <RundownSection
+                  analysisId={graphData.metadata.analysis_id}
+                  existingRundown={graphData.metadata.rundown}
+                  fileCount={graphData.metadata.file_count}
+                  graphNodes={graphData.nodes}
+                  onFileClick={handleRundownFileClick}
+                  onLayerClick={handleLayerClick}
+                  validFilePaths={validFilePaths}
+                />
+              </section>
+            )}
+
+            {/* Files + Source Code — fills the viewport; the tree and the code scroll inside */}
+            {feature === 'files' && (
+              <section data-testid="feature-files" className="h-full min-h-[720px] flex flex-col pt-6 px-8 pb-6">
+                <div className="flex-1 min-h-0 flex gap-6">
+                  <div className="w-2/5 min-w-0 flex flex-col">
+                    <h2 className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500 mb-3 px-1">Files</h2>
+                    <div className="flex-1 min-h-0 rounded-2xl overflow-hidden">
+                      <AnalysisFileTree
+                        nodes={graphData.nodes}
+                        onFileSelect={handleFileTreeSelect}
+                        onFileDoubleClick={handleFileDoubleClick}
+                        selectedFileId={selectedNodeId}
+                        selectionSource={selectionSource}
+                      />
+                    </div>
+                  </div>
+                  <div className="w-3/5 min-w-0 flex flex-col">
+                    <h2 className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500 mb-3 px-1">Source code</h2>
+                    <div className="flex-1 min-h-0 rounded-2xl overflow-hidden">
+                      {isSourcePanelOpen && sourceCodeFile ? (
+                        <SourceCodePanel
+                          sourceCode={sourceCode}
+                          fileName={sourceCodeFile.fileName}
+                          language={sourceCodeFile.language}
+                          lineCount={sourceCodeFile.lineCount}
+                          isLoading={isSourceCodeLoading}
+                          error={sourceCodeError}
+                          isOpen={isSourcePanelOpen}
+                          onClose={() => {
+                            setIsSourcePanelOpen(false);
+                            setSourceCodeFile(null);
+                            setHighlightedLines(null);
+                          }}
+                          highlightedLines={highlightedLines}
+                          onHighlightClear={() => setHighlightedLines(null)}
+                        />
+                      ) : (
+                        <div
+                          data-testid="source-empty-state"
+                          className="h-full flex items-center justify-center rounded-2xl border-2 border-dashed border-slate-300 text-slate-500 text-sm text-center px-8"
+                        >
+                          Pick a file in the tree, the graph or the function list to read it here.
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </section>
+            )}
+
+            {/* Visualization — the graph fills the viewport; pan and zoom inside it */}
+            {feature === 'visualization' && (
+              <section data-testid="feature-visualization" className="h-full min-h-[720px] flex flex-col pt-3 px-3 pb-3">
+                {/* Manila folder tabs - attached to top of the graph */}
+                <div className="flex items-end pl-4 shrink-0">
+                  <button
+                    onClick={() => setLayoutType('role')}
+                    className={`flex items-center gap-2 px-5 py-2.5 text-sm font-medium rounded-t-lg transition-all relative ${layoutType === 'role'
+                        ? 'bg-slate-800 text-white z-10 -mb-[2px] border-t-2 border-x-2 border-neutral-600'
+                        : 'bg-slate-600 text-slate-300 hover:bg-slate-700 hover:text-white -mb-[2px] border-t border-x border-neutral-500'
+                      }`}
+                  >
+                    <LayoutGrid size={16} />
+                    Role Layout
+                  </button>
+                  <button
+                    onClick={() => setLayoutType('nested')}
+                    className={`flex items-center gap-2 px-5 py-2.5 text-sm font-medium rounded-t-lg transition-all relative ml-1 ${layoutType === 'nested'
+                        ? 'bg-amber-100 text-amber-900 z-10 -mb-[2px] border-t-2 border-x-2 border-amber-400'
+                        : 'bg-amber-200/60 text-amber-800 hover:bg-amber-200 hover:text-amber-900 -mb-[2px] border-t border-x border-amber-300'
+                      }`}
+                  >
+                    <Layers size={16} />
+                    Folder Layout
+                  </button>
                 </div>
 
-                {/* Summary or Fallback */}
-                {graphData.metadata.summary ? (
-                  <SummaryDisplay summary={graphData.metadata.summary} />
-                ) : (
-                  <>
-                    <p className='text-slate-600 text-lg leading-relaxed text-center'>
-                      A comprehensive visualization of your codebase architecture. Explore {graphData.metadata.file_count} files
-                      with {graphData.metadata.edge_count} dependencies across your project structure.
-                    </p>
-                    <div className='flex flex-wrap justify-center gap-3'>
-                      <div className='flex items-center gap-2 bg-indigo-50 px-4 py-2 rounded-full border border-indigo-200'>
-                        <FileCode size={16} className='text-indigo-600' />
-                        <span className='text-indigo-900 text-sm font-medium'>{graphData.metadata.file_count} Files</span>
-                      </div>
-                      <div className='flex items-center gap-2 bg-emerald-50 px-4 py-2 rounded-full border border-emerald-200'>
-                        <GitBranch size={16} className='text-emerald-600' />
-                        <span className='text-emerald-900 text-sm font-medium'>{graphData.metadata.edge_count} Dependencies</span>
-                      </div>
-                      <div className='flex items-center gap-2 bg-amber-50 px-4 py-2 rounded-full border border-amber-200'>
-                        <Clock size={16} className='text-amber-600' />
-                        <span className='text-amber-900 text-sm font-medium'>Analyzed in {graphData.metadata.analysis_time_seconds.toFixed(1)}s</span>
-                      </div>
-                    </div>
-                  </>
-                )}
-              </div>
-            </div>
+                {/* Graph container */}
+                <div className={`flex-1 min-h-0 w-full rounded-2xl rounded-tl-none overflow-hidden border-4 shadow-2xl shadow-black relative ${layoutType === 'role'
+                    ? 'border-neutral-600 bg-slate-800'
+                    : 'border-amber-400 bg-amber-50'
+                  }`}>
+                  {/* Render the appropriate graph component based on layout type */}
+                  {layoutType === 'role' ? (
+                    <RoleLayoutGraph
+                      graphData={graphData}
+                      searchQuery={searchQuery}
+                      languageFilter={languageFilter}
+                      roleFilter={roleFilter}
+                      onNodeSelect={handleNodeSelect}
+                      onNodeDoubleClick={handleFileDoubleClick}
+                      onCategorySelect={handleCategorySelect}
+                      onEdgeClick={handleEdgeClick}
+                      onPaneClick={handlePaneClick}
+                      selectedNodeId={selectedNodeId}
+                      selectionSource={selectionSource}
+                      onLanguageFilterChange={setLanguageFilter}
+                      onRoleFilterChange={setRoleFilter}
+                      onSearchChange={setSearchQuery}
+                    />
+                  ) : (
+                    <NestedLayoutGraph
+                      graphData={graphData}
+                      searchQuery={searchQuery}
+                      languageFilter={languageFilter}
+                      roleFilter={roleFilter}
+                      onNodeSelect={handleNodeSelect}
+                      onNodeDoubleClick={handleFileDoubleClick}
+                      onEdgeClick={handleEdgeClick}
+                      onPaneClick={handlePaneClick}
+                      onLanguageFilterChange={setLanguageFilter}
+                      onRoleFilterChange={setRoleFilter}
+                      selectedNodeId={selectedNodeId}
+                      selectionSource={selectionSource}
+                      onSearchChange={setSearchQuery}
+                    />
+                  )}
+                </div>
+              </section>
+            )}
           </div>
-
-          {/* The Rundown Section */}
-          <RundownSection
-            analysisId={graphData.metadata.analysis_id}
-            existingRundown={graphData.metadata.rundown}
-            fileCount={graphData.metadata.file_count}
-            graphNodes={graphData.nodes}
-            onFileClick={handleRundownFileClick}
-            onLayerClick={handleLayerClick}
-            validFilePaths={validFilePaths}
-          />
-
-          {/* Files Section */}
-          <div className='h-[1000px] w-full flex items-center justify-start px-8'>
-            <div className='flex flex-col w-2/5 h-full items-start justify-center px-2'>
-              <div className='flex w-full items-center justify-center relative h-16'>
-
-                <h2 className='text-3xl text-red-500 text-center '>FILES</h2>
-              </div>
-              <div className='h-[900px] w-full p-8 flex items-start justify-start rounded-2xl overflow-hidden'>
-                <AnalysisFileTree
-                  nodes={graphData.nodes}
-                  onFileSelect={handleFileTreeSelect}
-                  selectedFileId={selectedNodeId}
-                  selectionSource={selectionSource}
-                />
-              </div>
-            </div>
-
-            {/* Source Code Panel */}
-            <div className="w-3/5 h-full flex flex-col items-start justify-center">
-              <div className='flex w-full items-center justify-center relative h-16'>
-
-                <h2 className='text-3xl text-red-500 text-center '>SOURCE CODE</h2>
-              </div>
-              <div className='h-[900px] w-full py-8 overflow-hidden'>
-                {isSourcePanelOpen && sourceCodeFile && (
-                  <SourceCodePanel
-                    sourceCode={sourceCode}
-                    fileName={sourceCodeFile.fileName}
-                    language={sourceCodeFile.language}
-                    lineCount={sourceCodeFile.lineCount}
-                    isLoading={isSourceCodeLoading}
-                    error={sourceCodeError}
-                    isOpen={isSourcePanelOpen}
-                    onClose={() => {
-                      setIsSourcePanelOpen(false);
-                      setSourceCodeFile(null);
-                      setHighlightedLines(null);
-                    }}
-                    highlightedLines={highlightedLines}
-                    onHighlightClear={() => setHighlightedLines(null)}
-                  />
-
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Graph Visualization Container */}
-          <div ref={visualizationRef} className='w-full px-[10px] pb-[10px] justify-center flex flex-col gap-10 items-center'>
-            <div className='flex w-full items-center justify-center relative h-12'>
-              <h2 className='text-3xl text-red-500 text-center '>VISUALIZATION</h2>
-            </div>
-
-            {/* Graph container with manila folder tabs */}
-            <div className='w-full'>
-              {/* Manila folder tabs - attached to top of container */}
-              <div className="flex items-end pl-4">
-                <button
-                  onClick={() => setLayoutType('role')}
-                  className={`flex items-center gap-2 px-5 py-2.5 text-sm font-medium rounded-t-lg transition-all relative ${layoutType === 'role'
-                      ? 'bg-slate-800 text-white z-10 -mb-[2px] border-t-2 border-x-2 border-neutral-600'
-                      : 'bg-slate-600 text-slate-300 hover:bg-slate-700 hover:text-white -mb-[2px] border-t border-x border-neutral-500'
-                    }`}
-                >
-                  <LayoutGrid size={16} />
-                  Role Layout
-                </button>
-                <button
-                  onClick={() => setLayoutType('nested')}
-                  className={`flex items-center gap-2 px-5 py-2.5 text-sm font-medium rounded-t-lg transition-all relative ml-1 ${layoutType === 'nested'
-                      ? 'bg-amber-100 text-amber-900 z-10 -mb-[2px] border-t-2 border-x-2 border-amber-400'
-                      : 'bg-amber-200/60 text-amber-800 hover:bg-amber-200 hover:text-amber-900 -mb-[2px] border-t border-x border-amber-300'
-                    }`}
-                >
-                  <Layers size={16} />
-                  Folder Layout
-                </button>
-              </div>
-
-              {/* Graph container */}
-              <div className={`h-[900px] w-full rounded-2xl rounded-tl-none overflow-hidden border-4 shadow-2xl shadow-black relative ${layoutType === 'role'
-                  ? 'border-neutral-600 bg-slate-800'
-                  : 'border-amber-400 bg-amber-50'
-                }`}>
-                {/* Render the appropriate graph component based on layout type */}
-                {layoutType === 'role' ? (
-                  <RoleLayoutGraph
-                    graphData={graphData}
-                    searchQuery={searchQuery}
-                    languageFilter={languageFilter}
-                    roleFilter={roleFilter}
-                    onNodeSelect={handleNodeSelect}
-                    onCategorySelect={handleCategorySelect}
-                    onEdgeClick={handleEdgeClick}
-                    onPaneClick={handlePaneClick}
-                    selectedNodeId={selectedNodeId}
-                    selectionSource={selectionSource}
-                    onLanguageFilterChange={setLanguageFilter}
-                    onRoleFilterChange={setRoleFilter}
-                    onSearchChange={setSearchQuery}
-                  />
-                ) : (
-                  <NestedLayoutGraph
-                    graphData={graphData}
-                    searchQuery={searchQuery}
-                    languageFilter={languageFilter}
-                    roleFilter={roleFilter}
-                    onNodeSelect={handleNodeSelect}
-                    onEdgeClick={handleEdgeClick}
-                    onPaneClick={handlePaneClick}
-                    onLanguageFilterChange={setLanguageFilter}
-                    onRoleFilterChange={setRoleFilter}
-                    selectedNodeId={selectedNodeId}
-                    selectionSource={selectionSource}
-                    onSearchChange={setSearchQuery}
-                  />
-                )}
-              </div>
-            </div>
-          </div>
-
         </div>
 
         {/* Resize Handle - only show when expanded */}

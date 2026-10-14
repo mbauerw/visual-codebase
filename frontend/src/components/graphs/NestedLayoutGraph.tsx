@@ -34,6 +34,7 @@ export default function NestedLayoutGraph({
   languageFilter,
   roleFilter,
   onNodeSelect,
+  onNodeDoubleClick,
   onEdgeClick,
   onPaneClick,
   selectedNodeId,
@@ -102,6 +103,13 @@ export default function NestedLayoutGraph({
     [onNodeSelect]
   );
 
+  const handleNodeDoubleClick = useCallback(
+    (node: GraphNode) => {
+      if (node.kind === 'file') onNodeDoubleClick?.(node.id, node.data as ReactFlowNodeData);
+    },
+    [onNodeDoubleClick]
+  );
+
   const handleEdgeClick = useCallback(
     (edge: GraphEdge, clientPos: Point) => {
       setSelectedEdgeId(edge.id);
@@ -142,6 +150,7 @@ export default function NestedLayoutGraph({
         renderers={nestedRenderers}
         selection={selection}
         onNodeClick={handleNodeClick}
+        onNodeDoubleClick={handleNodeDoubleClick}
         onEdgeClick={handleEdgeClick}
         onBackgroundClick={handleBackgroundClick}
         className="w-full h-full"

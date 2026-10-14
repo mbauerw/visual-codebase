@@ -68,6 +68,7 @@ export default function RoleLayoutGraph({
   languageFilter,
   roleFilter,
   onNodeSelect,
+  onNodeDoubleClick,
   onCategorySelect,
   onEdgeClick,
   onPaneClick,
@@ -167,6 +168,13 @@ export default function RoleLayoutGraph({
     [graphData, onNodeSelect, onCategorySelect, pack, themeActions]
   );
 
+  const handleNodeDoubleClick = useCallback(
+    (node: GraphNode) => {
+      if (node.kind === 'file') onNodeDoubleClick?.(node.id, node.data as ReactFlowNodeData);
+    },
+    [onNodeDoubleClick]
+  );
+
   const handleEdgeClick = useCallback(
     (edge: GraphEdge, clientPos: Point) => {
       setSelectedEdgeId(edge.id);
@@ -210,6 +218,7 @@ export default function RoleLayoutGraph({
         fitViewKey={filtered}
         fitViewOnSceneChange={{ padding: pack.canvas?.fitPadding }}
         onNodeClick={handleNodeClick}
+        onNodeDoubleClick={handleNodeDoubleClick}
         onEdgeClick={handleEdgeClick}
         onBackgroundClick={handleBackgroundClick}
         className={`w-full h-full ${pack.canvasClassName ?? ''}`}
