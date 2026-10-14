@@ -36,6 +36,7 @@ import {
 interface AnalysisFileTreeProps {
   nodes: ReactFlowNode[];
   onFileSelect?: (nodeId: string, nodeData: ReactFlowNodeData) => void;
+  onFileDoubleClick?: (nodeId: string, nodeData: ReactFlowNodeData) => void;
   selectedFileId?: string | null;
   selectionSource?: 'node' | 'tierlist' | null; // Track where selection originated
 }
@@ -357,6 +358,7 @@ const CustomTreeItemContent = ({ item, isSelected }: { item: ExtendedTreeItem; i
 const AnalysisFileTree = ({
   nodes,
   onFileSelect,
+  onFileDoubleClick,
   selectedFileId,
   selectionSource,
 }: AnalysisFileTreeProps) => {
@@ -487,10 +489,20 @@ const AnalysisFileTree = ({
     const Component = (props: TreeItemProps) => {
       const item = itemsById.get(props.itemId);
       const isSelected = item?.nodeId === selectedFileId;
+      const fileInfo = item?.type === 'file' ? nodeDataByPath.get(props.itemId) : undefined;
 
       return (
         <TreeItem
           {...props}
+          onDoubleClick={
+            fileInfo && onFileDoubleClick
+              ? (e: React.MouseEvent) => {
+                  // Don't let the dblclick bubble to the parent folder's item
+                  e.stopPropagation();
+                  onFileDoubleClick(fileInfo.nodeId, fileInfo.nodeData);
+                }
+              : undefined
+          }
           label={
             item ? (
               <CustomTreeItemContent item={item} isSelected={isSelected} />
@@ -502,7 +514,7 @@ const AnalysisFileTree = ({
       );
     };
     return Component;
-  }, [itemsById, selectedFileId]);
+  }, [itemsById, selectedFileId, nodeDataByPath, onFileDoubleClick]);
 
   if (nodes.length === 0) {
     return (

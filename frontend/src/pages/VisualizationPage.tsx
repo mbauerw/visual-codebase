@@ -41,7 +41,7 @@ import { RundownSection } from '../components/rundown';
 import type { SelectionContext } from '../types/chat';
 import { DraggableModal } from '../components/DraggableModal';
 import { RoleLayoutGraph, NestedLayoutGraph } from '../components/graphs';
-import FeatureRail, { DEFAULT_FEATURE, FEATURE_RAIL_WIDTH, isFeatureKey, type FeatureKey } from '../components/FeatureRail';
+import FeatureSwitcher, { DEFAULT_FEATURE, isFeatureKey, type FeatureKey } from '../components/FeatureSwitcher';
 
 // Simplified LayoutType for two layouts only
 type SimplifiedLayoutType = 'role' | 'nested';
@@ -49,8 +49,6 @@ type SimplifiedLayoutType = 'role' | 'nested';
 // Main visualization page component
 /** Cream of the Rundown's own sections, so the band fills the feature space when the content is short. */
 const RUNDOWN_BACKGROUND = '#faf8f3';
-/** Horizontal room the feature rail needs: it sits flush in the corner, so its width plus a 12px gap. */
-const RAIL_CLEARANCE = FEATURE_RAIL_WIDTH + 12;
 
 export default function VisualizationPage() {
   const navigate = useNavigate();
@@ -71,7 +69,7 @@ export default function VisualizationPage() {
     return isFeatureKey(v) ? v : DEFAULT_FEATURE;
   });
   const featureScrollRef = useRef<HTMLDivElement>(null);
-  const [expanded, setExpanded] = useState<boolean>(true);
+  const [expanded, setExpanded] = useState<boolean>(false);
   const [dashboardOpen, setDashboardOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [authModalOpen, setAuthModalOpen] = useState(false);
@@ -411,6 +409,12 @@ export default function VisualizationPage() {
     setHighlightedLines(null);
   }, []);
 
+  // Double-clicking a file (graph node or tree row) also opens the right panel on its Files tab
+  const handleFileDoubleClick = useCallback(() => {
+    setRightPanelTab('details');
+    setExpanded(true);
+  }, []);
+
   // Handle file click from rundown section — open it in Files + Source Code
   const handleRundownFileClick = useCallback((filePath: string) => {
     const targetNode = graphData?.nodes.find(node => node.data.path === filePath);
@@ -502,17 +506,21 @@ export default function VisualizationPage() {
             {getAnalysisDisplayName(graphData.metadata)}
           </h1>
         </div>
-        <button
-          onClick={() => user ? setChatModalOpen(prev => !prev) : handleOpenAuthModal(0)}
-          className={`flex items-center gap-2 px-3 py-1.5 rounded transition-colors ${chatModalOpen
-              ? 'bg-blue-600 text-white'
-              : 'bg-slate-700 text-slate-400 hover:text-white hover:bg-slate-600'
-            }`}
-          title={user ? 'AI Assistant' : 'Sign in to use AI Assistant'}
-        >
-          <MessageSquare size={16} />
-          <span className="text-sm font-medium">AI Assistant</span>
-        </button>
+        {/* Middle: feature switcher and AI Assistant, evenly spaced in whatever width is free */}
+        <div className="flex-1 min-w-0 flex items-center justify-evenly px-4">
+          <FeatureSwitcher active={feature} onChange={setFeature} />
+          <button
+            onClick={() => user ? setChatModalOpen(prev => !prev) : handleOpenAuthModal(0)}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded transition-colors ${chatModalOpen
+                ? 'bg-blue-600 text-white'
+                : 'bg-slate-700 text-slate-400 hover:text-white hover:bg-slate-600'
+              }`}
+            title={user ? 'AI Assistant' : 'Sign in to use AI Assistant'}
+          >
+            <MessageSquare size={16} />
+            <span className="text-sm font-medium">AI Assistant</span>
+          </button>
+        </div>
 
         {/* Desktop Stats and Auth */}
         <div className="hidden md:flex items-center gap-4">
@@ -616,14 +624,12 @@ export default function VisualizationPage() {
         ref={containerRef}
         className="flex mt-14 h-[calc(100vh-3.5rem)] relative overflow-hidden"
       >
-        {/* Feature area: one feature at a time, picked from the icon rail overlaying its upper-left corner */}
+        {/* Feature area: one feature at a time, picked from the switcher in the top bar */}
         <div
           id="left-content"
           className="relative h-full flex-1 min-w-0"
           style={{ width: expanded ? `calc(100% - ${panelWidth}px)` : '100%' }}
         >
-          <FeatureRail active={feature} onChange={setFeature} className="absolute top-0 left-0 z-30" />
-
           <div
             ref={featureScrollRef}
             className="h-full overflow-y-auto [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-transparent hover:[&::-webkit-scrollbar-thumb]:bg-slate-300 [&::-webkit-scrollbar-thumb]:rounded-full [scrollbar-width:thin] [scrollbar-color:transparent_transparent] hover:[scrollbar-color:rgb(203,213,225)_transparent]"
@@ -692,14 +698,9 @@ export default function VisualizationPage() {
               </section>
             )}
 
-            {/* Files + Source Code — fills the viewport; the tree and the code scroll inside.
-                Left edge clears the rail so the tree header is never covered. */}
+            {/* Files + Source Code — fills the viewport; the tree and the code scroll inside */}
             {feature === 'files' && (
-              <section
-                data-testid="feature-files"
-                className="h-full min-h-[720px] flex flex-col pt-6 pr-8 pb-6"
-                style={{ paddingLeft: RAIL_CLEARANCE }}
-              >
+              <section data-testid="feature-files" className="h-full min-h-[720px] flex flex-col pt-6 px-8 pb-6">
                 <div className="flex-1 min-h-0 flex gap-6">
                   <div className="w-2/5 min-w-0 flex flex-col">
                     <h2 className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500 mb-3 px-1">Files</h2>
@@ -707,6 +708,7 @@ export default function VisualizationPage() {
                       <AnalysisFileTree
                         nodes={graphData.nodes}
                         onFileSelect={handleFileTreeSelect}
+                        onFileDoubleClick={handleFileDoubleClick}
                         selectedFileId={selectedNodeId}
                         selectionSource={selectionSource}
                       />
@@ -749,8 +751,8 @@ export default function VisualizationPage() {
             {/* Visualization — the graph fills the viewport; pan and zoom inside it */}
             {feature === 'visualization' && (
               <section data-testid="feature-visualization" className="h-full min-h-[720px] flex flex-col pt-3 px-3 pb-3">
-                {/* Manila folder tabs - attached to top of the graph; the row starts right of the rail */}
-                <div className="flex items-end shrink-0" style={{ paddingLeft: RAIL_CLEARANCE - 12 }}>
+                {/* Manila folder tabs - attached to top of the graph */}
+                <div className="flex items-end pl-4 shrink-0">
                   <button
                     onClick={() => setLayoutType('role')}
                     className={`flex items-center gap-2 px-5 py-2.5 text-sm font-medium rounded-t-lg transition-all relative ${layoutType === 'role'
@@ -782,11 +784,11 @@ export default function VisualizationPage() {
                   {layoutType === 'role' ? (
                     <RoleLayoutGraph
                       graphData={graphData}
-                      chromeInsetLeft={RAIL_CLEARANCE - 32}
                       searchQuery={searchQuery}
                       languageFilter={languageFilter}
                       roleFilter={roleFilter}
                       onNodeSelect={handleNodeSelect}
+                      onNodeDoubleClick={handleFileDoubleClick}
                       onCategorySelect={handleCategorySelect}
                       onEdgeClick={handleEdgeClick}
                       onPaneClick={handlePaneClick}
@@ -799,11 +801,11 @@ export default function VisualizationPage() {
                   ) : (
                     <NestedLayoutGraph
                       graphData={graphData}
-                      chromeInsetLeft={RAIL_CLEARANCE - 32}
                       searchQuery={searchQuery}
                       languageFilter={languageFilter}
                       roleFilter={roleFilter}
                       onNodeSelect={handleNodeSelect}
+                      onNodeDoubleClick={handleFileDoubleClick}
                       onEdgeClick={handleEdgeClick}
                       onPaneClick={handlePaneClick}
                       onLanguageFilterChange={setLanguageFilter}

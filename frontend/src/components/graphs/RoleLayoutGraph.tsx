@@ -68,6 +68,7 @@ export default function RoleLayoutGraph({
   languageFilter,
   roleFilter,
   onNodeSelect,
+  onNodeDoubleClick,
   onCategorySelect,
   onEdgeClick,
   onPaneClick,
@@ -78,7 +79,6 @@ export default function RoleLayoutGraph({
   onSearchChange,
   nodeThemeOverride,
   themePack,
-  chromeInsetLeft,
 }: RoleLayoutGraphProps) {
   const pack = themePack ?? activeRoleThemePack;
   const canvasRef = useRef<GraphCanvasHandle>(null);
@@ -168,6 +168,13 @@ export default function RoleLayoutGraph({
     [graphData, onNodeSelect, onCategorySelect, pack, themeActions]
   );
 
+  const handleNodeDoubleClick = useCallback(
+    (node: GraphNode) => {
+      if (node.kind === 'file') onNodeDoubleClick?.(node.id, node.data as ReactFlowNodeData);
+    },
+    [onNodeDoubleClick]
+  );
+
   const handleEdgeClick = useCallback(
     (edge: GraphEdge, clientPos: Point) => {
       setSelectedEdgeId(edge.id);
@@ -211,11 +218,12 @@ export default function RoleLayoutGraph({
         fitViewKey={filtered}
         fitViewOnSceneChange={{ padding: pack.canvas?.fitPadding }}
         onNodeClick={handleNodeClick}
+        onNodeDoubleClick={handleNodeDoubleClick}
         onEdgeClick={handleEdgeClick}
         onBackgroundClick={handleBackgroundClick}
         className={`w-full h-full ${pack.canvasClassName ?? ''}`}
       >
-        <GraphPanel position="top-left" className="m-4" style={chromeInsetLeft ? { marginLeft: 16 + chromeInsetLeft } : undefined}>
+        <GraphPanel position="top-left" className="m-4">
           <GraphFilterPanel
             palette={pack.filterPalette ?? 'dark'}
             searchQuery={searchQuery}

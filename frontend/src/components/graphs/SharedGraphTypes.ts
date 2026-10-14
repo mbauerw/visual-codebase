@@ -40,6 +40,8 @@ export interface BaseGraphProps {
   roleFilter: ArchitecturalRole | 'all';
   /** Callback when a file node is selected */
   onNodeSelect: (nodeId: string, nodeData: ReactFlowNodeData) => void;
+  /** Callback when a file node is double-clicked */
+  onNodeDoubleClick?: (nodeId: string, nodeData: ReactFlowNodeData) => void;
   /** Callback when a category node is selected (role layout only) */
   onCategorySelect?: (categoryData: CategoryRoleData) => void;
   /** Callback when an edge is clicked */
@@ -62,11 +64,6 @@ export interface BaseGraphProps {
    * `{ className: 'opacity-40' }`. Memoise it — a new function re-renders every node.
    */
   nodeThemeOverride?: NodeThemeOverrideFn;
-  /**
-   * Extra left margin (px) for the top-left filter panel, so a page-level
-   * overlay in that corner (the feature rail) does not cover it.
-   */
-  chromeInsetLeft?: number;
 }
 
 /**
