@@ -166,6 +166,61 @@ export function shelfPack(
   return { items: out, width, height: Math.max(0, y - gapY) };
 }
 
+export interface FrameSize {
+  width: number;
+  height: number;
+}
+
+/**
+ * Arrange the Frontend / Backend / Tests frames in a compact block instead of a
+ * row. Frontend and Backend sit side by side and Tests sits beneath whichever of
+ * them is smaller (by area; Backend on a tie). If Tests is the largest frame,
+ * Backend sits beneath Frontend and Tests takes the column to their right.
+ * Missing sections are skipped. Returns each frame's top-left.
+ */
+export function arrangeSectionFrames(
+  sizes: ReadonlyMap<RoleSectionCategory, FrameSize>,
+  gap: number
+): Map<RoleSectionCategory, { x: number; y: number }> {
+  const out = new Map<RoleSectionCategory, { x: number; y: number }>();
+  const area = (c: RoleSectionCategory) => (sizes.has(c) ? sizes.get(c)!.width * sizes.get(c)!.height : -1);
+  const fe = sizes.get('frontend');
+  const be = sizes.get('backend');
+  const test = sizes.get('test');
+
+  // Tests largest → [Frontend over Backend] | Tests
+  if (test && fe && be && area('test') > area('frontend') && area('test') > area('backend')) {
+    out.set('frontend', { x: 0, y: 0 });
+    out.set('backend', { x: 0, y: fe.height + gap });
+    out.set('test', { x: Math.max(fe.width, be.width) + gap, y: 0 });
+    return out;
+  }
+
+  // Frontend | Backend on the top row; Tests drops beneath the smaller of the two
+  let under: RoleSectionCategory | null = null;
+  if (fe && be) under = area('frontend') < area('backend') ? 'frontend' : 'backend';
+  else if (fe) under = 'frontend';
+  else if (be) under = 'backend';
+  let x = 0;
+  for (const c of ['frontend', 'backend'] as const) {
+    const s = sizes.get(c);
+    if (!s) continue;
+    out.set(c, { x, y: 0 });
+    // Widen this column if Tests below it is wider, so the next frame clears it
+    const colW = c === under && test ? Math.max(s.width, test.width) : s.width;
+    x += colW + gap;
+  }
+  if (test) {
+    if (under) {
+      const host = out.get(under)!;
+      out.set('test', { x: host.x, y: sizes.get(under)!.height + gap });
+    } else {
+      out.set('test', { x: 0, y: 0 });
+    }
+  }
+  return out;
+}
+
 /** Column count for a roughly `aspect`:1 (w:h) block of `count` equal slots. */
 export function pickCols(count: number, aspect = 1.6): number {
   if (count <= 0) return 0;

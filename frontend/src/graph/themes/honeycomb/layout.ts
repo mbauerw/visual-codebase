@@ -1,7 +1,8 @@
 /**
  * Honeycomb layout — collapsible.
  *
- *   section  : a hive frame; combs are shelf-packed into it, row by row
+ *   section  : a hive frame; combs are shelf-packed into it, row by row.
+ *              Frames are arranged in a compact block (see arrangeSectionFrames)
  *   category : a comb. Folded = one big flat-top hex cell (role name, count).
  *              Bloomed = a pointy-top hex container with the role's files as
  *              hex cells in rings around a central label cell
@@ -17,7 +18,15 @@ import { categoryColors } from '../../../types';
 import type { GraphEdge, GraphNode, GraphScene } from '../../core/types';
 import { createScene } from '../../core/sceneUtils';
 import type { RoleCategoryNodeData, RoleSectionNodeData } from '../../theme/roleTheme';
-import { aggregateEdges, groupFilesByRole, shelfPack, type PackItem } from '../layoutUtils';
+import {
+  aggregateEdges,
+  arrangeSectionFrames,
+  groupFilesByRole,
+  shelfPack,
+  type FrameSize,
+  type PackItem,
+} from '../layoutUtils';
+import type { RoleSectionCategory } from '../../layouts/roleLayout';
 import type { ThemeSceneInput } from '../types';
 
 export const HONEYCOMB_CFG = {
@@ -123,9 +132,9 @@ export function buildHoneycombScene({ nodes: fileNodes, edges, state }: ThemeSce
   const nodes: GraphNode[] = [];
   const fileToCategory = new Map<string, string>();
   const visibleFiles = new Set<string>();
-  let cursorX = 0;
 
-  grouped.sections.forEach((section) => {
+  // Pass 1: pack each section's combs to learn its frame size
+  const planned = grouped.sections.map((section) => {
     const combs = section.groups.map((g) => {
       const id = `${section.category}-${g.role}`;
       const expanded = state.expanded.has(id);
@@ -146,8 +155,17 @@ export function buildHoneycombScene({ nodes: fileNodes, edges, state }: ThemeSce
     );
     const frameW = Math.max(C.frameMinW, pack.width + C.framePad * 2);
     const frameH = C.frameHeader + pack.height + C.framePad;
-    const frameX = cursorX;
-    const frameY = 0;
+    return { section, combs, pack, frameW, frameH };
+  });
+
+  // Pass 2: arrange the frames, then place everything inside them
+  const frameSizes = new Map<RoleSectionCategory, FrameSize>(
+    planned.map((p) => [p.section.category, { width: p.frameW, height: p.frameH }])
+  );
+  const framePositions = arrangeSectionFrames(frameSizes, C.frameGap);
+
+  planned.forEach(({ section, combs, pack, frameW, frameH }) => {
+    const { x: frameX, y: frameY } = framePositions.get(section.category)!;
 
     const sectionData: HoneycombSectionData = {
       label: section.label,
@@ -216,8 +234,6 @@ export function buildHoneycombScene({ nodes: fileNodes, edges, state }: ThemeSce
         });
       });
     });
-
-    cursorX += frameW + C.frameGap;
   });
 
   const sceneEdges: GraphEdge[] = aggregateEdges(edges, fileToCategory, visibleFiles, {
