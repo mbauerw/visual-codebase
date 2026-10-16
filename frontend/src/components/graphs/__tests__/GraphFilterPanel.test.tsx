@@ -79,6 +79,39 @@ describe('GraphFilterPanel', () => {
     expect(onRoleFilterChange).toHaveBeenCalledWith('all');
   });
 
+  it('uses the honey palette classes', () => {
+    renderPanel({ palette: 'honey', languageFilter: 'typescript' });
+    expect(screen.getByRole('button', { name: 'typescript' }).className).toContain('bg-[#f3a712]');
+    expect(screen.getByRole('button', { name: 'python' }).className).toContain('bg-[#ffe9a8]');
+    expect(screen.getByText('Showing 3 of 10 files').parentElement?.parentElement?.className).toContain('bg-[#fff6d6]');
+  });
+
+  it('is always open and has no header when not collapsible', () => {
+    renderPanel();
+    expect(screen.queryByRole('button', { name: /filters/i })).toBeNull();
+    expect(screen.getByPlaceholderText('Search files...')).toBeInTheDocument();
+  });
+
+  it('collapsible: starts closed and toggles open / closed from the header', () => {
+    renderPanel({ collapsible: true });
+    const header = screen.getByRole('button', { name: /filters/i });
+    expect(header).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByPlaceholderText('Search files...')).toBeNull();
+
+    fireEvent.click(header);
+    expect(header).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByPlaceholderText('Search files...')).toBeInTheDocument();
+    expect(screen.getByText('Showing 3 of 10 files')).toBeInTheDocument();
+
+    fireEvent.click(header);
+    expect(screen.queryByPlaceholderText('Search files...')).toBeNull();
+  });
+
+  it('collapsible: the header counts active filters', () => {
+    renderPanel({ collapsible: true, searchQuery: 'app', roleFilter: 'api_service' });
+    expect(screen.getByText('2 active')).toBeInTheDocument();
+  });
+
   it('does not throw when callbacks are omitted', () => {
     renderPanel();
     expect(() => {

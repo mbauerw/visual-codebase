@@ -11,7 +11,7 @@ import type { GraphTheme } from '../../theme/types';
 import { roleColors, type ReactFlowNodeData } from '../../../types';
 
 export const HC = {
-  paper: '#f2dc96',
+  paper: '#fbf1cf',
   paperDeep: '#ecd07f',
   wood: '#4a2f17',
   woodLight: '#8a5a2b',

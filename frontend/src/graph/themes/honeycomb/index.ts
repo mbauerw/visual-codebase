@@ -40,5 +40,5 @@ export const honeycombPack: RoleThemePack = {
   canvasClassName: 'theme-honeycomb',
   canvas: { nodesDraggable: false, fitPadding: 0.06 },
   Overlay: HoneycombOverlay,
-  filterPalette: 'amber',
+  filterPalette: 'honey',
 };

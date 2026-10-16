@@ -74,5 +74,5 @@ export interface RoleThemePack {
   /** Screen-space chrome rendered inside the canvas overlay. */
   Overlay?: ComponentType<ThemeOverlayProps>;
   /** Palette of the shared search/filter panel. */
-  filterPalette?: 'dark' | 'amber';
+  filterPalette?: 'dark' | 'amber' | 'honey';
 }
