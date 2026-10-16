@@ -226,6 +226,7 @@ export default function RoleLayoutGraph({
         <GraphPanel position="top-left" className="m-4">
           <GraphFilterPanel
             palette={pack.filterPalette ?? 'dark'}
+            collapsible
             searchQuery={searchQuery}
             onSearchChange={onSearchChange}
             languageFilter={languageFilter}

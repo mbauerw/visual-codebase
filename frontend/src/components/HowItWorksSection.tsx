@@ -24,7 +24,7 @@ const howItWorksSteps = [
     description: 'Navigate your codebase visually, understanding dependencies and architecture at a glance.',
     gradientFrom: '#F6D785',
     gradientTo: '#F6D785',
-    image: '/visualize-cr.png'
+    image: '/codebase-remap-viz2-slice.png'
   },
 ];
 

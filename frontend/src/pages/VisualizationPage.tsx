@@ -497,7 +497,7 @@ export default function VisualizationPage() {
             className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors"
           >
             <ArrowLeft size={20} />
-            <span className="text-sm">Back</span>
+            <span className="text-sm">Home</span>
           </button>
 
           <div className="h-6 w-px bg-slate-700" />
