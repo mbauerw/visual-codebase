@@ -1,7 +1,7 @@
 /**
  * GraphFilterPanel - search + language + role filter panel shared by the graph
- * layout wrappers. Palettes: 'dark' (slate), 'amber' (Nested layout) and
- * 'honey' (honeycomb Role layout, matches its wax-and-ink chrome). With `collapsible`
+ * layout wrappers. Palettes: 'dark' (slate), 'amber' and 'honey' (Role and
+ * Nested layouts, matches the honeycomb wax-and-ink chrome). With `collapsible`
  * the panel starts closed behind a "Filters" header the user clicks to open.
  */
 
