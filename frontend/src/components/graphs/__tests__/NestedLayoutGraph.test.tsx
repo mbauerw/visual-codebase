@@ -38,6 +38,11 @@ const fileNodeIds = mockReactFlowGraph.nodes.map((n) => n.id);
 // both mock files live in /src → one folder
 const FOLDER_ID = 'folder-src';
 
+/** The filter panel starts collapsed; open it to reach search / chips / stats. */
+function openFilters() {
+  fireEvent.click(screen.getByRole('button', { name: /filters/i }));
+}
+
 describe('NestedLayoutGraph (graph engine)', () => {
   it('renders the canvas inside the wrapper root', () => {
     renderGraph();
@@ -60,8 +65,15 @@ describe('NestedLayoutGraph (graph engine)', () => {
     expect(document.querySelectorAll('[data-testid^="graph-edge-"]')).toHaveLength(mockReactFlowGraph.edges.length);
   });
 
-  it('shows the amber filter panel with "Showing X of Y"', () => {
+  it('starts with the filter panel collapsed', () => {
     renderGraph();
+    expect(screen.getByRole('button', { name: /filters/i })).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByPlaceholderText('Search files...')).toBeNull();
+  });
+
+  it('shows the filter panel with "Showing X of Y"', () => {
+    renderGraph();
+    openFilters();
     expect(screen.getByPlaceholderText('Search files...')).toBeInTheDocument();
     expect(screen.getByText(`Showing ${fileNodeIds.length} of ${fileNodeIds.length} files`)).toBeInTheDocument();
   });
@@ -125,6 +137,7 @@ describe('NestedLayoutGraph (graph engine)', () => {
 
   it('search filters file nodes and updates "Showing X of Y"', () => {
     const { rerender, props } = renderGraph();
+    openFilters();
     expect(document.querySelectorAll('[data-node-kind="file"]')).toHaveLength(2);
     rerender(<NestedLayoutGraph {...props} searchQuery="index" />);
     expect(document.querySelectorAll('[data-node-kind="file"]')).toHaveLength(1);
@@ -137,6 +150,7 @@ describe('NestedLayoutGraph (graph engine)', () => {
 
   it('role filter with no match renders zero file nodes and no folders', () => {
     renderGraph({ roleFilter: 'model' });
+    openFilters();
     expect(document.querySelectorAll('[data-node-kind="file"]')).toHaveLength(0);
     expect(document.querySelectorAll('[data-node-kind="folder"]')).toHaveLength(0);
     expect(screen.getByText('Showing 0 of 2 files')).toBeInTheDocument();
@@ -177,6 +191,7 @@ describe('NestedLayoutGraph (graph engine)', () => {
 
   it('clicking inside the filter panel does not count as a background click', () => {
     const { props } = renderGraph();
+    openFilters();
     fireEvent.click(screen.getByPlaceholderText('Search files...'));
     expect(props.onPaneClick).not.toHaveBeenCalled();
   });

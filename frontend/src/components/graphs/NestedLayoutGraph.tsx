@@ -157,7 +157,8 @@ export default function NestedLayoutGraph({
       >
         <GraphPanel position="top-left" className="m-4">
           <GraphFilterPanel
-            palette="amber"
+            palette="honey"
+            collapsible
             searchQuery={searchQuery}
             onSearchChange={onSearchChange}
             languageFilter={languageFilter}
